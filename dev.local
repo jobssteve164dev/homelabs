@@ -1,0 +1,59 @@
+{
+  "name": "HOMELABS Portal",
+  "version": "1.0.0",
+  "description": "科幻未来风私域AI工具门户网站",
+  "environment": "development",
+  "services": {
+    "frontend": {
+      "port": 3000,
+      "host": "localhost",
+      "framework": "Next.js 14",
+      "features": ["SSR", "TypeScript", "Tailwind CSS", "Framer Motion"]
+    },
+    "database": {
+      "type": "PostgreSQL",
+      "port": 5432,
+      "host": "localhost",
+      "name": "homelabs_portal",
+      "user": "postgres",
+      "password": "password"
+    },
+    "auth": {
+      "provider": "NextAuth.js",
+      "strategies": ["credentials", "github", "google"],
+      "session": "jwt"
+    }
+  },
+  "features": {
+    "3d_effects": true,
+    "sci_fi_theme": true,
+    "user_authentication": true,
+    "project_management": true,
+    "analytics": true,
+    "admin_panel": true
+  },
+  "dependencies": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0",
+    "docker": ">=20.0.0",
+    "postgresql": ">=13.0.0"
+  },
+  "scripts": {
+    "start": "./dev.sh",
+    "build": "cd client && npm run build",
+    "test": "cd client && npm run test",
+    "lint": "cd client && npm run lint",
+    "db:studio": "cd client && npx prisma studio",
+    "db:reset": "cd client && npx prisma db push --force-reset"
+  },
+  "logging": {
+    "level": "debug",
+    "format": "json",
+    "output": "logs/",
+    "files": {
+      "frontend": "logs/frontend.log",
+      "backend": "logs/backend.log",
+      "database": "logs/database.log"
+    }
+  }
+}
