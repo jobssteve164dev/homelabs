@@ -69,7 +69,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-30 flex items-center justify-center p-4"
+      className="fixed inset-0 z-30 flex items-center justify-center p-6 sm:p-8 lg:p-12"
       onClick={onClose}
     >
       {/* 背景遮罩 - 增强模糊效果 */}
@@ -91,7 +91,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
           damping: 20 
         }}
         onClick={(e) => e.stopPropagation()}
-        className="relative glass-card rounded-3xl border-2 max-w-3xl w-full max-h-[85vh] overflow-hidden"
+        className="relative glass-card rounded-3xl border-2 w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto max-h-[90vh] overflow-hidden"
         style={{
           borderColor: planet.color + '80',
           boxShadow: `0 0 50px ${planet.color}40, 0 25px 50px -12px rgba(0, 0, 0, 0.5)`,
@@ -109,9 +109,9 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
         <div className="absolute inset-0 scan-line opacity-20 pointer-events-none" />
 
         {/* 滚动容器 */}
-        <div className="overflow-y-auto max-h-[85vh] custom-scrollbar">
+        <div className="overflow-y-auto max-h-[90vh] custom-scrollbar">
           {/* 头部区域 */}
-          <div className="relative p-10 pb-8">
+          <div className="relative p-6 sm:p-8 lg:p-10 pb-6 sm:pb-8">
             {/* 背景装饰 */}
             <div 
               className="absolute top-0 left-0 right-0 h-48 opacity-10"
@@ -131,7 +131,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
             </motion.button>
 
             {/* 星球信息 */}
-            <div className="relative flex items-start gap-8 mb-10">
+            <div className="relative flex items-start gap-8 mb-12">
               {/* 星球图标 */}
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
@@ -177,7 +177,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="font-display text-4xl font-bold mb-3 leading-tight"
+                  className="font-display text-4xl font-bold mb-4 leading-tight"
                 >
                   <span 
                     className="text-transparent bg-clip-text"
@@ -193,7 +193,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="flex items-center gap-3 flex-wrap"
+                  className="flex items-center gap-4 flex-wrap"
                 >
                   <span className="text-foreground/70 text-lg font-medium">
                     {planet.category}
@@ -216,39 +216,39 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="grid grid-cols-3 gap-5"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6"
             >
-              <div className="glass-card p-5 rounded-xl border border-neon-blue/30 hover:border-neon-blue/60 transition-all group">
+              <div className="glass-card p-6 rounded-xl border border-neon-blue/30 hover:border-neon-blue/60 transition-all group">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-lg bg-neon-blue/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Eye className="w-6 h-6 text-neon-blue" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-neon-blue mb-0.5">0</div>
+                    <div className="text-2xl font-bold text-neon-blue mb-1">0</div>
                     <div className="text-xs text-foreground/50">访问量</div>
                   </div>
                 </div>
               </div>
 
-              <div className="glass-card p-5 rounded-xl border border-neon-green/30 hover:border-neon-green/60 transition-all group">
+              <div className="glass-card p-6 rounded-xl border border-neon-green/30 hover:border-neon-green/60 transition-all group">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-lg bg-neon-green/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Heart className={`w-6 h-6 text-neon-green ${isLiked ? 'fill-neon-green' : ''}`} />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-neon-green mb-0.5">0</div>
+                    <div className="text-2xl font-bold text-neon-green mb-1">0</div>
                     <div className="text-xs text-foreground/50">点赞数</div>
                   </div>
                 </div>
               </div>
 
-              <div className="glass-card p-5 rounded-xl border border-neon-purple/30 hover:border-neon-purple/60 transition-all group">
+              <div className="glass-card p-6 rounded-xl border border-neon-purple/30 hover:border-neon-purple/60 transition-all group">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-lg bg-neon-purple/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <TrendingUp className="w-6 h-6 text-neon-purple" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-neon-purple mb-0.5">0</div>
+                    <div className="text-2xl font-bold text-neon-purple mb-1">0</div>
                     <div className="text-xs text-foreground/50">使用次数</div>
                   </div>
                 </div>
@@ -257,7 +257,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
           </div>
 
           {/* 内容区域 */}
-          <div className="px-10 pb-10 space-y-8">
+          <div className="px-6 sm:px-8 lg:px-10 pb-8 sm:pb-10 space-y-8 sm:space-y-10">
             {/* 分隔线 */}
             <div className="relative h-px">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
@@ -269,7 +269,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <h3 className="text-lg font-display font-semibold text-foreground mb-5 flex items-center gap-3">
+              <h3 className="text-lg font-display font-semibold text-foreground mb-6 flex items-center gap-3">
                 <div className="w-1 h-6 bg-gradient-to-b from-neon-blue to-neon-purple rounded-full" />
                 项目简介
               </h3>
@@ -285,12 +285,12 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
               >
-                <h3 className="text-lg font-display font-semibold text-foreground mb-5 flex items-center gap-3">
+                <h3 className="text-lg font-display font-semibold text-foreground mb-6 flex items-center gap-3">
                   <div className="w-1 h-6 bg-gradient-to-b from-neon-purple to-neon-green rounded-full" />
                   <Tag className="w-5 h-5 text-neon-purple" />
                   技术栈
                 </h3>
-                <div className="flex flex-wrap gap-3 pl-6">
+                <div className="flex flex-wrap gap-4 pl-6">
                   {planet.tags.map((tag, index) => (
                     <motion.span
                       key={index}
@@ -314,13 +314,13 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               transition={{ delay: 0.9 }}
               className="glass-card p-6 rounded-xl border border-foreground/10"
             >
-              <div className="flex items-center gap-6 text-sm text-foreground/60">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-8 text-sm text-foreground/60">
+                <div className="flex items-center gap-3">
                   <Clock className="w-4 h-4" />
                   <span>创建于: 2024-01-15</span>
                 </div>
                 <div className="w-px h-4 bg-foreground/20" />
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4" />
                   <span>更新于: 2024-10-17</span>
                 </div>
@@ -332,7 +332,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
-              className="flex gap-5 pt-2"
+              className="flex flex-col sm:flex-row gap-4 sm:gap-6 pt-4"
             >
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}

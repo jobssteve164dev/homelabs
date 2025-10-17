@@ -58,52 +58,84 @@ function createPlanetTexture(color: string, planetId: string): THREE.DataTexture
     data[i + 3] = 255;
   }
   
-  // 使用planetId生成随机种子
-  const seed = planetId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // 使用planetId生成更复杂的随机种子，确保每个星球都有独特的陨石坑分布
+  const baseSeed = planetId.split('').reduce((acc, char, index) => {
+    return acc + char.charCodeAt(0) * (index + 1);
+  }, 0);
+  
+  // 为每个星球生成独特的陨石坑特征
+  const craterSeed = baseSeed + planetId.length * 1000;
+  const patternSeed = baseSeed + planetId.length * 2000;
+  const sizeSeed = baseSeed + planetId.length * 3000;
   
   // 存储已放置的圆形
   const circles: Circle[] = [];
-  const maxAttempts = 150; // 增加尝试次数以放置更多色块
-  const targetCount = 12 + Math.floor(seededRandom(seed) * 8); // 12-19个色块（更多）
+  const maxAttempts = 200; // 增加尝试次数
+  
+  // 每个星球的陨石坑数量和大小分布都不同
+  const craterCount = 8 + Math.floor(seededRandom(craterSeed) * 12); // 8-19个陨石坑
+  const sizeVariation = 0.3 + seededRandom(sizeSeed) * 0.7; // 0.3-1.0 的大小变化系数
   
   // 尝试放置圆形，确保不重叠
-  let currentSeed = seed;
-  while (circles.length < targetCount) {
+  let currentSeed = craterSeed;
+  let placedCount = 0;
+  
+  while (placedCount < craterCount && circles.length < craterCount) {
     let placed = false;
     
     for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
-      currentSeed++;
+      currentSeed += attempt + 1; // 每次尝试都使用不同的种子增量
       
-      // 生成候选圆形
-      const cx = seededRandom(currentSeed) * resolution;
-      const cy = seededRandom(currentSeed + 1) * resolution;
+      // 生成候选圆形位置 - 使用更复杂的分布模式
+      const positionSeed = currentSeed + patternSeed;
+      const cx = seededRandom(positionSeed) * resolution;
+      const cy = seededRandom(positionSeed + 1000) * resolution;
       
-      // 圆形或椭圆形（随机选择）
-      const isEllipse = seededRandom(currentSeed + 2) > 0.6;
+      // 每个星球的形状偏好不同
+      const shapePreference = seededRandom(patternSeed + attempt);
+      const isEllipse = shapePreference > (0.4 + seededRandom(patternSeed + attempt * 2) * 0.4);
+      
       let radiusX, radiusY;
       
       if (isEllipse) {
-        // 椭圆：更小的半径范围
-        radiusX = 30 + seededRandom(currentSeed + 3) * 60; // 30-90像素
-        radiusY = 30 + seededRandom(currentSeed + 4) * 60;
+        // 椭圆：每个星球的椭圆特征不同
+        const ellipseSeed = sizeSeed + attempt * 3;
+        const baseRadius = 25 + seededRandom(ellipseSeed) * 70; // 25-95像素
+        radiusX = baseRadius * sizeVariation;
+        radiusY = (baseRadius * (0.6 + seededRandom(ellipseSeed + 1) * 0.8)) * sizeVariation;
       } else {
-        // 圆形：更小的半径范围
-        const radius = 35 + seededRandom(currentSeed + 3) * 55; // 35-90像素
+        // 圆形：每个星球的圆形大小分布不同
+        const circleSeed = sizeSeed + attempt * 5;
+        const baseRadius = 30 + seededRandom(circleSeed) * 65; // 30-95像素
+        const radius = baseRadius * sizeVariation;
         radiusX = radius;
         radiusY = radius;
       }
       
-      // 选择颜色变体
-      const colorType = seededRandom(currentSeed + 5);
+      // 每个星球的颜色变体偏好不同
+      const colorSeed = currentSeed + patternSeed * 2;
+      const colorType = seededRandom(colorSeed);
       let craterColor;
       
-      if (colorType < 0.33) {
+      // 根据星球特征调整颜色分布
+      const colorBias = seededRandom(patternSeed + attempt * 7);
+      let adjustedColorType = colorType;
+      
+      if (colorBias < 0.3) {
+        // 偏向深色陨石坑
+        adjustedColorType = colorType * 0.5;
+      } else if (colorBias > 0.7) {
+        // 偏向浅色陨石坑
+        adjustedColorType = 0.5 + colorType * 0.5;
+      }
+      
+      if (adjustedColorType < 0.33) {
         craterColor = {
           r: Math.floor(darkerColor.r * 255),
           g: Math.floor(darkerColor.g * 255),
           b: Math.floor(darkerColor.b * 255),
         };
-      } else if (colorType < 0.66) {
+      } else if (adjustedColorType < 0.66) {
         craterColor = {
           r: Math.floor(lighterColor.r * 255),
           g: Math.floor(lighterColor.g * 255),
@@ -132,6 +164,7 @@ function createPlanetTexture(color: string, planetId: string): THREE.DataTexture
       if (!overlaps) {
         circles.push(candidate);
         placed = true;
+        placedCount++;
       }
     }
     
@@ -173,26 +206,43 @@ function createPlanetTexture(color: string, planetId: string): THREE.DataTexture
     }
   }
   
-  // 添加一些波浪状条纹效果（改进版，避免裂缝）
-  const hasStripes = seededRandom(seed + 9999) > 0.6;
+  // 添加一些波浪状条纹效果（每个星球都有独特的条纹特征）
+  const stripeSeed = baseSeed + planetId.length * 4000;
+  const hasStripes = seededRandom(stripeSeed) > 0.5; // 50%的星球有条纹
+  
   if (hasStripes) {
-    const stripeCount = 2 + Math.floor(seededRandom(seed + 10000) * 2);
+    // 每个星球的条纹数量和特征都不同
+    const stripeCount = 1 + Math.floor(seededRandom(stripeSeed + 1000) * 4); // 1-4条条纹
+    const stripeDirection = seededRandom(stripeSeed + 2000) > 0.5; // 水平或垂直条纹
+    
     for (let s = 0; s < stripeCount; s++) {
-      const centerY = seededRandom(seed + 20000 + s) * resolution;
-      const stripeHeight = 30 + seededRandom(seed + 30000 + s) * 50;
-      const stripeColor = s % 2 === 0 ? darkerColor : lighterColor;
-      const waveAmplitude = 20 + seededRandom(seed + 40000 + s) * 30;
-      const waveFrequency = 0.01 + seededRandom(seed + 50000 + s) * 0.02;
+      const stripePatternSeed = stripeSeed + s * 10000;
+      
+      // 每个条纹都有独特的位置和特征
+      const centerPos = seededRandom(stripePatternSeed) * resolution;
+      const stripeWidth = 20 + seededRandom(stripePatternSeed + 1000) * 60; // 20-80像素宽
+      const stripeColor = seededRandom(stripePatternSeed + 2000) > 0.5 ? darkerColor : lighterColor;
+      const waveAmplitude = 10 + seededRandom(stripePatternSeed + 3000) * 40; // 10-50像素波浪幅度
+      const waveFrequency = 0.005 + seededRandom(stripePatternSeed + 4000) * 0.03; // 0.005-0.035频率
+      const stripeOpacity = 0.2 + seededRandom(stripePatternSeed + 5000) * 0.3; // 0.2-0.5透明度
       
       for (let i = 0; i < resolution; i++) {
         for (let j = 0; j < resolution; j++) {
-          // 添加波浪效果，让条纹更自然
-          const wave = Math.sin(i * waveFrequency) * waveAmplitude;
-          const dy = Math.abs(j - (centerY + wave));
+          let distance;
           
-          if (dy < stripeHeight) {
-            // 更柔和的渐变
-            const fade = Math.pow(1 - (dy / stripeHeight), 2) * 0.4;
+          if (stripeDirection) {
+            // 水平条纹
+            const wave = Math.sin(i * waveFrequency) * waveAmplitude;
+            distance = Math.abs(j - (centerPos + wave));
+          } else {
+            // 垂直条纹
+            const wave = Math.sin(j * waveFrequency) * waveAmplitude;
+            distance = Math.abs(i - (centerPos + wave));
+          }
+          
+          if (distance < stripeWidth) {
+            // 更柔和的渐变，每个条纹的渐变特征不同
+            const fade = Math.pow(1 - (distance / stripeWidth), 1.5 + seededRandom(stripePatternSeed + 6000) * 1.5) * stripeOpacity;
             const idx = (i * resolution + j) * 4;
             data[idx] = Math.floor(stripeColor.r * 255 * fade + data[idx] * (1 - fade));
             data[idx + 1] = Math.floor(stripeColor.g * 255 * fade + data[idx + 1] * (1 - fade));
