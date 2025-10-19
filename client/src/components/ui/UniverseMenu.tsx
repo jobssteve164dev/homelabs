@@ -98,7 +98,7 @@ export function UniverseMenu() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-72 rounded-xl bg-sci-dark/95 backdrop-blur-xl border border-neon-blue/30 shadow-2xl shadow-neon-blue/20 overflow-hidden"
+            className="absolute left-0 top-full w-72 rounded-xl bg-sci-dark/95 backdrop-blur-xl border border-neon-blue/30 shadow-2xl shadow-neon-blue/20 overflow-hidden"
           >
             {session ? (
               // 已登录状态
