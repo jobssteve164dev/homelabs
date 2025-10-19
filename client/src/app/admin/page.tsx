@@ -197,14 +197,6 @@ export default function AdminPage() {
               </motion.button>
             </Link>
 
-            {/* 中间标题 */}
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-neon-purple" />
-              <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
-                管理后台
-              </h1>
-            </div>
-
             {/* 右侧导航 */}
             <div className="flex items-center gap-4">
               <Link href="/dashboard">
@@ -233,13 +225,13 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 页面标题 */}
         <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <Shield className="w-8 h-8 text-neon-blue mr-3" />
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
+          <div className="flex items-center gap-3 mb-2">
+            <Shield className="w-8 h-8 text-neon-purple" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
               管理后台
             </h1>
           </div>
-          <p className="text-foreground/60">系统管理和数据监控</p>
+          <p className="text-foreground/60 ml-11">系统管理和数据监控</p>
         </div>
 
         {/* 标签页导航 */}
