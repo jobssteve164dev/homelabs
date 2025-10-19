@@ -185,10 +185,10 @@ export function validateRequest<T>(
   } catch (error) {
     if (error instanceof z.ZodError) {
       // 提取第一个错误信息
-      const firstError = error.errors[0];
+      const firstError = error.issues[0];
       return { 
         success: false, 
-        error: firstError.message 
+        error: firstError?.message || "验证失败"
       };
     }
     return { 

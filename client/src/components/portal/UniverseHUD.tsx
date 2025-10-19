@@ -16,7 +16,6 @@ interface UniverseHUDProps {
 
 export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }: UniverseHUDProps) {
   const [showMenu, setShowMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showPopularPlanets, setShowPopularPlanets] = useState(false);
   const { data: session } = useSession() as { data: AuthSession | null };
   const router = useRouter();
@@ -42,7 +41,7 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
   // 处理右键点击
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setMenuPosition({ x: e.clientX, y: e.clientY });
+    // 右键菜单功能暂时保留但不使用menuPosition
     setShowMenu(true);
   };
 

@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
+    const session = await getServerSession(authOptions) as AuthSession | null;
     logError("获取用户列表错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
       { error: "服务器内部错误,请稍后重试" },
@@ -149,6 +150,7 @@ export async function PATCH(request: NextRequest) {
     
     return NextResponse.json({ user: updatedUser });
   } catch (error) {
+    const session = await getServerSession(authOptions) as AuthSession | null;
     logError("更新用户错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
       { error: "服务器内部错误,请稍后重试" },
@@ -199,6 +201,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: "用户删除成功" });
   } catch (error) {
+    const session = await getServerSession(authOptions) as AuthSession | null;
     logError("删除用户错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
       { error: "服务器内部错误,请稍后重试" },

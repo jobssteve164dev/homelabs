@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/.68654c1d4b9b3d2a61f7c123ff05988c9c38c5cd-audit.json",
+    "files": [
+        {
+            "date": 1760869918293,
+            "name": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/combined-2025-10-19.log",
+            "hash": "fde1fab6b4613711a79d4c13a8f88d18070fdd6516245d23ec9d2bc24848c51d"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -17,17 +17,18 @@ let Ratelimit: any = null;
 let Redis: any = null;
 
 // 尝试导入Upstash(如果已安装)
-try {
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const upstashModule = require("@upstash/ratelimit");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const redisModule = require("@upstash/redis");
     Ratelimit = upstashModule.Ratelimit;
     Redis = redisModule.Redis;
+  } catch {
+    // Upstash未安装,使用内存模式
+    logWarn("Upstash packages not installed, falling back to memory rate limiting");
   }
-} catch {
-  // Upstash未安装,使用内存模式
 }
 
 // 内存存储(用于单节点部署)
@@ -42,11 +43,11 @@ const memoryStore = new Map<string, RateLimitEntry>();
  * 内存模式速率限制
  */
 class MemoryRateLimit {
-  private limit: number;
+  private maxRequests: number;
   private windowMs: number;
 
   constructor(limit: number, windowMs: number) {
-    this.limit = limit;
+    this.maxRequests = limit;
     this.windowMs = windowMs;
   }
 
@@ -70,7 +71,7 @@ class MemoryRateLimit {
       return { success: true, reset: now + this.windowMs };
     }
 
-    if (entry.count >= this.limit) {
+    if (entry.count >= this.maxRequests) {
       // 超过限制
       return { success: false, reset: entry.resetTime };
     }
@@ -148,7 +149,6 @@ export async function checkRateLimit(
     const identifier = 
       request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
       request.headers.get('x-real-ip') ||
-      request.ip ||
       'anonymous';
 
     // 检查速率限制

@@ -80,8 +80,9 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
+    const errorSession = await getServerSession(authOptions) as AuthSession | null;
     logError("获取项目列表错误", error, {
-      userId: await getServerSession(authOptions).then(s => (s as AuthSession)?.user?.id),
+      userId: errorSession?.user?.id,
     });
     return NextResponse.json(
       { error: "服务器内部错误,请稍后重试" },
@@ -182,8 +183,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    const errorSession = await getServerSession(authOptions) as AuthSession | null;
     logError("创建项目错误", error, {
-      userId: session?.user?.id,
+      userId: errorSession?.user?.id,
     });
     return NextResponse.json(
       { error: "服务器内部错误,请稍后重试" },

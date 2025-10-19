@@ -113,7 +113,7 @@ export function calculatePlanetOrbit(
 function calculateCollisionAvoidingSpeed(
   radius: number, 
   planetIndex: number, 
-  existingOrbits: number[]
+  _existingOrbits: number[]
 ): number {
   // 基础速度：遵循开普勒第三定律（内圈快，外圈慢）
   const baseSpeed = 0.2 / Math.sqrt(radius)
@@ -252,7 +252,6 @@ export function predictCollisionRisk(
   riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}>;
 } {
   let minDistance = Infinity;
-  let closestTime = 0;
   const riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}> = [];
   
   // 在时间范围内采样，寻找最小距离
@@ -274,7 +273,6 @@ export function predictCollisionRisk(
         
         if (distance < minDistance) {
           minDistance = distance;
-          closestTime = t;
         }
         
         // 记录风险对
