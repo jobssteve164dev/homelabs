@@ -62,14 +62,14 @@ export function calculatePlanetOrbit(
   existingOrbits: number[] = [], 
   galaxyOffset: number = 0
 ) {
-  const baseOrbitRadius = 3   // 第一个行星的轨道半径
-  const orbitGap = 1.5         // 轨道间距
+  const baseOrbitRadius = 4   // 第一个行星的轨道半径（增加基础距离）
+  const orbitGap = 3.0         // 轨道间距（从1.5增加到3.0，确保足够安全距离）
   
   // 计算候选轨道半径
   let radius = baseOrbitRadius + planetIndex * orbitGap
   
   // 确保轨道半径唯一（不与现有轨道冲突）
-  const tolerance = 0.1 // 轨道半径容差
+  const tolerance = 0.5 // 轨道半径容差（从0.1增加到0.5，防止轨道重叠）
   let attempts = 0
   while (attempts < 50) {
     const hasConflict = existingOrbits.some(existingRadius => 
@@ -101,6 +101,24 @@ export function calculatePlanetOrbit(
     angle,
     speed
   }
+}
+
+/**
+ * 检查两个轨道是否满足最小安全距离要求
+ * 考虑行星的实际大小和轨道半径差异
+ * 
+ * @param radius1 第一个轨道的半径
+ * @param radius2 第二个轨道的半径
+ * @param minDistance 最小安全距离（默认2.0）
+ * @returns 是否满足安全距离要求
+ */
+export function checkOrbitSafety(
+  radius1: number, 
+  radius2: number, 
+  minDistance: number = 2.0
+): boolean {
+  const radiusDiff = Math.abs(radius1 - radius2);
+  return radiusDiff >= minDistance;
 }
 
 /**

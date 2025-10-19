@@ -33,14 +33,14 @@ function calculateGalaxyPosition(userIndex: number): { x: number; y: number; z: 
  * @param galaxyOffset 星系的角度偏移（用于让不同星系的行星初始角度不同）
  */
 function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = [], galaxyOffset: number = 0) {
-  const baseOrbitRadius = 3   // 第一个行星的轨道半径
-  const orbitGap = 1.5         // 轨道间距
+  const baseOrbitRadius = 4   // 第一个行星的轨道半径（增加基础距离）
+  const orbitGap = 3.0         // 轨道间距（从1.5增加到3.0，确保足够安全距离）
   
   // 计算候选轨道半径
   let radius = baseOrbitRadius + planetIndex * orbitGap
   
   // 确保轨道半径唯一（不与现有轨道冲突）
-  const tolerance = 0.1 // 轨道半径容差
+  const tolerance = 0.5 // 轨道半径容差（从0.1增加到0.5，防止轨道重叠）
   let attempts = 0
   while (attempts < 50) {
     const hasConflict = existingOrbits.some(existingRadius => 

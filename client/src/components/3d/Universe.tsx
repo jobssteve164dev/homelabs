@@ -6,6 +6,7 @@ import { Suspense, useMemo, useState, useEffect } from 'react';
 import { Galaxy } from './Galaxy';
 import { Stardust } from './Stardust';
 import { PerformanceMonitor } from './PerformanceMonitor';
+import { PerformanceStatsProvider } from './PerformanceStatsProvider';
 import { useResponsive, getQualityPreset } from '@/hooks/useResponsive';
 import * as THREE from 'three';
 
@@ -76,6 +77,14 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
   const [showPerformance, setShowPerformance] = useState(false);
+  const [performanceStats, setPerformanceStats] = useState({
+    fps: 60,
+    frameTime: 16,
+    geometries: 0,
+    textures: 0,
+    drawCalls: 0,
+    triangles: 0,
+  });
 
   // 响应式配置
   const responsive = useResponsive();
@@ -126,6 +135,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
         }}
         dpr={quality.pixelRatio}
       >
+        <PerformanceStatsProvider onStatsUpdate={setPerformanceStats}>
         {/* 环境光 */}
         <ambientLight intensity={0.3} />
         
@@ -174,8 +184,6 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
           return null;
         })}
         
-        {/* 性能监控 */}
-        <PerformanceMonitor visible={showPerformance} />
         
         {/* 相机控制 - 根据设备类型调整 */}
         <OrbitControls
@@ -200,7 +208,42 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
             TWO: THREE.TOUCH.DOLLY_PAN  // 双指：缩放+平移
           }}
         />
+        </PerformanceStatsProvider>
       </Canvas>
+
+      {/* 性能监控面板 - 在Canvas外部渲染，位于提示文字上方 */}
+      {showPerformance && (
+        <div className="fixed bottom-32 left-20 glass-card px-4 py-3 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs space-y-1 pointer-events-none z-50">
+          <div className="text-neon-blue font-bold mb-2">性能监控</div>
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">FPS:</span>
+            <span className={`font-semibold ${performanceStats.fps >= 55 ? 'text-neon-green' : performanceStats.fps >= 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+              {performanceStats.fps}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">帧时间:</span>
+            <span className="text-foreground">{performanceStats.frameTime}ms</span>
+          </div>
+          <div className="h-px bg-foreground/10 my-2" />
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">几何体:</span>
+            <span className="text-foreground">{performanceStats.geometries}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">纹理:</span>
+            <span className="text-foreground">{performanceStats.textures}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">绘制调用:</span>
+            <span className="text-foreground">{performanceStats.drawCalls}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-foreground/60">三角形:</span>
+            <span className="text-foreground">{performanceStats.triangles.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
 
       {/* 性能监控提示 */}
       {showPerformance && (
