@@ -69,6 +69,10 @@ export default function AdminPage() {
   const [maintenanceLoading, setMaintenanceLoading] = useState<string | null>(null);
   const [projectTypeFilter, setProjectTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const itemsPerPage = 10;
 
   // 检查管理员权限
   useEffect(() => {
@@ -84,12 +88,21 @@ export default function AdminPage() {
     if (session?.user?.role === 'ADMIN') {
       fetchData();
     }
-  }, [session, projectTypeFilter, categoryFilter]);
+  }, [session, projectTypeFilter, categoryFilter, currentPage]);
+
+  // 筛选条件变化时重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [projectTypeFilter, categoryFilter]);
 
   const fetchData = async () => {
     try {
       // 构建项目查询参数
       const projectsUrl = new URL('/api/admin/projects', window.location.origin);
+      // 添加分页参数
+      projectsUrl.searchParams.set('page', currentPage.toString());
+      projectsUrl.searchParams.set('limit', itemsPerPage.toString());
+      // 添加筛选参数
       if (projectTypeFilter && projectTypeFilter !== 'all') {
         projectsUrl.searchParams.set('projectType', projectTypeFilter);
       }
@@ -112,6 +125,11 @@ export default function AdminPage() {
 
       setUsers(usersData.users || []);
       setProjects(projectsData.projects || []);
+      // 更新分页信息
+      if (projectsData.pagination) {
+        setTotalPages(projectsData.pagination.pages);
+        setTotalProjects(projectsData.pagination.total);
+      }
     } catch (error) {
       logClientError('获取管理后台数据失败', error);
     } finally {
@@ -769,20 +787,28 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                {/* 重置筛选按钮 */}
-                {(projectTypeFilter !== 'all' || categoryFilter !== 'all') && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      setProjectTypeFilter('all');
-                      setCategoryFilter('all');
-                    }}
-                    className="ml-auto px-4 py-2 rounded-lg bg-foreground/10 border border-foreground/20 text-foreground/80 text-sm hover:bg-foreground/20 hover:border-foreground/30 transition-all"
-                  >
-                    重置筛选
-                  </motion.button>
-                )}
+                {/* 筛选信息和重置按钮 */}
+                <div className="flex items-center gap-3 ml-auto">
+                  {/* 筛选结果统计 */}
+                  <span className="text-sm text-foreground/60">
+                    共 <span className="text-neon-blue font-semibold">{totalProjects}</span> 个项目
+                  </span>
+                  
+                  {/* 重置筛选按钮 */}
+                  {(projectTypeFilter !== 'all' || categoryFilter !== 'all') && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setProjectTypeFilter('all');
+                        setCategoryFilter('all');
+                      }}
+                      className="px-4 py-2 rounded-lg bg-foreground/10 border border-foreground/20 text-foreground/80 text-sm hover:bg-foreground/20 hover:border-foreground/30 transition-all"
+                    >
+                      重置筛选
+                    </motion.button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -869,6 +895,159 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* 分页控件 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-foreground/10">
+                <div className="text-sm text-foreground/60">
+                  第 {currentPage} 页，共 {totalPages} 页
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* 首页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      currentPage === 1
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10 hover:border-neon-blue'
+                    }`}
+                  >
+                    首页
+                  </motion.button>
+
+                  {/* 上一页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      currentPage === 1
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10 hover:border-neon-blue'
+                    }`}
+                  >
+                    上一页
+                  </motion.button>
+
+                  {/* 页码按钮组 */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pageButtons = [];
+                      const showEllipsisStart = currentPage > 3;
+                      const showEllipsisEnd = currentPage < totalPages - 2;
+                      
+                      // 始终显示第一页
+                      pageButtons.push(
+                        <motion.button
+                          key={1}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setCurrentPage(1)}
+                          className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                            currentPage === 1
+                              ? 'bg-neon-blue/20 border-neon-blue text-neon-blue font-semibold'
+                              : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                          }`}
+                        >
+                          1
+                        </motion.button>
+                      );
+
+                      // 显示左侧省略号
+                      if (showEllipsisStart) {
+                        pageButtons.push(
+                          <span key="ellipsis-start" className="px-2 text-foreground/40">...</span>
+                        );
+                      }
+
+                      // 显示当前页附近的页码
+                      const startPage = Math.max(2, currentPage - 1);
+                      const endPage = Math.min(totalPages - 1, currentPage + 1);
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                        pageButtons.push(
+                          <motion.button
+                            key={i}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setCurrentPage(i)}
+                            className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                              currentPage === i
+                                ? 'bg-neon-blue/20 border-neon-blue text-neon-blue font-semibold'
+                                : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                            }`}
+                          >
+                            {i}
+                          </motion.button>
+                        );
+                      }
+
+                      // 显示右侧省略号
+                      if (showEllipsisEnd) {
+                        pageButtons.push(
+                          <span key="ellipsis-end" className="px-2 text-foreground/40">...</span>
+                        );
+                      }
+
+                      // 始终显示最后一页
+                      if (totalPages > 1) {
+                        pageButtons.push(
+                          <motion.button
+                            key={totalPages}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setCurrentPage(totalPages)}
+                            className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                              currentPage === totalPages
+                                ? 'bg-neon-blue/20 border-neon-blue text-neon-blue font-semibold'
+                                : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                            }`}
+                          >
+                            {totalPages}
+                          </motion.button>
+                        );
+                      }
+
+                      return pageButtons;
+                    })()}
+                  </div>
+
+                  {/* 下一页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      currentPage === totalPages
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10 hover:border-neon-blue'
+                    }`}
+                  >
+                    下一页
+                  </motion.button>
+
+                  {/* 末页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      currentPage === totalPages
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10 hover:border-neon-blue'
+                    }`}
+                  >
+                    末页
+                  </motion.button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
