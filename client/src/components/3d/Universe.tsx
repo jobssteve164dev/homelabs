@@ -2,7 +2,8 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { Suspense, useMemo, useState, useEffect } from 'react';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { Suspense, useMemo, useState, useEffect, useRef } from 'react';
 import { Galaxy } from './Galaxy';
 import { Stardust } from './Stardust';
 import { PerformanceStatsProvider } from './PerformanceStatsProvider';
@@ -94,6 +95,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
   // 响应式配置
   const responsive = useResponsive();
   const quality = useMemo(() => getQualityPreset(responsive), [responsive]);
+  const orbitControlsRef = useRef<OrbitControlsImpl>(null);
 
   // 键盘快捷键：按P键切换性能监控
   useEffect(() => {
@@ -106,6 +108,36 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
+
+  // 动态控制OrbitControls的缩放距离，当有焦点星球时放大视角
+  useEffect(() => {
+    if (orbitControlsRef.current) {
+      if (focusedPlanetId && cameraTarget) {
+        // 找到焦点星球以获取其大小
+        const targetPlanet = galaxies
+          .flatMap(g => g.planets)
+          .find(p => p.id === focusedPlanetId);
+        
+        if (targetPlanet) {
+          // 根据星球大小动态调整最小距离，让星球在视野中心更突出
+          const planetSize = targetPlanet.size || 1;
+          const minDistance = Math.max(planetSize * 8, 3); // 最小距离为星球大小的8倍，但不小于3
+          const maxDistance = Math.max(planetSize * 15, 20); // 最大距离为星球大小的15倍，但不小于20
+          
+          orbitControlsRef.current.minDistance = minDistance;
+          orbitControlsRef.current.maxDistance = maxDistance;
+          
+          // 强制更新控制器
+          orbitControlsRef.current.update();
+        }
+      } else {
+        // 恢复正常距离
+        orbitControlsRef.current.minDistance = responsive.isMobile ? 10 : 8;
+        orbitControlsRef.current.maxDistance = responsive.isMobile ? 80 : 100;
+        orbitControlsRef.current.update();
+      }
+    }
+  }, [focusedPlanetId, cameraTarget, galaxies, responsive]);
 
   // 计算目标星系中心位置，根据用户登录状态决定聚焦点
   const targetGalaxyCenter = useMemo(() => {
@@ -141,12 +173,31 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
 
   // 计算相机的初始位置（相对于目标星系）
   const cameraPosition = useMemo(() => {
+    // 如果有焦点星球，相机位置更近一些
+    if (focusedPlanetId && cameraTarget) {
+      const targetPlanet = galaxies
+        .flatMap(g => g.planets)
+        .find(p => p.id === focusedPlanetId);
+      
+      if (targetPlanet) {
+        const planetSize = targetPlanet.size || 1;
+        const distance = Math.max(planetSize * 6, 8); // 距离为星球大小的6倍，但不小于8
+        
+        return [
+          targetGalaxyCenter.x,
+          targetGalaxyCenter.y + 2,
+          targetGalaxyCenter.z + distance
+        ] as [number, number, number];
+      }
+    }
+    
+    // 默认相机位置
     return [
       targetGalaxyCenter.x,
       targetGalaxyCenter.y + 5,
       targetGalaxyCenter.z + 25
     ] as [number, number, number];
-  }, [targetGalaxyCenter]);
+  }, [targetGalaxyCenter, focusedPlanetId, cameraTarget, galaxies]);
 
   return (
     <div className="w-full h-screen">
@@ -212,6 +263,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
         
         {/* 相机控制 - 根据设备类型调整 */}
         <OrbitControls
+          ref={orbitControlsRef}
           target={targetGalaxyCenter}
           enableZoom={true}
           enablePan={true}
