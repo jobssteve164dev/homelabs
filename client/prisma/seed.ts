@@ -26,16 +26,36 @@ function calculateGalaxyPosition(userIndex: number): { x: number; y: number; z: 
 
 /**
  * 计算行星的轨道参数
+ * 确保每个行星都在独立的轨道上，不会重叠
  */
-function calculatePlanetOrbit(planetIndex: number, totalPlanets: number) {
+function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = []) {
   const baseOrbitRadius = 3   // 第一个行星的轨道半径
   const orbitGap = 1.5         // 轨道间距
   
-  // 轨道半径：从内到外递增
-  const radius = baseOrbitRadius + planetIndex * orbitGap
+  // 计算候选轨道半径
+  let radius = baseOrbitRadius + planetIndex * orbitGap
   
-  // 初始角度：均匀分布
-  const angle = (planetIndex * 360 / totalPlanets) * (Math.PI / 180)
+  // 确保轨道半径唯一（不与现有轨道冲突）
+  const tolerance = 0.1 // 轨道半径容差
+  let attempts = 0
+  while (attempts < 50) {
+    const hasConflict = existingOrbits.some(existingRadius => 
+      Math.abs(existingRadius - radius) < tolerance
+    )
+    
+    if (!hasConflict) {
+      break
+    }
+    
+    // 如果有冲突，尝试下一个轨道
+    attempts++
+    radius = baseOrbitRadius + (planetIndex + attempts) * orbitGap
+  }
+  
+  // 初始角度：在该轨道上随机分布（避免所有行星从同一角度开始）
+  // 使用planetIndex作为种子，确保相同索引得到相同角度（可重现）
+  const seed = planetIndex * 137.508; // 黄金角
+  const angle = (seed % 360) * (Math.PI / 180)
   
   // 公转速度：内圈快，外圈慢（开普勒第三定律的简化）
   const speed = 0.2 / Math.sqrt(radius)
@@ -166,11 +186,12 @@ async function main() {
     },
   ]
 
-  const totalProjects = sampleProjects.length
+  // 跟踪已使用的轨道半径，确保不重叠
+  const usedOrbits: number[] = []
   
   for (let i = 0; i < sampleProjects.length; i++) {
     const projectData = sampleProjects[i]
-    const orbit = calculatePlanetOrbit(i, totalProjects)
+    const orbit = calculatePlanetOrbit(i, usedOrbits)
     
     const existingProject = await prisma.project.findFirst({
       where: {
@@ -190,7 +211,8 @@ async function main() {
           authorId: adminUser.id,
         },
       })
-      console.log(`🪐 行星项目创建成功: ${project.title} (轨道半径: ${orbit.radius.toFixed(2)})`)
+      usedOrbits.push(orbit.radius) // 记录已使用的轨道
+      console.log(`🪐 行星项目创建成功: ${project.title} (轨道半径: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
     } else {
       // 更新现有项目的轨道参数
       await prisma.project.update({
@@ -202,7 +224,8 @@ async function main() {
           orbitSpeed: orbit.speed,
         }
       })
-      console.log(`⏭️  项目已存在（已更新轨道参数）: ${projectData.title}`)
+      usedOrbits.push(orbit.radius) // 记录已使用的轨道
+      console.log(`⏭️  项目已存在（已更新轨道参数）: ${projectData.title} (轨道: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
     }
   }
 
@@ -280,11 +303,12 @@ async function main() {
     },
   ]
 
-  const userPlanetCount = userProjects.length
+  // 跟踪该用户已使用的轨道半径
+  const userUsedOrbits: number[] = []
   
   for (let i = 0; i < userProjects.length; i++) {
     const projectData = userProjects[i]
-    const orbit = calculatePlanetOrbit(i, userPlanetCount)
+    const orbit = calculatePlanetOrbit(i, userUsedOrbits)
     
     const existingProject = await prisma.project.findFirst({
       where: {
@@ -304,9 +328,21 @@ async function main() {
           authorId: normalUser.id,
         },
       })
-      console.log(`🪐 行星项目创建成功: ${project.title} (轨道半径: ${orbit.radius.toFixed(2)})`)
+      userUsedOrbits.push(orbit.radius)
+      console.log(`🪐 行星项目创建成功: ${project.title} (轨道半径: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
     } else {
-      console.log(`⏭️  项目已存在: ${projectData.title}`)
+      // 更新现有项目的轨道参数
+      await prisma.project.update({
+        where: { id: existingProject.id },
+        data: {
+          projectType: ProjectType.PLANET,
+          orbitRadius: orbit.radius,
+          orbitAngle: orbit.angle,
+          orbitSpeed: orbit.speed,
+        }
+      })
+      userUsedOrbits.push(orbit.radius)
+      console.log(`⏭️  项目已存在（已更新轨道参数）: ${projectData.title} (轨道: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
     }
   }
 
