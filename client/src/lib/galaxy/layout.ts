@@ -191,7 +191,10 @@ export function detectAndAvoidCollisions(
   angle: number;
   speed: number;
 }> {
-  const minSafeDistance = 2.5; // 最小安全距离
+  // 考虑行星实际大小，大幅增加安全距离
+  const planetRadius = 1.5; // 行星的实际半径
+  const minSafeDistance = planetRadius * 2 + 2.5; // 两个行星半径 + 大幅额外安全距离 = 5.5
+  const warningDistance = minSafeDistance + 1.0; // 6.5
   const adjustedPlanets = [...planets];
   
   // 检查每对行星的当前距离
@@ -212,15 +215,35 @@ export function detectAndAvoidCollisions(
       
       const distance = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
       
-      // 如果距离过近，调整速度
-      if (distance < minSafeDistance) {
-        // 为外圈行星减速，为内圈行星加速，增加相位差
+      // 如果距离过近，进行非常激进的调整
+      if (distance < warningDistance) {
+        const dangerLevel = (warningDistance - distance) / warningDistance;
+        
+        // 根据危险程度进行更激进的调整
+        let outerSpeedAdjustment = 0.5; // 外圈行星大幅减速50%
+        let innerSpeedAdjustment = 1.3; // 内圈行星大幅加速30%
+        
+        if (dangerLevel > 0.7) {
+          // 极高危险：外圈减速70%，内圈加速50%
+          outerSpeedAdjustment = 0.3;
+          innerSpeedAdjustment = 1.5;
+        } else if (dangerLevel > 0.4) {
+          // 高危险：外圈减速60%，内圈加速40%
+          outerSpeedAdjustment = 0.4;
+          innerSpeedAdjustment = 1.4;
+        }
+        
+        // 为外圈行星大幅减速，为内圈行星大幅加速，快速增加相位差
         if (planet1.radius > planet2.radius) {
-          // planet1是外圈，减速
-          adjustedPlanets[i].speed *= 0.95;
+          // planet1是外圈，大幅减速
+          adjustedPlanets[i].speed *= outerSpeedAdjustment;
+          // 同时为内圈行星大幅加速
+          adjustedPlanets[j].speed *= innerSpeedAdjustment;
         } else {
-          // planet2是外圈，减速
-          adjustedPlanets[j].speed *= 0.95;
+          // planet2是外圈，大幅减速
+          adjustedPlanets[j].speed *= outerSpeedAdjustment;
+          // 同时为内圈行星大幅加速
+          adjustedPlanets[i].speed *= innerSpeedAdjustment;
         }
       }
     }
@@ -251,6 +274,11 @@ export function predictCollisionRisk(
   closestApproach: number;
   riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}>;
 } {
+  // 使用与碰撞检测相同的更严格安全距离标准
+  const planetRadius = 1.5;
+  const minSafeDistance = planetRadius * 2 + 2.5; // 5.5
+  const warningDistance = minSafeDistance + 1.0; // 6.5
+  
   let minDistance = Infinity;
   let closestTime = 0;
   const riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}> = [];
@@ -277,8 +305,8 @@ export function predictCollisionRisk(
           closestTime = t;
         }
         
-        // 记录风险对
-        if (distance < 3.0) {
+        // 记录风险对（使用更严格的标准）
+        if (distance < warningDistance) {
           riskPairs.push({
             planet1: planet1.id,
             planet2: planet2.id,
@@ -290,16 +318,16 @@ export function predictCollisionRisk(
     }
   }
   
-  // 评估风险等级
+  // 评估风险等级（使用更严格的标准）
   let riskLevel: 'low' | 'medium' | 'high' = 'low';
-  if (minDistance < 2.0) {
+  if (minDistance < minSafeDistance) {
     riskLevel = 'high';
-  } else if (minDistance < 2.5) {
+  } else if (minDistance < warningDistance) {
     riskLevel = 'medium';
   }
   
   return {
-    hasRisk: minDistance < 3.0,
+    hasRisk: minDistance < warningDistance,
     riskLevel,
     closestApproach: minDistance,
     riskPairs

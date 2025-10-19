@@ -6,15 +6,18 @@ import { Rocket, Zap, Globe, LogIn, UserPlus, Home, FolderKanban, PlusCircle, Se
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { AuthSession } from '@/types/auth';
+import { PopularPlanetsModal } from './PopularPlanetsModal';
 
 interface UniverseHUDProps {
   totalPlanets: number;
   activePlanets: number;
+  onNavigateToPlanet?: (galaxyCenter: { x: number; y: number; z: number }) => void;
 }
 
-export function UniverseHUD({ totalPlanets, activePlanets }: UniverseHUDProps) {
+export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }: UniverseHUDProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [showPopularPlanets, setShowPopularPlanets] = useState(false);
   const { data: session } = useSession() as { data: AuthSession | null };
   const router = useRouter();
   const logoRef = useRef<HTMLDivElement>(null);
@@ -205,18 +208,21 @@ export function UniverseHUD({ totalPlanets, activePlanets }: UniverseHUDProps) {
         className="absolute top-4 right-4 md:top-6 md:right-6 z-10"
       >
         <div className="flex items-center gap-4">
-          <motion.div
+          <motion.button
             whileHover={{ scale: 1.05 }}
-            className="glass-card px-4 py-2 rounded-lg border border-neon-blue/30"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowPopularPlanets(true)}
+            className="glass-card px-4 py-2 rounded-lg border border-neon-blue/30 hover:border-neon-blue/50 transition-all duration-200 cursor-pointer group"
+            title="点击查看热门星球排行榜"
           >
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-neon-blue" />
+              <Globe className="w-4 h-4 text-neon-blue group-hover:text-neon-purple transition-colors" />
               <div className="text-sm">
                 <span className="text-foreground/60">星球总数: </span>
-                <span className="text-neon-blue font-bold">{totalPlanets}</span>
+                <span className="text-neon-blue font-bold group-hover:text-neon-purple transition-colors">{totalPlanets}</span>
               </div>
             </div>
-          </motion.div>
+          </motion.button>
 
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -257,6 +263,13 @@ export function UniverseHUD({ totalPlanets, activePlanets }: UniverseHUDProps) {
           </div>
         </div>
       </motion.div>
+
+      {/* 热门星球排行榜模态框 */}
+      <PopularPlanetsModal
+        isOpen={showPopularPlanets}
+        onClose={() => setShowPopularPlanets(false)}
+        onNavigateToPlanet={onNavigateToPlanet || (() => {})}
+      />
     </>
   );
 }

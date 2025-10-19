@@ -86,8 +86,8 @@ export function Galaxy({
 
   // 初始化时预测碰撞风险
   useEffect(() => {
-    if (planets.length > 1) {
-      const planetData = planets.map(planet => ({
+    if (adjustedPlanets.length > 1) {
+      const planetData = adjustedPlanets.map(planet => ({
         id: planet.id,
         radius: planet.orbitRadius,
         angle: planet.orbitAngle,
@@ -101,7 +101,7 @@ export function Galaxy({
         closestApproach: risk.closestApproach
       });
     }
-  }, [planets]);
+  }, [adjustedPlanets]);
 
   // 计算相机到星系的距离，更新LOD等级，并执行碰撞避免
   useFrame((state) => {
@@ -123,8 +123,8 @@ export function Galaxy({
       }
 
       // 实时碰撞避免（仅在近距离时执行，避免性能问题）
-      if (newLodLevel === 'near' && planets.length > 1) {
-        const planetData = planets.map(planet => ({
+      if (newLodLevel === 'near' && adjustedPlanets.length > 1) {
+        const planetData = adjustedPlanets.map(planet => ({
           id: planet.id,
           radius: planet.orbitRadius,
           angle: planet.orbitAngle,
@@ -139,7 +139,7 @@ export function Galaxy({
         );
         
         if (hasAdjustment) {
-          const updatedPlanets = planets.map((planet, index) => ({
+          const updatedPlanets = adjustedPlanets.map((planet, index) => ({
             ...planet,
             orbitSpeed: adjusted[index].speed
           }));

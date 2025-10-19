@@ -27,6 +27,7 @@ export function UniversePortal() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [galaxies, setGalaxies] = useState<GalaxyData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cameraTarget, setCameraTarget] = useState<{ x: number; y: number; z: number } | null>(null);
 
   // 获取所有星系数据
   useEffect(() => {
@@ -83,6 +84,22 @@ export function UniversePortal() {
     setSelectedUserId(null);
   };
 
+  // 处理跳转到指定星球
+  const handleNavigateToPlanet = (galaxyCenter: { x: number; y: number; z: number }) => {
+    // 设置相机跳转目标
+    setCameraTarget(galaxyCenter);
+    
+    // 关闭详情面板
+    setSelectedPlanetId(null);
+    setSelectedUserId(null);
+    setShowWelcome(false);
+    
+    // 3秒后清除跳转目标，恢复正常的相机控制
+    setTimeout(() => {
+      setCameraTarget(null);
+    }, 3000);
+  };
+
   // 统计数据
   const totalPlanets = galaxies.reduce((sum, g) => sum + g.planets.length, 0);
   const totalStars = galaxies.filter(g => g.star !== null).length;
@@ -106,12 +123,14 @@ export function UniversePortal() {
         onStarClick={handleStarClick}
         onPlanetClick={handlePlanetClick}
         currentUserId={session?.user ? (session.user as { id: string }).id : undefined}
+        cameraTarget={cameraTarget}
       />
 
       {/* HUD界面 */}
       <UniverseHUD
         totalPlanets={totalPlanets + totalStars}
         activePlanets={totalPlanets}
+        onNavigateToPlanet={handleNavigateToPlanet}
       />
 
       {/* 优雅的欢迎提示 */}

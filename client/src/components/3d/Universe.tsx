@@ -52,6 +52,8 @@ interface UniverseProps {
   onPlanetClick?: (planetId: string) => void;
   // 新增：当前用户信息，用于确定初始相机位置
   currentUserId?: string;
+  // 新增：相机跳转目标位置
+  cameraTarget?: { x: number; y: number; z: number } | null;
   // 保持向后兼容的旧API
   planets?: Array<{
     id: string;
@@ -74,7 +76,7 @@ interface UniverseProps {
  * 向后兼容：
  * - 仍然支持旧的planets属性（用于渐进式迁移）
  */
-export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, planets }: UniverseProps) {
+export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, cameraTarget, planets }: UniverseProps) {
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
   const [showPerformance, setShowPerformance] = useState(false);
@@ -105,6 +107,11 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
 
   // 计算目标星系中心位置，根据用户登录状态决定聚焦点
   const targetGalaxyCenter = useMemo(() => {
+    // 如果指定了相机跳转目标，优先使用
+    if (cameraTarget) {
+      return new THREE.Vector3(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+    }
+
     if (galaxies.length === 0) {
       return new THREE.Vector3(0, 0, 0);
     }
@@ -128,7 +135,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
       firstGalaxy.galaxyCenter.y,
       firstGalaxy.galaxyCenter.z
     );
-  }, [galaxies, currentUserId]);
+  }, [galaxies, currentUserId, cameraTarget]);
 
   // 计算相机的初始位置（相对于目标星系）
   const cameraPosition = useMemo(() => {
