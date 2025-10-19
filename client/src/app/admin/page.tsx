@@ -73,6 +73,14 @@ export default function AdminPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProjects, setTotalProjects] = useState(0);
   const itemsPerPage = 10;
+  
+  // 用户管理筛选和分页状态
+  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
+  const [userSearchTerm, setUserSearchTerm] = useState<string>('');
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const userItemsPerPage = 10;
 
   // 检查管理员权限
   useEffect(() => {
@@ -88,21 +96,35 @@ export default function AdminPage() {
     if (session?.user?.role === 'ADMIN') {
       fetchData();
     }
-  }, [session, projectTypeFilter, categoryFilter, currentPage]);
+  }, [session, projectTypeFilter, categoryFilter, currentPage, userStatusFilter, userSearchTerm, userCurrentPage]);
 
-  // 筛选条件变化时重置到第一页
+  // 项目筛选条件变化时重置到第一页
   useEffect(() => {
     setCurrentPage(1);
   }, [projectTypeFilter, categoryFilter]);
 
+  // 用户筛选条件变化时重置到第一页
+  useEffect(() => {
+    setUserCurrentPage(1);
+  }, [userStatusFilter, userSearchTerm]);
+
   const fetchData = async () => {
     try {
+      // 构建用户查询参数
+      const usersUrl = new URL('/api/admin/users', window.location.origin);
+      usersUrl.searchParams.set('page', userCurrentPage.toString());
+      usersUrl.searchParams.set('limit', userItemsPerPage.toString());
+      if (userSearchTerm) {
+        usersUrl.searchParams.set('search', userSearchTerm);
+      }
+      if (userStatusFilter && userStatusFilter !== 'all') {
+        usersUrl.searchParams.set('isActive', userStatusFilter);
+      }
+
       // 构建项目查询参数
       const projectsUrl = new URL('/api/admin/projects', window.location.origin);
-      // 添加分页参数
       projectsUrl.searchParams.set('page', currentPage.toString());
       projectsUrl.searchParams.set('limit', itemsPerPage.toString());
-      // 添加筛选参数
       if (projectTypeFilter && projectTypeFilter !== 'all') {
         projectsUrl.searchParams.set('projectType', projectTypeFilter);
       }
@@ -112,7 +134,7 @@ export default function AdminPage() {
 
       // 并行获取用户、项目和统计数据
       const [usersRes, projectsRes] = await Promise.all([
-        fetch('/api/admin/users'),
+        fetch(usersUrl.toString()),
         fetch(projectsUrl.toString())
       ]);
 
@@ -125,7 +147,14 @@ export default function AdminPage() {
 
       setUsers(usersData.users || []);
       setProjects(projectsData.projects || []);
-      // 更新分页信息
+      
+      // 更新用户分页信息
+      if (usersData.pagination) {
+        setUserTotalPages(usersData.pagination.pages);
+        setTotalUsers(usersData.pagination.total);
+      }
+      
+      // 更新项目分页信息
       if (projectsData.pagination) {
         setTotalPages(projectsData.pagination.pages);
         setTotalProjects(projectsData.pagination.total);
@@ -345,8 +374,8 @@ export default function AdminPage() {
   }
 
   const stats = {
-    totalUsers: users.length,
-    totalProjects: projects.length,
+    totalUsers: totalUsers,
+    totalProjects: totalProjects,
     activeProjects: projects.filter(p => p.isActive).length,
     totalViews: projects.reduce((sum, p) => sum + p.viewCount, 0)
   };
@@ -666,7 +695,63 @@ export default function AdminPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6"
           >
-            <h3 className="text-lg font-semibold text-foreground mb-4">用户列表</h3>
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">用户列表</h3>
+              </div>
+              
+              {/* 筛选器和搜索栏 */}
+              <div className="flex flex-wrap items-center gap-4 p-4 bg-sci-darker/50 rounded-lg border border-neon-purple/20">
+                {/* 搜索框 */}
+                <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+                  <label className="text-sm text-foreground/60 whitespace-nowrap">搜索：</label>
+                  <input
+                    type="text"
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    placeholder="搜索用户名或邮箱..."
+                    className="flex-1 px-4 py-2 rounded-lg bg-sci-darker border border-neon-purple/30 text-foreground text-sm placeholder-foreground/40 focus:outline-none focus:ring-2 focus:ring-neon-purple/50 hover:border-neon-purple/50 transition-all"
+                  />
+                </div>
+
+                {/* 状态筛选器 */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-foreground/60 whitespace-nowrap">账户状态：</label>
+                  <select
+                    value={userStatusFilter}
+                    onChange={(e) => setUserStatusFilter(e.target.value)}
+                    className="px-4 py-2 rounded-lg bg-sci-darker border border-neon-purple/30 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-neon-purple/50 hover:border-neon-purple/50 transition-all cursor-pointer"
+                  >
+                    <option value="all">全部状态</option>
+                    <option value="true">正常</option>
+                    <option value="false">已冻结</option>
+                  </select>
+                </div>
+
+                {/* 筛选信息和重置按钮 */}
+                <div className="flex items-center gap-3 ml-auto">
+                  {/* 筛选结果统计 */}
+                  <span className="text-sm text-foreground/60">
+                    共 <span className="text-neon-purple font-semibold">{totalUsers}</span> 个用户
+                  </span>
+                  
+                  {/* 重置筛选按钮 */}
+                  {(userStatusFilter !== 'all' || userSearchTerm) && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setUserStatusFilter('all');
+                        setUserSearchTerm('');
+                      }}
+                      className="px-4 py-2 rounded-lg bg-foreground/10 border border-foreground/20 text-foreground/80 text-sm hover:bg-foreground/20 hover:border-foreground/30 transition-all"
+                    >
+                      重置筛选
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -741,6 +826,159 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* 分页控件 */}
+            {userTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-foreground/10">
+                <div className="text-sm text-foreground/60">
+                  第 {userCurrentPage} 页，共 {userTotalPages} 页
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* 首页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setUserCurrentPage(1)}
+                    disabled={userCurrentPage === 1}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      userCurrentPage === 1
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-purple/30 text-neon-purple hover:bg-neon-purple/10 hover:border-neon-purple'
+                    }`}
+                  >
+                    首页
+                  </motion.button>
+
+                  {/* 上一页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setUserCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={userCurrentPage === 1}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      userCurrentPage === 1
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-purple/30 text-neon-purple hover:bg-neon-purple/10 hover:border-neon-purple'
+                    }`}
+                  >
+                    上一页
+                  </motion.button>
+
+                  {/* 页码按钮组 */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pageButtons = [];
+                      const showEllipsisStart = userCurrentPage > 3;
+                      const showEllipsisEnd = userCurrentPage < userTotalPages - 2;
+                      
+                      // 始终显示第一页
+                      pageButtons.push(
+                        <motion.button
+                          key={1}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setUserCurrentPage(1)}
+                          className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                            userCurrentPage === 1
+                              ? 'bg-neon-purple/20 border-neon-purple text-neon-purple font-semibold'
+                              : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                          }`}
+                        >
+                          1
+                        </motion.button>
+                      );
+
+                      // 显示左侧省略号
+                      if (showEllipsisStart) {
+                        pageButtons.push(
+                          <span key="ellipsis-start" className="px-2 text-foreground/40">...</span>
+                        );
+                      }
+
+                      // 显示当前页附近的页码
+                      const startPage = Math.max(2, userCurrentPage - 1);
+                      const endPage = Math.min(userTotalPages - 1, userCurrentPage + 1);
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                        pageButtons.push(
+                          <motion.button
+                            key={i}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setUserCurrentPage(i)}
+                            className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                              userCurrentPage === i
+                                ? 'bg-neon-purple/20 border-neon-purple text-neon-purple font-semibold'
+                                : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                            }`}
+                          >
+                            {i}
+                          </motion.button>
+                        );
+                      }
+
+                      // 显示右侧省略号
+                      if (showEllipsisEnd) {
+                        pageButtons.push(
+                          <span key="ellipsis-end" className="px-2 text-foreground/40">...</span>
+                        );
+                      }
+
+                      // 始终显示最后一页
+                      if (userTotalPages > 1) {
+                        pageButtons.push(
+                          <motion.button
+                            key={userTotalPages}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setUserCurrentPage(userTotalPages)}
+                            className={`w-10 h-10 rounded-lg border text-sm transition-all ${
+                              userCurrentPage === userTotalPages
+                                ? 'bg-neon-purple/20 border-neon-purple text-neon-purple font-semibold'
+                                : 'bg-sci-darker border-foreground/20 text-foreground/80 hover:bg-foreground/10 hover:border-foreground/30'
+                            }`}
+                          >
+                            {userTotalPages}
+                          </motion.button>
+                        );
+                      }
+
+                      return pageButtons;
+                    })()}
+                  </div>
+
+                  {/* 下一页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setUserCurrentPage(prev => Math.min(userTotalPages, prev + 1))}
+                    disabled={userCurrentPage === userTotalPages}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      userCurrentPage === userTotalPages
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-purple/30 text-neon-purple hover:bg-neon-purple/10 hover:border-neon-purple'
+                    }`}
+                  >
+                    下一页
+                  </motion.button>
+
+                  {/* 末页按钮 */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setUserCurrentPage(userTotalPages)}
+                    disabled={userCurrentPage === userTotalPages}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                      userCurrentPage === userTotalPages
+                        ? 'bg-foreground/5 border-foreground/10 text-foreground/30 cursor-not-allowed'
+                        : 'bg-sci-darker border-neon-purple/30 text-neon-purple hover:bg-neon-purple/10 hover:border-neon-purple'
+                    }`}
+                  >
+                    末页
+                  </motion.button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 

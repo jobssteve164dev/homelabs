@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search');
     const role = searchParams.get('role');
+    const isActive = searchParams.get('isActive');
 
     // 构建查询条件
     const where: Prisma.UserWhereInput = {};
@@ -47,6 +48,10 @@ export async function GET(request: NextRequest) {
       where.role = role as Role;
     }
 
+    if (isActive !== null && isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
+
     // 查询用户列表和总数
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -59,6 +64,7 @@ export async function GET(request: NextRequest) {
           name: true,
           email: true,
           role: true,
+          isActive: true,
           avatar: true,
           galaxyJoinedAt: true,
           createdAt: true,
@@ -95,6 +101,7 @@ export async function GET(request: NextRequest) {
 /**
  * PATCH /api/admin/users
  * 更新用户信息（仅管理员）
+ * 支持：更新角色、冻结/解冻账户
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -110,28 +117,32 @@ export async function PATCH(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
-    const { userId, role } = body;
+    const { userId, role, isActive } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "缺少用户ID" }, { status: 400 });
     }
 
-    // 不允许修改自己的角色
+    // 不允许修改自己的状态
     if (userId === session.user.id) {
-      return NextResponse.json({ error: "不能修改自己的角色" }, { status: 400 });
+      return NextResponse.json({ error: "不能修改自己的账户状态" }, { status: 400 });
     }
 
-    // 更新用户角色
+    // 构建更新数据
+    const updateData: { role?: Role; isActive?: boolean } = {};
+    if (role !== undefined) updateData.role = role;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    // 更新用户信息
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        role: role || undefined
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         _count: {
           select: {
@@ -142,10 +153,10 @@ export async function PATCH(request: NextRequest) {
     });
 
     // 记录管理操作
-    logInfo("Admin updated user role", {
+    logInfo("Admin updated user", {
       adminId: session.user.id,
       targetUserId: userId,
-      newRole: role,
+      changes: updateData,
     });
     
     return NextResponse.json({ user: updatedUser });
