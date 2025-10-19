@@ -401,7 +401,7 @@ export const Planet = memo(function Planet({ id, name, position, color, size, ca
         )}
 
         {/* 轨道粒子 */}
-        {hovered && <OrbitParticles radius={size * 1.5} color={color} />}
+        {(hovered || isFocused) && <OrbitParticles radius={size * 1.5} color={color} />}
       </group>
     </group>
   );
@@ -417,13 +417,13 @@ const OrbitParticles = memo(function OrbitParticles({ radius, color }: { radius:
     }
   });
 
-  const particleCount = 50;
+  const particleCount = 80; // 增加粒子数量
   const positions = new Float32Array(particleCount * 3);
   
   for (let i = 0; i < particleCount; i++) {
     const angle = (i / particleCount) * Math.PI * 2;
     positions[i * 3] = Math.cos(angle) * radius;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 0.2;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 0.3; // 增加高度变化
     positions[i * 3 + 2] = Math.sin(angle) * radius;
   }
 
@@ -439,11 +439,12 @@ const OrbitParticles = memo(function OrbitParticles({ radius, color }: { radius:
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.05}
+        size={0.08} // 增大粒子尺寸
         color={color}
         transparent
-        opacity={0.6}
+        opacity={0.8} // 增加透明度
         sizeAttenuation
+        blending={THREE.AdditiveBlending} // 使用加法混合让粒子更亮
       />
     </points>
   );
