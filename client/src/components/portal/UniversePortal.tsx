@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Universe, type GalaxyData } from '../3d/Universe';
 import { PlanetDetail } from './PlanetDetail';
+import { StarDetail } from './StarDetail';
 import { UniverseHUD } from './UniverseHUD';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -177,11 +178,13 @@ export function UniversePortal() {
         {selectedStar && selectedStar.star && (
           <StarDetail
             star={{
+              userId: selectedStar.userId,
               userName: selectedStar.userName,
               userAvatar: selectedStar.userAvatar,
-              userTitle: selectedStar.star.userTitle,
-              // 这里需要从API获取完整的恒星数据
-              // 暂时使用占位符
+              userTitle: selectedStar.star.userTitle || undefined,
+              userBio: selectedStar.star.userBio || undefined,
+              userSkills: selectedStar.star.userSkills as string[] | undefined,
+              socialLinks: selectedStar.star.socialLinks as Record<string, string> | undefined,
             }}
             onClose={handleClose}
           />
@@ -217,71 +220,5 @@ export function UniversePortal() {
         </motion.button>
       )}
     </div>
-  );
-}
-
-/**
- * StarDetail组件（临时实现，后续会完善）
- */
-interface StarDetailProps {
-  star: {
-    userName: string;
-    userAvatar?: string;
-    userTitle?: string;
-  };
-  onClose: () => void;
-}
-
-function StarDetail({ star, onClose }: StarDetailProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 300 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 300 }}
-      transition={{ type: 'spring', damping: 25 }}
-      className="fixed top-0 right-0 h-full w-full md:w-[480px] z-30"
-    >
-      <div className="relative h-full bg-gradient-to-br from-sci-dark/95 to-sci-darker/95 backdrop-blur-xl border-l border-neon-blue/30 shadow-2xl overflow-y-auto">
-        {/* 关闭按钮 */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 w-10 h-10 rounded-full bg-sci-dark/50 hover:bg-sci-dark border border-neon-blue/30 flex items-center justify-center transition-all duration-300 hover:scale-110 z-10"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-6 h-6 text-foreground/60"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-
-        <div className="p-8">
-          {/* 用户头像和名称 */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 mx-auto mb-4 flex items-center justify-center text-4xl">
-              {star.userAvatar || '⭐'}
-            </div>
-            <h2 className="text-2xl font-bold text-yellow-400 mb-2">
-              {star.userName}
-            </h2>
-            {star.userTitle && (
-              <p className="text-foreground/70">{star.userTitle}</p>
-            )}
-          </div>
-
-          <div className="text-center text-foreground/50">
-            详细个人介绍将在后续版本中完善
-          </div>
-        </div>
-      </div>
-    </motion.div>
   );
 }

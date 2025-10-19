@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { Plus, Search, Edit, Trash2, ExternalLink, Github, Home, ArrowLeft, FolderOpen } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ExternalLink, Github, Home, ArrowLeft, FolderOpen, Star } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -128,6 +128,15 @@ export default function DashboardPage() {
 
             {/* 右侧导航 */}
             <div className="flex items-center gap-4">
+              <Link href="/dashboard/star">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-500 hover:border-orange-500/50 transition-all"
+                >
+                  <Star className="w-4 h-4 fill-current" />
+                  <span className="text-sm font-medium">我的星系</span>
+                </motion.button>
+              </Link>
               <Link href="/dashboard/create">
                 <motion.button
                   whileHover={{ scale: 1.05 }}

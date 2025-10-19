@@ -21,6 +21,9 @@ export interface GalaxyData {
     id: string;
     title: string;
     userTitle?: string;
+    userBio?: string;
+    userSkills?: string[];
+    socialLinks?: Record<string, string>;
   } | null;
   planets: Array<{
     id: string;
