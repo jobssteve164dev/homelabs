@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Star } from './Star';
 import { Planet } from './Planet';
 import { OrbitRing } from './OrbitRing';
-import { detectAndAvoidCollisions, predictCollisionRisk } from '@/lib/galaxy/layout';
+import { detectAndAvoidCollisions } from '@/lib/galaxy/layout';
 import * as THREE from 'three';
 
 interface GalaxyProps {
@@ -66,11 +66,6 @@ export function Galaxy({
   const { camera } = useThree();
   const [lodLevel, setLodLevel] = useState<'near' | 'medium' | 'far'>('near');
   const [adjustedPlanets, setAdjustedPlanets] = useState(planets);
-  const [collisionRisk, setCollisionRisk] = useState<{
-    hasRisk: boolean;
-    riskLevel: 'low' | 'medium' | 'high';
-    closestApproach: number;
-  }>({ hasRisk: false, riskLevel: 'low', closestApproach: Infinity });
 
   // 根据分类生成行星颜色
   const categoryColors: { [key: string]: string } = useMemo(() => ({
@@ -84,24 +79,6 @@ export function Galaxy({
     '其他': '#f72585',
   }), []);
 
-  // 初始化时预测碰撞风险
-  useEffect(() => {
-    if (adjustedPlanets.length > 1) {
-      const planetData = adjustedPlanets.map(planet => ({
-        id: planet.id,
-        radius: planet.orbitRadius,
-        angle: planet.orbitAngle,
-        speed: planet.orbitSpeed
-      }));
-      
-      const risk = predictCollisionRisk(planetData, 50);
-      setCollisionRisk({
-        hasRisk: risk.hasRisk,
-        riskLevel: risk.riskLevel,
-        closestApproach: risk.closestApproach
-      });
-    }
-  }, [adjustedPlanets]);
 
   // 计算相机到星系的距离，更新LOD等级，并执行碰撞避免
   useFrame((state) => {
@@ -243,38 +220,6 @@ export function Galaxy({
         </mesh>
       )}
 
-      {/* 碰撞风险指示器 - 仅在近距离且有风险时显示 */}
-      {lodLevel === 'near' && collisionRisk.hasRisk && (
-        <Html
-          position={[0, 8, 0]}
-          center
-          distanceFactor={15}
-        >
-          <div className={`glass-card px-3 py-2 rounded-lg border backdrop-blur-md text-xs font-mono ${
-            collisionRisk.riskLevel === 'high' 
-              ? 'border-red-500/80 bg-red-500/20 text-red-300' 
-              : collisionRisk.riskLevel === 'medium'
-              ? 'border-yellow-500/80 bg-yellow-500/20 text-yellow-300'
-              : 'border-blue-500/80 bg-blue-500/20 text-blue-300'
-          }`}>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">
-                {collisionRisk.riskLevel === 'high' ? '⚠️' : 
-                 collisionRisk.riskLevel === 'medium' ? '⚡' : '🛡️'}
-              </span>
-              <div>
-                <div className="font-semibold">
-                  {collisionRisk.riskLevel === 'high' ? '高风险' : 
-                   collisionRisk.riskLevel === 'medium' ? '中风险' : '低风险'}
-                </div>
-                <div className="text-xs opacity-75">
-                  最近距离: {collisionRisk.closestApproach.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Html>
-      )}
     </group>
   );
 }

@@ -191,11 +191,13 @@ export function detectAndAvoidCollisions(
   angle: number;
   speed: number;
 }> {
-  // 考虑行星实际大小，大幅增加安全距离
+  // 考虑行星实际大小，设置合理的安全距离
   const planetRadius = 1.5; // 行星的实际半径
-  const minSafeDistance = planetRadius * 2 + 2.5; // 两个行星半径 + 大幅额外安全距离 = 5.5
-  const warningDistance = minSafeDistance + 1.0; // 6.5
-  const adjustedPlanets = [...planets];
+  const minSafeDistance = planetRadius * 2 + 1.0; // 两个行星半径 + 额外安全距离 = 4.0
+  const warningDistance = minSafeDistance + 0.5; // 4.5
+  
+  // 创建调整后的行星数组，保持原始速度作为基准
+  const adjustedPlanets = planets.map(planet => ({ ...planet }));
   
   // 检查每对行星的当前距离
   for (let i = 0; i < adjustedPlanets.length; i++) {
@@ -203,9 +205,9 @@ export function detectAndAvoidCollisions(
       const planet1 = adjustedPlanets[i];
       const planet2 = adjustedPlanets[j];
       
-      // 计算当前时刻两行星的位置
-      const angle1 = planet1.angle + planet1.speed * elapsedTime;
-      const angle2 = planet2.angle + planet2.speed * elapsedTime;
+      // 计算当前时刻两行星的位置（使用原始速度）
+      const angle1 = planet1.angle + planets[i].speed * elapsedTime;
+      const angle2 = planet2.angle + planets[j].speed * elapsedTime;
       
       // 计算两行星在3D空间中的距离
       const x1 = planet1.radius * Math.cos(angle1);
@@ -234,16 +236,17 @@ export function detectAndAvoidCollisions(
         }
         
         // 为外圈行星大幅减速，为内圈行星大幅加速，快速增加相位差
+        // 基于原始速度进行调整，而不是累积调整
         if (planet1.radius > planet2.radius) {
           // planet1是外圈，大幅减速
-          adjustedPlanets[i].speed *= outerSpeedAdjustment;
+          adjustedPlanets[i].speed = planets[i].speed * outerSpeedAdjustment;
           // 同时为内圈行星大幅加速
-          adjustedPlanets[j].speed *= innerSpeedAdjustment;
+          adjustedPlanets[j].speed = planets[j].speed * innerSpeedAdjustment;
         } else {
           // planet2是外圈，大幅减速
-          adjustedPlanets[j].speed *= outerSpeedAdjustment;
+          adjustedPlanets[j].speed = planets[j].speed * outerSpeedAdjustment;
           // 同时为内圈行星大幅加速
-          adjustedPlanets[i].speed *= innerSpeedAdjustment;
+          adjustedPlanets[i].speed = planets[i].speed * innerSpeedAdjustment;
         }
       }
     }
@@ -274,10 +277,10 @@ export function predictCollisionRisk(
   closestApproach: number;
   riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}>;
 } {
-  // 使用与碰撞检测相同的更严格安全距离标准
+  // 使用与碰撞检测相同的安全距离标准
   const planetRadius = 1.5;
-  const minSafeDistance = planetRadius * 2 + 2.5; // 5.5
-  const warningDistance = minSafeDistance + 1.0; // 6.5
+  const minSafeDistance = planetRadius * 2 + 1.0; // 4.0
+  const warningDistance = minSafeDistance + 0.5; // 4.5
   
   let minDistance = Infinity;
   let closestTime = 0;
