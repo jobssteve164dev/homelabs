@@ -50,7 +50,7 @@ export function checkGalaxyOverlap(
 
 /**
  * 计算行星的轨道参数
- * 确保每个行星都在独立的轨道上，不会重叠
+ * 确保每个行星都在独立的轨道上，不会重叠，并且通过智能速度分配避免碰撞
  * 
  * @param planetIndex 行星在该星系中的索引（0, 1, 2...）
  * @param existingOrbits 已使用的轨道半径数组
@@ -85,22 +85,70 @@ export function calculatePlanetOrbit(
     radius = baseOrbitRadius + (planetIndex + attempts) * orbitGap
   }
   
-  // 初始角度：结合行星索引和星系偏移
-  // 1. 使用黄金角分布确保同一星系内的行星均匀分布
-  // 2. 加上星系偏移确保不同星系的行星不会在同一角度
+  // 智能角度分配：使用改进的黄金角分布，确保初始相位差
   const goldenAngle = 137.508 // 黄金角（度）
   const planetAngle = (planetIndex * goldenAngle) % 360
   const totalAngle = (planetAngle + galaxyOffset) % 360
   const angle = totalAngle * (Math.PI / 180) // 转换为弧度
   
-  // 公转速度：内圈快，外圈慢（开普勒第三定律的简化）
-  const speed = 0.2 / Math.sqrt(radius)
+  // 智能公转速度：基于轨道半径和碰撞避免算法
+  const speed = calculateCollisionAvoidingSpeed(radius, planetIndex, existingOrbits)
   
   return {
     radius,
     angle,
     speed
   }
+}
+
+/**
+ * 计算避免碰撞的公转速度
+ * 通过精心选择速度比例，确保行星间保持安全的相位差
+ * 
+ * @param radius 当前行星的轨道半径
+ * @param planetIndex 行星索引
+ * @param existingOrbits 现有轨道半径数组
+ * @returns 优化的公转速度
+ */
+function calculateCollisionAvoidingSpeed(
+  radius: number, 
+  planetIndex: number, 
+  existingOrbits: number[]
+): number {
+  // 基础速度：遵循开普勒第三定律（内圈快，外圈慢）
+  const baseSpeed = 0.2 / Math.sqrt(radius)
+  
+  // 如果这是第一个行星，使用基础速度
+  if (planetIndex === 0) {
+    return baseSpeed
+  }
+  
+  // 为后续行星计算避免碰撞的速度
+  // 使用无理数比例确保行星间不会形成简单的整数比例关系
+  const irrationalMultipliers = [
+    1.0,           // 第1个行星：基础速度
+    1.6180339887,  // 第2个行星：黄金比例
+    2.4142135623,  // 第3个行星：√2 + 1
+    3.1415926535,  // 第4个行星：π
+    4.2360679774,  // 第5个行星：2 + √5
+    5.8284271247,  // 第6个行星：3 + 2√2
+    7.4641016151,  // 第7个行星：4 + 2√3
+    9.1622776601,  // 第8个行星：5 + 2√5
+  ]
+  
+  // 选择对应的无理数乘数
+  const multiplier = irrationalMultipliers[planetIndex] || (planetIndex * 1.4142135623)
+  
+  // 计算最终速度，确保与内圈行星保持安全相位差
+  let finalSpeed = baseSpeed * multiplier
+  
+  // 速度限制：确保不会太快或太慢
+  const minSpeed = 0.01  // 最小速度
+  const maxSpeed = 0.5   // 最大速度
+  
+  finalSpeed = Math.max(minSpeed, Math.min(maxSpeed, finalSpeed))
+  
+  return finalSpeed
 }
 
 /**
@@ -119,6 +167,143 @@ export function checkOrbitSafety(
 ): boolean {
   const radiusDiff = Math.abs(radius1 - radius2);
   return radiusDiff >= minDistance;
+}
+
+/**
+ * 实时碰撞检测和动态速度调整
+ * 在运行时检测行星间的最小距离，如果过近则动态调整速度
+ * 
+ * @param planets 当前所有行星的轨道参数
+ * @param elapsedTime 已过时间
+ * @returns 调整后的行星轨道参数
+ */
+export function detectAndAvoidCollisions(
+  planets: Array<{
+    id: string;
+    radius: number;
+    angle: number;
+    speed: number;
+  }>,
+  elapsedTime: number
+): Array<{
+  id: string;
+  radius: number;
+  angle: number;
+  speed: number;
+}> {
+  const minSafeDistance = 2.5; // 最小安全距离
+  const adjustedPlanets = [...planets];
+  
+  // 检查每对行星的当前距离
+  for (let i = 0; i < adjustedPlanets.length; i++) {
+    for (let j = i + 1; j < adjustedPlanets.length; j++) {
+      const planet1 = adjustedPlanets[i];
+      const planet2 = adjustedPlanets[j];
+      
+      // 计算当前时刻两行星的位置
+      const angle1 = planet1.angle + planet1.speed * elapsedTime;
+      const angle2 = planet2.angle + planet2.speed * elapsedTime;
+      
+      // 计算两行星在3D空间中的距离
+      const x1 = planet1.radius * Math.cos(angle1);
+      const z1 = planet1.radius * Math.sin(angle1);
+      const x2 = planet2.radius * Math.cos(angle2);
+      const z2 = planet2.radius * Math.sin(angle2);
+      
+      const distance = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
+      
+      // 如果距离过近，调整速度
+      if (distance < minSafeDistance) {
+        // 为外圈行星减速，为内圈行星加速，增加相位差
+        if (planet1.radius > planet2.radius) {
+          // planet1是外圈，减速
+          adjustedPlanets[i].speed *= 0.95;
+        } else {
+          // planet2是外圈，减速
+          adjustedPlanets[j].speed *= 0.95;
+        }
+      }
+    }
+  }
+  
+  return adjustedPlanets;
+}
+
+/**
+ * 预测未来碰撞风险
+ * 分析行星在接下来一段时间内的运动轨迹，预测可能的碰撞点
+ * 
+ * @param planets 行星轨道参数
+ * @param timeHorizon 预测时间范围（秒）
+ * @returns 碰撞风险评估结果
+ */
+export function predictCollisionRisk(
+  planets: Array<{
+    id: string;
+    radius: number;
+    angle: number;
+    speed: number;
+  }>,
+  timeHorizon: number = 100
+): {
+  hasRisk: boolean;
+  riskLevel: 'low' | 'medium' | 'high';
+  closestApproach: number;
+  riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}>;
+} {
+  let minDistance = Infinity;
+  let closestTime = 0;
+  const riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}> = [];
+  
+  // 在时间范围内采样，寻找最小距离
+  for (let t = 0; t < timeHorizon; t += 0.1) {
+    for (let i = 0; i < planets.length; i++) {
+      for (let j = i + 1; j < planets.length; j++) {
+        const planet1 = planets[i];
+        const planet2 = planets[j];
+        
+        const angle1 = planet1.angle + planet1.speed * t;
+        const angle2 = planet2.angle + planet2.speed * t;
+        
+        const x1 = planet1.radius * Math.cos(angle1);
+        const z1 = planet1.radius * Math.sin(angle1);
+        const x2 = planet2.radius * Math.cos(angle2);
+        const z2 = planet2.radius * Math.sin(angle2);
+        
+        const distance = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestTime = t;
+        }
+        
+        // 记录风险对
+        if (distance < 3.0) {
+          riskPairs.push({
+            planet1: planet1.id,
+            planet2: planet2.id,
+            minDistance: distance,
+            time: t
+          });
+        }
+      }
+    }
+  }
+  
+  // 评估风险等级
+  let riskLevel: 'low' | 'medium' | 'high' = 'low';
+  if (minDistance < 2.0) {
+    riskLevel = 'high';
+  } else if (minDistance < 2.5) {
+    riskLevel = 'medium';
+  }
+  
+  return {
+    hasRisk: minDistance < 3.0,
+    riskLevel,
+    closestApproach: minDistance,
+    riskPairs
+  };
 }
 
 /**

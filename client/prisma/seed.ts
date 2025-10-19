@@ -56,22 +56,65 @@ function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = []
     radius = baseOrbitRadius + (planetIndex + attempts) * orbitGap
   }
   
-  // 初始角度：结合行星索引和星系偏移
-  // 1. 使用黄金角分布确保同一星系内的行星均匀分布
-  // 2. 加上星系偏移确保不同星系的行星不会在同一角度
+  // 智能角度分配：使用改进的黄金角分布，确保初始相位差
   const goldenAngle = 137.508 // 黄金角（度）
   const planetAngle = (planetIndex * goldenAngle) % 360
   const totalAngle = (planetAngle + galaxyOffset) % 360
   const angle = totalAngle * (Math.PI / 180) // 转换为弧度
   
-  // 公转速度：内圈快，外圈慢（开普勒第三定律的简化）
-  const speed = 0.2 / Math.sqrt(radius)
+  // 智能公转速度：基于轨道半径和碰撞避免算法
+  const speed = calculateCollisionAvoidingSpeed(radius, planetIndex, existingOrbits)
   
   return {
     radius,
     angle,
     speed
   }
+}
+
+/**
+ * 计算避免碰撞的公转速度
+ * 通过精心选择速度比例，确保行星间保持安全的相位差
+ */
+function calculateCollisionAvoidingSpeed(
+  radius: number, 
+  planetIndex: number, 
+  existingOrbits: number[]
+): number {
+  // 基础速度：遵循开普勒第三定律（内圈快，外圈慢）
+  const baseSpeed = 0.2 / Math.sqrt(radius)
+  
+  // 如果这是第一个行星，使用基础速度
+  if (planetIndex === 0) {
+    return baseSpeed
+  }
+  
+  // 为后续行星计算避免碰撞的速度
+  // 使用无理数比例确保行星间不会形成简单的整数比例关系
+  const irrationalMultipliers = [
+    1.0,           // 第1个行星：基础速度
+    1.6180339887,  // 第2个行星：黄金比例
+    2.4142135623,  // 第3个行星：√2 + 1
+    3.1415926535,  // 第4个行星：π
+    4.2360679774,  // 第5个行星：2 + √5
+    5.8284271247,  // 第6个行星：3 + 2√2
+    7.4641016151,  // 第7个行星：4 + 2√3
+    9.1622776601,  // 第8个行星：5 + 2√5
+  ]
+  
+  // 选择对应的无理数乘数
+  const multiplier = irrationalMultipliers[planetIndex] || (planetIndex * 1.4142135623)
+  
+  // 计算最终速度，确保与内圈行星保持安全相位差
+  let finalSpeed = baseSpeed * multiplier
+  
+  // 速度限制：确保不会太快或太慢
+  const minSpeed = 0.01  // 最小速度
+  const maxSpeed = 0.5   // 最大速度
+  
+  finalSpeed = Math.max(minSpeed, Math.min(maxSpeed, finalSpeed))
+  
+  return finalSpeed
 }
 
 async function main() {

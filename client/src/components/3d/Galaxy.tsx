@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Star } from './Star';
 import { Planet } from './Planet';
 import { OrbitRing } from './OrbitRing';
+import { detectAndAvoidCollisions, predictCollisionRisk } from '@/lib/galaxy/layout';
 import * as THREE from 'three';
 
 interface GalaxyProps {
@@ -64,6 +65,12 @@ export function Galaxy({
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
   const [lodLevel, setLodLevel] = useState<'near' | 'medium' | 'far'>('near');
+  const [adjustedPlanets, setAdjustedPlanets] = useState(planets);
+  const [collisionRisk, setCollisionRisk] = useState<{
+    hasRisk: boolean;
+    riskLevel: 'low' | 'medium' | 'high';
+    closestApproach: number;
+  }>({ hasRisk: false, riskLevel: 'low', closestApproach: Infinity });
 
   // 根据分类生成行星颜色
   const categoryColors: { [key: string]: string } = useMemo(() => ({
@@ -77,8 +84,27 @@ export function Galaxy({
     '其他': '#f72585',
   }), []);
 
-  // 计算相机到星系的距离，更新LOD等级
-  useFrame(() => {
+  // 初始化时预测碰撞风险
+  useEffect(() => {
+    if (planets.length > 1) {
+      const planetData = planets.map(planet => ({
+        id: planet.id,
+        radius: planet.orbitRadius,
+        angle: planet.orbitAngle,
+        speed: planet.orbitSpeed
+      }));
+      
+      const risk = predictCollisionRisk(planetData, 50);
+      setCollisionRisk({
+        hasRisk: risk.hasRisk,
+        riskLevel: risk.riskLevel,
+        closestApproach: risk.closestApproach
+      });
+    }
+  }, [planets]);
+
+  // 计算相机到星系的距离，更新LOD等级，并执行碰撞避免
+  useFrame((state) => {
     if (groupRef.current) {
       const galaxyPosition = new THREE.Vector3(...galaxyCenter);
       const distance = camera.position.distanceTo(galaxyPosition);
@@ -94,6 +120,31 @@ export function Galaxy({
 
       if (newLodLevel !== lodLevel) {
         setLodLevel(newLodLevel);
+      }
+
+      // 实时碰撞避免（仅在近距离时执行，避免性能问题）
+      if (newLodLevel === 'near' && planets.length > 1) {
+        const planetData = planets.map(planet => ({
+          id: planet.id,
+          radius: planet.orbitRadius,
+          angle: planet.orbitAngle,
+          speed: planet.orbitSpeed
+        }));
+        
+        const adjusted = detectAndAvoidCollisions(planetData, state.clock.elapsedTime);
+        
+        // 更新行星速度（如果检测到需要调整）
+        const hasAdjustment = adjusted.some((adj, index) => 
+          Math.abs(adj.speed - planetData[index].speed) > 0.001
+        );
+        
+        if (hasAdjustment) {
+          const updatedPlanets = planets.map((planet, index) => ({
+            ...planet,
+            orbitSpeed: adjusted[index].speed
+          }));
+          setAdjustedPlanets(updatedPlanets);
+        }
       }
     }
   });
@@ -113,7 +164,7 @@ export function Galaxy({
       )}
 
       {/* 行星和轨道 - 根据LOD等级决定渲染 */}
-      {lodLevel === 'near' && planets.map((planet) => {
+      {lodLevel === 'near' && adjustedPlanets.map((planet) => {
         const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
         
         return (
@@ -151,7 +202,7 @@ export function Galaxy({
       })}
 
       {/* 中距离：仅显示行星，不显示轨道 */}
-      {lodLevel === 'medium' && planets.map((planet) => {
+      {lodLevel === 'medium' && adjustedPlanets.map((planet) => {
         const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
         
         return (
@@ -180,7 +231,7 @@ export function Galaxy({
       })}
 
       {/* 远距离：仅显示星系中心的发光效果 */}
-      {lodLevel === 'far' && planets.length > 0 && (
+      {lodLevel === 'far' && adjustedPlanets.length > 0 && (
         <mesh>
           <sphereGeometry args={[Math.max(...planets.map(p => p.orbitRadius)) * 1.2, 16, 16]} />
           <meshBasicMaterial
@@ -190,6 +241,39 @@ export function Galaxy({
             side={THREE.BackSide}
           />
         </mesh>
+      )}
+
+      {/* 碰撞风险指示器 - 仅在近距离且有风险时显示 */}
+      {lodLevel === 'near' && collisionRisk.hasRisk && (
+        <Html
+          position={[0, 8, 0]}
+          center
+          distanceFactor={15}
+        >
+          <div className={`glass-card px-3 py-2 rounded-lg border backdrop-blur-md text-xs font-mono ${
+            collisionRisk.riskLevel === 'high' 
+              ? 'border-red-500/80 bg-red-500/20 text-red-300' 
+              : collisionRisk.riskLevel === 'medium'
+              ? 'border-yellow-500/80 bg-yellow-500/20 text-yellow-300'
+              : 'border-blue-500/80 bg-blue-500/20 text-blue-300'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">
+                {collisionRisk.riskLevel === 'high' ? '⚠️' : 
+                 collisionRisk.riskLevel === 'medium' ? '⚡' : '🛡️'}
+              </span>
+              <div>
+                <div className="font-semibold">
+                  {collisionRisk.riskLevel === 'high' ? '高风险' : 
+                   collisionRisk.riskLevel === 'medium' ? '中风险' : '低风险'}
+                </div>
+                <div className="text-xs opacity-75">
+                  最近距离: {collisionRisk.closestApproach.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Html>
       )}
     </group>
   );
