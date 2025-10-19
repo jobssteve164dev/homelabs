@@ -225,35 +225,35 @@ export function detectAndAvoidCollisions(
       
       const distance = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
       
-      // 如果距离过近，进行非常激进的调整
+      // 如果距离过近，进行渐进式调整
       if (distance < warningDistance) {
         const dangerLevel = (warningDistance - distance) / warningDistance;
         
-        // 根据危险程度进行更激进的调整
-        let outerSpeedAdjustment = 0.5; // 外圈行星大幅减速50%
-        let innerSpeedAdjustment = 1.3; // 内圈行星大幅加速30%
+        // 使用更温和的调整策略，避免瞬移
+        let outerSpeedAdjustment = 0.9; // 外圈行星轻微减速10%
+        let innerSpeedAdjustment = 1.1; // 内圈行星轻微加速10%
         
         if (dangerLevel > 0.7) {
-          // 极高危险：外圈减速70%，内圈加速50%
-          outerSpeedAdjustment = 0.3;
-          innerSpeedAdjustment = 1.5;
+          // 极高危险：外圈减速25%，内圈加速20%
+          outerSpeedAdjustment = 0.75;
+          innerSpeedAdjustment = 1.2;
         } else if (dangerLevel > 0.4) {
-          // 高危险：外圈减速60%，内圈加速40%
-          outerSpeedAdjustment = 0.4;
-          innerSpeedAdjustment = 1.4;
+          // 高危险：外圈减速20%，内圈加速15%
+          outerSpeedAdjustment = 0.8;
+          innerSpeedAdjustment = 1.15;
         }
         
-        // 为外圈行星大幅减速，为内圈行星大幅加速，快速增加相位差
+        // 为外圈行星轻微减速，为内圈行星轻微加速，平滑增加相位差
         // 基于原始速度进行调整，而不是累积调整
         if (planet1.radius > planet2.radius) {
-          // planet1是外圈，大幅减速
+          // planet1是外圈，轻微减速
           adjustedPlanets[i].speed = planets[i].speed * outerSpeedAdjustment;
-          // 同时为内圈行星大幅加速
+          // 同时为内圈行星轻微加速
           adjustedPlanets[j].speed = planets[j].speed * innerSpeedAdjustment;
         } else {
-          // planet2是外圈，大幅减速
+          // planet2是外圈，轻微减速
           adjustedPlanets[j].speed = planets[j].speed * outerSpeedAdjustment;
-          // 同时为内圈行星大幅加速
+          // 同时为内圈行星轻微加速
           adjustedPlanets[i].speed = planets[i].speed * innerSpeedAdjustment;
         }
         

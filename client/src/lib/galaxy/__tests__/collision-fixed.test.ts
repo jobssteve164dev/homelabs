@@ -20,10 +20,15 @@ describe('修复后的碰撞避免算法', () => {
     expect(adjusted[0].speed).not.toBe(0.1);
     expect(adjusted[1].speed).not.toBe(0.1);
     
-    // 验证调整后的速度在合理范围内
-    adjusted.forEach(planet => {
+    // 验证调整后的速度在合理范围内，且变化不会太剧烈
+    adjusted.forEach((planet, index) => {
       expect(planet.speed).toBeGreaterThan(0.001);
       expect(planet.speed).toBeLessThan(1.0);
+      
+      // 验证速度变化不会太剧烈（避免瞬移）
+      const originalSpeed = planets[index].speed;
+      const speedChange = Math.abs(planet.speed - originalSpeed) / originalSpeed;
+      expect(speedChange).toBeLessThan(0.5); // 速度变化不应超过50%
     });
   });
 
