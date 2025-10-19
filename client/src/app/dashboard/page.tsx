@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { Plus, Search, Edit, Trash2, ExternalLink, Github, Home, ArrowLeft, FolderOpen, Star } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ExternalLink, Github, Home, ArrowLeft, Star } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -118,14 +118,6 @@ export default function DashboardPage() {
               </motion.button>
             </Link>
 
-            {/* 中间标题 */}
-            <div className="flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-neon-purple" />
-              <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
-                我的项目
-              </h1>
-            </div>
-
             {/* 右侧导航 */}
             <div className="flex items-center gap-4">
               <Link href="/dashboard/star">
@@ -163,7 +155,7 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 页面标题 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             我的AI项目
           </h1>
           <p className="text-foreground/60">管理和探索您的AI工具项目</p>

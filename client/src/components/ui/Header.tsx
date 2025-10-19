@@ -42,6 +42,13 @@ export function Header() {
             </div>
           </Link>
 
+          {/* 中间标题 */}
+          <div className="hidden md:block">
+            <h2 className="text-sm font-medium text-foreground/80">
+              探索宇宙我的项目天才们
+            </h2>
+          </div>
+
           {/* AI宇宙菜单 */}
           <UniverseMenu />
         </div>

@@ -227,7 +227,7 @@ export default function AdminPage() {
         <div className="mb-8">
           <div className="flex items-center mb-4">
             <Shield className="w-8 h-8 text-neon-blue mr-3" />
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
+            <h1 className="text-3xl font-bold text-white">
               管理后台
             </h1>
           </div>

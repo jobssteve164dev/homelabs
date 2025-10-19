@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Home, Star, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 const categories = [
@@ -93,22 +93,63 @@ export default function CreateProjectPage() {
 
   return (
     <div className="min-h-screen bg-sci-darker">
+      {/* 顶部导航栏 */}
+      <div className="border-b border-neon-blue/20 bg-sci-dark/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* 返回按钮 */}
+            <Link href="/dashboard">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-blue/10 border border-neon-blue/30 text-neon-blue hover:bg-neon-blue/20 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">返回项目</span>
+              </motion.button>
+            </Link>
+
+            {/* 右侧导航 */}
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard/star">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-500 hover:border-orange-500/50 transition-all"
+                >
+                  <Star className="w-4 h-4 fill-current" />
+                  <span className="text-sm font-medium">我的星系</span>
+                </motion.button>
+              </Link>
+              <Link href="/dashboard/create">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border border-neon-blue/30 text-neon-blue hover:border-neon-purple/50 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-sm font-medium">创建项目</span>
+                </motion.button>
+              </Link>
+              <Link href="/">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-foreground/80 hover:text-neon-blue transition-colors"
+                >
+                  <Home className="w-4 h-4" />
+                  <span className="text-sm">探索宇宙</span>
+                </motion.button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 页面头部 */}
-        <div className="flex items-center mb-8">
-          <Link
-            href="/dashboard"
-            className="flex items-center text-foreground/60 hover:text-neon-blue transition-colors mr-6"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
-              创建新项目
-            </h1>
-            <p className="text-foreground/60">为您的AI工具创建一个新的星球</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            创建新项目
+          </h1>
+          <p className="text-foreground/60">为您的AI工具创建一个新的星球</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
