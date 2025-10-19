@@ -46,6 +46,25 @@ describe('修复后的碰撞避免算法', () => {
     expect(adjusted1[1].speed).toBeCloseTo(adjusted2[1].speed, 5);
   });
 
+  test('多个行星时不应该重复调整', () => {
+    const planets = [
+      { id: 'planet-1', radius: 4.0, angle: 0, speed: 0.1 },
+      { id: 'planet-2', radius: 4.2, angle: 0.01, speed: 0.1 }, // 接近planet-1
+      { id: 'planet-3', radius: 4.4, angle: 0.02, speed: 0.1 }, // 接近planet-2
+    ];
+
+    const adjusted = detectAndAvoidCollisions(planets, 0);
+    
+    console.log('Original speeds:', planets.map(p => p.speed));
+    console.log('Adjusted speeds:', adjusted.map(p => p.speed));
+    
+    // 验证速度调整是合理的，不会出现极端值
+    adjusted.forEach(planet => {
+      expect(planet.speed).toBeGreaterThan(0.001);
+      expect(planet.speed).toBeLessThan(1.0);
+    });
+  });
+
   test('安全距离的行星不应该被调整', () => {
     const planets = [
       { id: 'planet-1', radius: 4.0, angle: 0, speed: 0.1 },

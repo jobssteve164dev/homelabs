@@ -199,9 +199,17 @@ export function detectAndAvoidCollisions(
   // 创建调整后的行星数组，保持原始速度作为基准
   const adjustedPlanets = planets.map(planet => ({ ...planet }));
   
+  // 记录哪些行星已经被调整过，避免重复调整
+  const adjustedIndices = new Set<number>();
+  
   // 检查每对行星的当前距离
   for (let i = 0; i < adjustedPlanets.length; i++) {
     for (let j = i + 1; j < adjustedPlanets.length; j++) {
+      // 如果这两个行星中任何一个已经被调整过，跳过
+      if (adjustedIndices.has(i) || adjustedIndices.has(j)) {
+        continue;
+      }
+      
       const planet1 = adjustedPlanets[i];
       const planet2 = adjustedPlanets[j];
       
@@ -248,6 +256,10 @@ export function detectAndAvoidCollisions(
           // 同时为内圈行星大幅加速
           adjustedPlanets[i].speed = planets[i].speed * innerSpeedAdjustment;
         }
+        
+        // 标记这两个行星已经被调整过
+        adjustedIndices.add(i);
+        adjustedIndices.add(j);
       }
     }
   }
