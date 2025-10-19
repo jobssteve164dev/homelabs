@@ -105,6 +105,7 @@ export function UniversePortal() {
         galaxies={galaxies}
         onStarClick={handleStarClick}
         onPlanetClick={handlePlanetClick}
+        currentUserId={session?.user ? (session.user as { id: string }).id : undefined}
       />
 
       {/* HUD界面 */}

@@ -5,7 +5,6 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { Suspense, useMemo, useState, useEffect } from 'react';
 import { Galaxy } from './Galaxy';
 import { Stardust } from './Stardust';
-import { PerformanceMonitor } from './PerformanceMonitor';
 import { PerformanceStatsProvider } from './PerformanceStatsProvider';
 import { useResponsive, getQualityPreset } from '@/hooks/useResponsive';
 import * as THREE from 'three';
@@ -51,6 +50,8 @@ interface UniverseProps {
   galaxies?: GalaxyData[];
   onStarClick?: (userId: string) => void;
   onPlanetClick?: (planetId: string) => void;
+  // 新增：当前用户信息，用于确定初始相机位置
+  currentUserId?: string;
   // 保持向后兼容的旧API
   planets?: Array<{
     id: string;
@@ -73,7 +74,7 @@ interface UniverseProps {
  * 向后兼容：
  * - 仍然支持旧的planets属性（用于渐进式迁移）
  */
-export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }: UniverseProps) {
+export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, planets }: UniverseProps) {
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
   const [showPerformance, setShowPerformance] = useState(false);
@@ -102,27 +103,41 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  // 计算第一个星系（通常是管理员）的中心位置，作为默认聚焦点
-  const firstGalaxyCenter = useMemo(() => {
-    if (galaxies.length > 0) {
-      const firstGalaxy = galaxies[0];
-      return new THREE.Vector3(
-        firstGalaxy.galaxyCenter.x,
-        firstGalaxy.galaxyCenter.y,
-        firstGalaxy.galaxyCenter.z
-      );
+  // 计算目标星系中心位置，根据用户登录状态决定聚焦点
+  const targetGalaxyCenter = useMemo(() => {
+    if (galaxies.length === 0) {
+      return new THREE.Vector3(0, 0, 0);
     }
-    return new THREE.Vector3(0, 0, 0);
-  }, [galaxies]);
 
-  // 计算相机的初始位置（相对于第一个星系）
+    // 如果用户已登录，优先聚焦到用户自己的星系
+    if (currentUserId) {
+      const userGalaxy = galaxies.find(g => g.userId === currentUserId);
+      if (userGalaxy) {
+        return new THREE.Vector3(
+          userGalaxy.galaxyCenter.x,
+          userGalaxy.galaxyCenter.y,
+          userGalaxy.galaxyCenter.z
+        );
+      }
+    }
+
+    // 如果用户未登录或找不到用户星系，则聚焦到第一个星系（通常是管理员）
+    const firstGalaxy = galaxies[0];
+    return new THREE.Vector3(
+      firstGalaxy.galaxyCenter.x,
+      firstGalaxy.galaxyCenter.y,
+      firstGalaxy.galaxyCenter.z
+    );
+  }, [galaxies, currentUserId]);
+
+  // 计算相机的初始位置（相对于目标星系）
   const cameraPosition = useMemo(() => {
     return [
-      firstGalaxyCenter.x,
-      firstGalaxyCenter.y + 5,
-      firstGalaxyCenter.z + 25
+      targetGalaxyCenter.x,
+      targetGalaxyCenter.y + 5,
+      targetGalaxyCenter.z + 25
     ] as [number, number, number];
-  }, [firstGalaxyCenter]);
+  }, [targetGalaxyCenter]);
 
   return (
     <div className="w-full h-screen">
@@ -187,7 +202,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
         
         {/* 相机控制 - 根据设备类型调整 */}
         <OrbitControls
-          target={firstGalaxyCenter}
+          target={targetGalaxyCenter}
           enableZoom={true}
           enablePan={true}
           enableRotate={true}
