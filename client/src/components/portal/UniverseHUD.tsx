@@ -67,42 +67,38 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
         className="absolute top-4 left-4 md:top-6 md:left-6 z-10"
-        onContextMenu={handleContextMenu}
       >
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-display text-lg font-bold text-neon-blue">
-                AI宇宙
-              </h1>
-              <p className="text-xs text-foreground/60">
-                My AI Universe
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* 右键菜单 */}
-      <AnimatePresence>
-        {showMenu && (
+        <div className="relative">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.15 }}
-            className="fixed z-50"
-            style={{
-              left: `${menuPosition.x}px`,
-              top: `${menuPosition.y}px`,
-            }}
+            whileHover={{ scale: 1.02 }}
+            onContextMenu={handleContextMenu}
+            className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 cursor-pointer"
           >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
+                <Rocket className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-display text-lg font-bold text-neon-blue">
+                  AI宇宙
+                </h1>
+                <p className="text-xs text-foreground/60">
+                  My AI Universe
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 右键菜单 */}
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute left-0 top-full mt-2 z-50"
+              >
             <div className="glass-card border border-neon-blue/40 rounded-xl p-2 min-w-[240px] shadow-2xl shadow-neon-blue/20">
               {session ? (
                 // 已登录状态
@@ -196,9 +192,11 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
 
       {/* 右上角统计信息 */}
       <motion.div
