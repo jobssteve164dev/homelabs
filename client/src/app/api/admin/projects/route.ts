@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const category = searchParams.get('category');
     const isActive = searchParams.get('isActive');
+    const projectType = searchParams.get('projectType');
 
     // 构建查询条件
     const where: Prisma.ProjectWhereInput = {};
@@ -50,6 +51,10 @@ export async function GET(request: NextRequest) {
 
     if (isActive !== null && isActive !== undefined) {
       where.isActive = isActive === 'true';
+    }
+
+    if (projectType && (projectType === 'STAR' || projectType === 'PLANET')) {
+      where.projectType = projectType;
     }
 
     // 查询项目列表和总数
