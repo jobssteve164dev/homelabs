@@ -54,6 +54,8 @@ interface UniverseProps {
   currentUserId?: string;
   // 新增：相机跳转目标位置
   cameraTarget?: { x: number; y: number; z: number } | null;
+  // 新增：焦点星球ID，用于显示悬停视觉效果
+  focusedPlanetId?: string | null;
   // 保持向后兼容的旧API
   planets?: Array<{
     id: string;
@@ -76,7 +78,7 @@ interface UniverseProps {
  * 向后兼容：
  * - 仍然支持旧的planets属性（用于渐进式迁移）
  */
-export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, cameraTarget, planets }: UniverseProps) {
+export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, cameraTarget, focusedPlanetId, planets }: UniverseProps) {
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
   const [showPerformance, setShowPerformance] = useState(false);
@@ -196,6 +198,7 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
             planets={galaxy.planets}
             onStarClick={() => onStarClick?.(galaxy.userId)}
             onPlanetClick={onPlanetClick}
+            focusedPlanetId={focusedPlanetId}
           />
         ))}
         

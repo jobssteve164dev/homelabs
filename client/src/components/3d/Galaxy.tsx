@@ -37,6 +37,7 @@ interface GalaxyProps {
   }>;
   onStarClick?: () => void;
   onPlanetClick?: (planetId: string) => void;
+  focusedPlanetId?: string | null;
 }
 
 /**
@@ -62,6 +63,7 @@ export function Galaxy({
   planets,
   onStarClick,
   onPlanetClick,
+  focusedPlanetId,
 }: GalaxyProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
@@ -197,6 +199,7 @@ export function Galaxy({
               orbitSpeed={planet.orbitSpeed}
               onClick={() => onPlanetClick?.(planet.id)}
               lodLevel="full"
+              isFocused={focusedPlanetId === planet.id}
             />
           </group>
         );
@@ -303,6 +306,7 @@ interface OrbitingPlanetProps {
   orbitSpeed: number;
   onClick?: () => void;
   lodLevel?: 'full' | 'simplified';
+  isFocused?: boolean;
 }
 
 function OrbitingPlanet({
@@ -316,6 +320,7 @@ function OrbitingPlanet({
   orbitSpeed,
   onClick,
   lodLevel = 'full',
+  isFocused = false,
 }: OrbitingPlanetProps) {
   const planetRef = useRef<THREE.Group>(null);
 
@@ -344,6 +349,7 @@ function OrbitingPlanet({
           size={size}
           category={category}
           onClick={onClick}
+          isFocused={isFocused}
         />
       ) : (
         // 简化版本：仅显示简单的球体

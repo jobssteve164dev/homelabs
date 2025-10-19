@@ -28,6 +28,7 @@ export function UniversePortal() {
   const [galaxies, setGalaxies] = useState<GalaxyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [cameraTarget, setCameraTarget] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [focusedPlanetId, setFocusedPlanetId] = useState<string | null>(null);
 
   // 获取所有星系数据
   useEffect(() => {
@@ -102,21 +103,23 @@ export function UniversePortal() {
       // 设置相机跳转目标到星球位置
       setCameraTarget(planetPosition);
       
-      // 设置选中星球以触发高亮效果
-      setSelectedPlanetId(planetId);
+      // 设置焦点星球以触发悬停视觉效果（不弹出详情卡片）
+      setFocusedPlanetId(planetId);
     } else {
       // 如果找不到星球，跳转到星系中心
       setCameraTarget(galaxyCenter);
     }
     
     // 关闭其他面板
+    setSelectedPlanetId(null);
     setSelectedUserId(null);
     setShowWelcome(false);
     
-    // 3秒后清除跳转目标，但保持星球选中状态
+    // 5秒后清除跳转目标和焦点状态
     setTimeout(() => {
       setCameraTarget(null);
-    }, 3000);
+      setFocusedPlanetId(null);
+    }, 5000);
   };
 
   // 统计数据
@@ -143,6 +146,7 @@ export function UniversePortal() {
         onPlanetClick={handlePlanetClick}
         currentUserId={session?.user ? (session.user as { id: string }).id : undefined}
         cameraTarget={cameraTarget}
+        focusedPlanetId={focusedPlanetId}
       />
 
       {/* HUD界面 */}

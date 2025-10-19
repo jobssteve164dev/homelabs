@@ -294,9 +294,10 @@ interface PlanetProps {
   size: number;
   category: string;
   onClick?: () => void;
+  isFocused?: boolean;
 }
 
-export const Planet = memo(function Planet({ id, name, position, color, size, category, onClick }: PlanetProps) {
+export const Planet = memo(function Planet({ id, name, position, color, size, category, onClick, isFocused = false }: PlanetProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -313,8 +314,8 @@ export const Planet = memo(function Planet({ id, name, position, color, size, ca
       meshRef.current.rotation.y += delta * 0.2;
     }
     
-    // 整个group浮动，所有特效跟随
-    if (groupRef.current && hovered) {
+    // 整个group浮动，所有特效跟随（包括焦点状态）
+    if (groupRef.current && (hovered || isFocused)) {
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
     } else if (groupRef.current) {
       groupRef.current.position.y = 0;
@@ -345,7 +346,7 @@ export const Planet = memo(function Planet({ id, name, position, color, size, ca
             normalMap={normalMap}
             normalScale={new THREE.Vector2(0.3, 0.3)}
             emissive={color}
-            emissiveIntensity={hovered ? 0.3 : 0.1}
+            emissiveIntensity={(hovered || isFocused) ? 0.3 : 0.1}
             roughness={0.8}
             metalness={0.2}
             bumpMap={normalMap}
@@ -354,7 +355,7 @@ export const Planet = memo(function Planet({ id, name, position, color, size, ca
         </Sphere>
 
         {/* 星球光环 */}
-        {hovered && (
+        {(hovered || isFocused) && (
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <ringGeometry args={[size * 1.2, size * 1.4, 64]} />
             <meshBasicMaterial
@@ -371,7 +372,7 @@ export const Planet = memo(function Planet({ id, name, position, color, size, ca
           <meshBasicMaterial
             color={color}
             transparent
-            opacity={hovered ? 0.2 : 0.1}
+            opacity={(hovered || isFocused) ? 0.2 : 0.1}
             side={THREE.BackSide}
           />
         </Sphere>
