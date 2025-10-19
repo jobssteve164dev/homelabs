@@ -147,6 +147,7 @@ export function UniversePortal() {
         currentUserId={session?.user ? (session.user as { id: string }).id : undefined}
         cameraTarget={cameraTarget}
         focusedPlanetId={focusedPlanetId}
+        isAdmin={session?.user ? (session.user as { role?: string }).role === 'ADMIN' : false}
       />
 
       {/* HUD界面 */}

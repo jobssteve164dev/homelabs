@@ -57,6 +57,8 @@ interface UniverseProps {
   cameraTarget?: { x: number; y: number; z: number } | null;
   // 新增：焦点星球ID，用于显示悬停视觉效果
   focusedPlanetId?: string | null;
+  // 新增：是否为管理员（用于性能监控权限）
+  isAdmin?: boolean;
   // 保持向后兼容的旧API
   planets?: Array<{
     id: string;
@@ -79,7 +81,7 @@ interface UniverseProps {
  * 向后兼容：
  * - 仍然支持旧的planets属性（用于渐进式迁移）
  */
-export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, cameraTarget, focusedPlanetId, planets }: UniverseProps) {
+export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUserId, cameraTarget, focusedPlanetId, isAdmin = false, planets }: UniverseProps) {
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
   const [showPerformance, setShowPerformance] = useState(false);
@@ -97,17 +99,17 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
   const quality = useMemo(() => getQualityPreset(responsive), [responsive]);
   const orbitControlsRef = useRef<OrbitControlsImpl>(null);
 
-  // 键盘快捷键：按P键切换性能监控
+  // 键盘快捷键：按P键切换性能监控（仅管理员可用）
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey) {
+      if (isAdmin && e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey) {
         setShowPerformance((prev) => !prev);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [isAdmin]);
 
   // 动态控制OrbitControls的缩放距离，当有焦点星球时放大视角
   useEffect(() => {
@@ -288,8 +290,8 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
         </PerformanceStatsProvider>
       </Canvas>
 
-      {/* 性能监控面板 - 在Canvas外部渲染，位于提示文字上方 */}
-      {showPerformance && (
+      {/* 性能监控面板 - 在Canvas外部渲染，位于提示文字上方（仅管理员可见） */}
+      {showPerformance && isAdmin && (
         <div className="fixed bottom-32 left-20 glass-card px-4 py-3 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs space-y-1 pointer-events-none z-50">
           <div className="text-neon-blue font-bold mb-2">性能监控</div>
           <div className="flex justify-between gap-4">
@@ -322,16 +324,16 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, currentUse
         </div>
       )}
 
-      {/* 性能监控提示 */}
-      {showPerformance && (
+      {/* 性能监控提示（仅管理员可见） */}
+      {showPerformance && isAdmin && (
         <div className="fixed bottom-20 left-20 glass-card px-4 py-2 rounded-lg border border-neon-blue/30 backdrop-blur-md text-xs text-foreground/60 pointer-events-none">
           按 P 键隐藏性能监控
         </div>
       )}
 
-      {!showPerformance && (
+      {!showPerformance && isAdmin && (
         <div className="fixed bottom-20 left-20 glass-card px-4 py-2 rounded-lg border border-foreground/20 backdrop-blur-md text-xs text-foreground/40 pointer-events-none opacity-50 hover:opacity-100 transition-opacity">
-          按 P 键显示性能监控
+          按 P 键显示性能监控（管理员）
         </div>
       )}
     </div>
