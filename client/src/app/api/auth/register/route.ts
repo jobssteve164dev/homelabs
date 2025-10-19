@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { registerSchema, validateRequest } from "@/lib/validation";
+import { userSelectPublic } from "@/lib/select";
+import { logError, logSecurityEvent } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name } = await request.json();
+    const body = await request.json();
 
-    // 验证输入
-    if (!email || !password || !name) {
+    // 使用Zod验证输入
+    const validation = validateRequest(registerSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "邮箱、密码和姓名都是必填项" },
+        { error: validation.error },
         { status: 400 }
       );
     }
+
+    const { email, password, name } = validation.data;
 
     // 检查邮箱是否已存在
     const existingUser = await prisma.user.findUnique({
@@ -20,6 +26,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
+      // 记录安全事件
+      logSecurityEvent('Registration attempt with existing email', {
+        email,
+        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+      });
+      
       return NextResponse.json(
         { error: "该邮箱已被注册" },
         { status: 400 }
@@ -29,31 +41,31 @@ export async function POST(request: NextRequest) {
     // 加密密码
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 创建用户
+    // 创建用户 (使用安全选择器)
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
         role: "USER"
-      }
+      },
+      select: userSelectPublic, // 使用统一选择器,自动排除密码
     });
-
-    // 返回用户信息（不包含密码）
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json(
       { 
         message: "注册成功", 
-        user: userWithoutPassword 
+        user 
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("注册错误:", error);
+    logError("注册错误", error, {
+      ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+    });
+    
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }

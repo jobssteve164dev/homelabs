@@ -47,6 +47,10 @@ export const authOptions = {
   ],
   session: {
     strategy: "jwt" as const,
+    maxAge: 7 * 24 * 60 * 60, // 7天过期
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60, // 7天过期
   },
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,4 +73,6 @@ export const authOptions = {
     signIn: "/auth/signin",
     signUp: "/auth/signup",
   },
+  // Next.js 14推荐配置
+  trustHost: true,
 };
