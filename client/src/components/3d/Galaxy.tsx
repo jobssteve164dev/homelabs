@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef, useMemo, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Star } from './Star';
 import { Planet } from './Planet';
 import { OrbitRing } from './OrbitRing';
@@ -46,6 +46,13 @@ interface GalaxyProps {
  * - 周围：行星（用户的AI项目）围绕恒星公转
  * - 轨道线：可视化行星轨道
  */
+// LOD距离阈值
+const LOD_DISTANCES = {
+  NEAR: 40,   // 近距离：完整渲染
+  MEDIUM: 80, // 中距离：简化渲染
+  FAR: 150,   // 远距离：最简渲染
+};
+
 export function Galaxy({
   userName,
   galaxyCenter,
@@ -55,9 +62,11 @@ export function Galaxy({
   onPlanetClick,
 }: GalaxyProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+  const [lodLevel, setLodLevel] = useState<'near' | 'medium' | 'far'>('near');
 
   // 根据分类生成行星颜色
-  const categoryColors: { [key: string]: string } = {
+  const categoryColors: { [key: string]: string } = useMemo(() => ({
     '文本处理': '#00ffff',
     '图像处理': '#ff00ff',
     '语音处理': '#00ff00',
@@ -66,42 +75,57 @@ export function Galaxy({
     '对话系统': '#ff1493',
     '机器学习': '#9d4edd',
     '其他': '#f72585',
-  };
+  }), []);
 
-  // 实时计算行星位置
+  // 计算相机到星系的距离，更新LOD等级
   useFrame(() => {
-    // 这里可以添加整个星系的动画效果
-    // 例如，缓慢的自转或浮动
+    if (groupRef.current) {
+      const galaxyPosition = new THREE.Vector3(...galaxyCenter);
+      const distance = camera.position.distanceTo(galaxyPosition);
+
+      let newLodLevel: 'near' | 'medium' | 'far';
+      if (distance < LOD_DISTANCES.NEAR) {
+        newLodLevel = 'near';
+      } else if (distance < LOD_DISTANCES.MEDIUM) {
+        newLodLevel = 'medium';
+      } else {
+        newLodLevel = 'far';
+      }
+
+      if (newLodLevel !== lodLevel) {
+        setLodLevel(newLodLevel);
+      }
+    }
   });
 
   return (
     <group ref={groupRef} position={galaxyCenter}>
-      {/* 恒星（如果存在） */}
+      {/* 恒星（所有LOD等级都渲染） */}
       {star && (
         <Star
           id={star.id}
           name={userName}
           position={[0, 0, 0]}
-          size={2}
+          size={lodLevel === 'far' ? 1.5 : 2} // 远距离时缩小
           userTitle={star.userTitle}
           onClick={onStarClick}
         />
       )}
 
-      {/* 行星和轨道 */}
-      {planets.map((planet) => {
+      {/* 行星和轨道 - 根据LOD等级决定渲染 */}
+      {lodLevel === 'near' && planets.map((planet) => {
         const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
         
         return (
           <group key={planet.id}>
-            {/* 轨道线 */}
+            {/* 轨道线 - 仅近距离显示 */}
             <OrbitRing
               radius={planet.orbitRadius}
               color={planetColor}
               opacity={0.2}
             />
 
-            {/* 行星（使用实时计算的位置） */}
+            {/* 行星 - 完整渲染 */}
             <OrbitingPlanet
               id={planet.id}
               name={planet.title}
@@ -120,10 +144,53 @@ export function Galaxy({
               orbitAngle={planet.orbitAngle}
               orbitSpeed={planet.orbitSpeed}
               onClick={() => onPlanetClick?.(planet.id)}
+              lodLevel="full"
             />
           </group>
         );
       })}
+
+      {/* 中距离：仅显示行星，不显示轨道 */}
+      {lodLevel === 'medium' && planets.map((planet) => {
+        const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
+        
+        return (
+          <OrbitingPlanet
+            key={planet.id}
+            id={planet.id}
+            name={planet.title}
+            color={planetColor}
+            size={(planet.size || 1) * 0.8} // 稍微缩小
+            category={planet.category}
+            description={planet.description}
+            tags={planet.tags}
+            status={star ? 'active' : 'inactive'}
+            demoUrl={planet.demoUrl}
+            githubUrl={planet.githubUrl}
+            imageUrl={planet.imageUrl}
+            viewCount={planet.viewCount}
+            likeCount={planet.likeCount}
+            orbitRadius={planet.orbitRadius}
+            orbitAngle={planet.orbitAngle}
+            orbitSpeed={planet.orbitSpeed}
+            onClick={() => onPlanetClick?.(planet.id)}
+            lodLevel="simplified"
+          />
+        );
+      })}
+
+      {/* 远距离：仅显示星系中心的发光效果 */}
+      {lodLevel === 'far' && planets.length > 0 && (
+        <mesh>
+          <sphereGeometry args={[Math.max(...planets.map(p => p.orbitRadius)) * 1.2, 16, 16]} />
+          <meshBasicMaterial
+            color="#FDB813"
+            transparent
+            opacity={0.1}
+            side={THREE.BackSide}
+          />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -150,6 +217,7 @@ interface OrbitingPlanetProps {
   orbitAngle: number;
   orbitSpeed: number;
   onClick?: () => void;
+  lodLevel?: 'full' | 'simplified';
 }
 
 function OrbitingPlanet({
@@ -162,10 +230,11 @@ function OrbitingPlanet({
   orbitAngle,
   orbitSpeed,
   onClick,
+  lodLevel = 'full',
 }: OrbitingPlanetProps) {
   const planetRef = useRef<THREE.Group>(null);
 
-  // 实时计算行星位置（基于时间的公转）
+  // 优化的公转计算 - 减少计算频率
   useFrame((state) => {
     if (planetRef.current) {
       const elapsedTime = state.clock.elapsedTime;
@@ -181,16 +250,48 @@ function OrbitingPlanet({
 
   return (
     <group ref={planetRef}>
-      <Planet
-        id={id}
-        name={name}
-        position={[0, 0, 0]} // 位置由group控制
-        color={color}
-        size={size}
-        category={category}
-        onClick={onClick}
-      />
+      {lodLevel === 'full' ? (
+        <Planet
+          id={id}
+          name={name}
+          position={[0, 0, 0]}
+          color={color}
+          size={size}
+          category={category}
+          onClick={onClick}
+        />
+      ) : (
+        // 简化版本：仅显示简单的球体
+        <SimplePlanet
+          color={color}
+          size={size}
+          onClick={onClick}
+        />
+      )}
     </group>
+  );
+}
+
+// 简化的行星组件（用于中远距离LOD）
+function SimplePlanet({
+  color,
+  size,
+  onClick,
+}: {
+  color: string;
+  size: number;
+  onClick?: () => void;
+}) {
+  return (
+    <mesh onClick={onClick}>
+      <sphereGeometry args={[size, 16, 16]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.2}
+        roughness={0.8}
+      />
+    </mesh>
   );
 }
 

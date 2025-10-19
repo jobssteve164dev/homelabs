@@ -2,9 +2,11 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState, useEffect } from 'react';
 import { Galaxy } from './Galaxy';
 import { Stardust } from './Stardust';
+import { PerformanceMonitor } from './PerformanceMonitor';
+import { useResponsive, getQualityPreset } from '@/hooks/useResponsive';
 import * as THREE from 'three';
 
 // 星系数据类型
@@ -73,6 +75,23 @@ interface UniverseProps {
 export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }: UniverseProps) {
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
+  const [showPerformance, setShowPerformance] = useState(false);
+
+  // 响应式配置
+  const responsive = useResponsive();
+  const quality = useMemo(() => getQualityPreset(responsive), [responsive]);
+
+  // 键盘快捷键：按P键切换性能监控
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey) {
+        setShowPerformance((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   // 计算第一个星系（通常是管理员）的中心位置，作为默认聚焦点
   const firstGalaxyCenter = useMemo(() => {
@@ -99,22 +118,27 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: cameraPosition, fov: 75 }}
-        gl={{ antialias: true, alpha: true }}
+        camera={{ position: cameraPosition, fov: responsive.isMobile ? 85 : 75 }}
+        gl={{ 
+          antialias: quality.antialias, 
+          alpha: true,
+          powerPreference: 'high-performance',
+        }}
+        dpr={quality.pixelRatio}
       >
         {/* 环境光 */}
         <ambientLight intensity={0.3} />
         
         {/* 定向光（降低强度，因为恒星会自发光） */}
-        <directionalLight position={[10, 10, 5]} intensity={0.5} />
+        <directionalLight position={[10, 10, 5]} intensity={0.5} castShadow={quality.shadowsEnabled} />
         <directionalLight position={[-10, -10, -5]} intensity={0.3} />
         
-        {/* 星空背景 */}
+        {/* 星空背景 - 根据设备性能调整 */}
         <Suspense fallback={null}>
           <Stars
             radius={150}
             depth={80}
-            count={8000}
+            count={quality.starCount}
             factor={5}
             saturation={0}
             fade
@@ -150,24 +174,46 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
           return null;
         })}
         
-        {/* 相机控制 - 设置target为第一个星系的中心 */}
+        {/* 性能监控 */}
+        <PerformanceMonitor visible={showPerformance} />
+        
+        {/* 相机控制 - 根据设备类型调整 */}
         <OrbitControls
           target={firstGalaxyCenter}
           enableZoom={true}
           enablePan={true}
           enableRotate={true}
-          zoomSpeed={0.6}
-          panSpeed={0.5}
-          rotateSpeed={0.4}
-          minDistance={8}
-          maxDistance={100}
+          zoomSpeed={responsive.isMobile ? 0.4 : 0.6}
+          panSpeed={responsive.isMobile ? 0.3 : 0.5}
+          rotateSpeed={responsive.isMobile ? 0.3 : 0.4}
+          minDistance={responsive.isMobile ? 10 : 8}
+          maxDistance={responsive.isMobile ? 80 : 100}
+          enableDamping={true}
+          dampingFactor={0.05}
           mouseButtons={{
-            LEFT: THREE.MOUSE.ROTATE,   // 左键：旋转
-            MIDDLE: THREE.MOUSE.PAN,    // 中键：平移（原本是缩放）
+            LEFT: THREE.MOUSE.ROTATE,   // 左键/触摸：旋转
+            MIDDLE: THREE.MOUSE.PAN,    // 中键：平移
             RIGHT: THREE.MOUSE.PAN      // 右键：平移
+          }}
+          touches={{
+            ONE: THREE.TOUCH.ROTATE,    // 单指：旋转
+            TWO: THREE.TOUCH.DOLLY_PAN  // 双指：缩放+平移
           }}
         />
       </Canvas>
+
+      {/* 性能监控提示 */}
+      {showPerformance && (
+        <div className="fixed bottom-20 left-20 glass-card px-4 py-2 rounded-lg border border-neon-blue/30 backdrop-blur-md text-xs text-foreground/60 pointer-events-none">
+          按 P 键隐藏性能监控
+        </div>
+      )}
+
+      {!showPerformance && (
+        <div className="fixed bottom-20 left-20 glass-card px-4 py-2 rounded-lg border border-foreground/20 backdrop-blur-md text-xs text-foreground/40 pointer-events-none opacity-50 hover:opacity-100 transition-opacity">
+          按 P 键显示性能监控
+        </div>
+      )}
     </div>
   );
 }

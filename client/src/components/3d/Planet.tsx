@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -296,7 +296,7 @@ interface PlanetProps {
   onClick?: () => void;
 }
 
-export function Planet({ id, name, position, color, size, category, onClick }: PlanetProps) {
+export const Planet = memo(function Planet({ id, name, position, color, size, category, onClick }: PlanetProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -404,10 +404,10 @@ export function Planet({ id, name, position, color, size, category, onClick }: P
       </group>
     </group>
   );
-}
+});
 
-// 轨道粒子组件
-function OrbitParticles({ radius, color }: { radius: number; color: string }) {
+// 轨道粒子组件 - 优化版
+const OrbitParticles = memo(function OrbitParticles({ radius, color }: { radius: number; color: string }) {
   const particlesRef = useRef<THREE.Points>(null);
   
   useFrame((state) => {
@@ -446,4 +446,4 @@ function OrbitParticles({ radius, color }: { radius: number; color: string }) {
       />
     </points>
   );
-}
+});
