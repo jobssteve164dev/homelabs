@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Shield, Users, FolderOpen, BarChart3, Settings, Eye, Edit, Trash2, Home, ArrowLeft } from 'lucide-react';
+import { Shield, Users, FolderOpen, BarChart3, Settings, Eye, Edit, Trash2, Home, ArrowLeft, Power } from 'lucide-react';
 import Link from 'next/link';
 
 interface ExtendedUser {
@@ -438,16 +438,24 @@ export default function AdminPage() {
                       <td className="py-3 px-4 text-sm text-foreground">{project.viewCount}</td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-2">
+                          <Link href={`/dashboard/edit/${project.id}`}>
+                            <button 
+                              className="p-1 text-foreground/60 hover:text-neon-blue transition-colors"
+                              title="编辑项目"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          </Link>
                           <button 
                             onClick={() => toggleProjectStatus(project.id, project.isActive)}
                             className={`p-1 transition-colors ${
                               project.isActive 
-                                ? 'text-foreground/60 hover:text-yellow-400' 
-                                : 'text-foreground/60 hover:text-green-400'
+                                ? 'text-green-400 hover:text-yellow-400' 
+                                : 'text-foreground/40 hover:text-green-400'
                             }`}
                             title={project.isActive ? '暂停项目' : '激活项目'}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Power className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => deleteProject(project.id)}
