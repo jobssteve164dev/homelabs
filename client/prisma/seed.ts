@@ -27,8 +27,12 @@ function calculateGalaxyPosition(userIndex: number): { x: number; y: number; z: 
 /**
  * 计算行星的轨道参数
  * 确保每个行星都在独立的轨道上，不会重叠
+ * 
+ * @param planetIndex 行星在该星系中的索引（0, 1, 2...）
+ * @param existingOrbits 已使用的轨道半径数组
+ * @param galaxyOffset 星系的角度偏移（用于让不同星系的行星初始角度不同）
  */
-function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = []) {
+function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = [], galaxyOffset: number = 0) {
   const baseOrbitRadius = 3   // 第一个行星的轨道半径
   const orbitGap = 1.5         // 轨道间距
   
@@ -52,10 +56,13 @@ function calculatePlanetOrbit(planetIndex: number, existingOrbits: number[] = []
     radius = baseOrbitRadius + (planetIndex + attempts) * orbitGap
   }
   
-  // 初始角度：在该轨道上随机分布（避免所有行星从同一角度开始）
-  // 使用planetIndex作为种子，确保相同索引得到相同角度（可重现）
-  const seed = planetIndex * 137.508; // 黄金角
-  const angle = (seed % 360) * (Math.PI / 180)
+  // 初始角度：结合行星索引和星系偏移
+  // 1. 使用黄金角分布确保同一星系内的行星均匀分布
+  // 2. 加上星系偏移确保不同星系的行星不会在同一角度
+  const goldenAngle = 137.508 // 黄金角（度）
+  const planetAngle = (planetIndex * goldenAngle) % 360
+  const totalAngle = (planetAngle + galaxyOffset) % 360
+  const angle = totalAngle * (Math.PI / 180) // 转换为弧度
   
   // 公转速度：内圈快，外圈慢（开普勒第三定律的简化）
   const speed = 0.2 / Math.sqrt(radius)
@@ -188,10 +195,11 @@ async function main() {
 
   // 跟踪已使用的轨道半径，确保不重叠
   const usedOrbits: number[] = []
+  const adminGalaxyOffset = 0 // 管理员星系的角度偏移
   
   for (let i = 0; i < sampleProjects.length; i++) {
     const projectData = sampleProjects[i]
-    const orbit = calculatePlanetOrbit(i, usedOrbits)
+    const orbit = calculatePlanetOrbit(i, usedOrbits, adminGalaxyOffset)
     
     const existingProject = await prisma.project.findFirst({
       where: {
@@ -305,10 +313,11 @@ async function main() {
 
   // 跟踪该用户已使用的轨道半径
   const userUsedOrbits: number[] = []
+  const userGalaxyOffset = 60 // 普通用户星系的角度偏移（与管理员区分）
   
   for (let i = 0; i < userProjects.length; i++) {
     const projectData = userProjects[i]
-    const orbit = calculatePlanetOrbit(i, userUsedOrbits)
+    const orbit = calculatePlanetOrbit(i, userUsedOrbits, userGalaxyOffset)
     
     const existingProject = await prisma.project.findFirst({
       where: {
@@ -343,6 +352,64 @@ async function main() {
       })
       userUsedOrbits.push(orbit.radius)
       console.log(`⏭️  项目已存在（已更新轨道参数）: ${projectData.title} (轨道: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
+    }
+  }
+
+  // 修复所有没有轨道参数的行星项目
+  console.log('\n🔧 检查并修复轨道参数...')
+  
+  const allUsers = await prisma.user.findMany({
+    include: {
+      projects: {
+        where: {
+          projectType: ProjectType.PLANET
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      }
+    },
+    orderBy: {
+      galaxyJoinedAt: 'asc'
+    }
+  })
+  
+  for (let userIndex = 0; userIndex < allUsers.length; userIndex++) {
+    const user = allUsers[userIndex]
+    const planetsWithoutOrbits = user.projects.filter(p => 
+      p.orbitRadius === null || p.orbitAngle === null || p.orbitSpeed === null
+    )
+    
+    if (planetsWithoutOrbits.length > 0) {
+      console.log(`\n🔍 发现用户 ${user.name} 有 ${planetsWithoutOrbits.length} 个行星需要修复`)
+      
+      // 获取该用户所有行星的轨道，用于冲突检测
+      const existingOrbits = user.projects
+        .filter(p => p.orbitRadius !== null)
+        .map(p => p.orbitRadius as number)
+      
+      // 为每个用户计算不同的星系偏移
+      const galaxyOffset = userIndex * 60
+      
+      for (let i = 0; i < planetsWithoutOrbits.length; i++) {
+        const planet = planetsWithoutOrbits[i]
+        // 使用该用户现有行星数量作为起始索引
+        const planetIndex = user.projects.filter(p => p.orbitRadius !== null).length + i
+        const orbit = calculatePlanetOrbit(planetIndex, existingOrbits, galaxyOffset)
+        
+        await prisma.project.update({
+          where: { id: planet.id },
+          data: {
+            projectType: ProjectType.PLANET,
+            orbitRadius: orbit.radius,
+            orbitAngle: orbit.angle,
+            orbitSpeed: orbit.speed,
+          }
+        })
+        
+        existingOrbits.push(orbit.radius)
+        console.log(`   ✅ 已修复: ${planet.title} (轨道: ${orbit.radius.toFixed(2)}, 角度: ${(orbit.angle * 180 / Math.PI).toFixed(1)}°)`)
+      }
     }
   }
 

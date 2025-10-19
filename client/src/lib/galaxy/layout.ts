@@ -50,20 +50,48 @@ export function checkGalaxyOverlap(
 
 /**
  * 计算行星的轨道参数
+ * 确保每个行星都在独立的轨道上，不会重叠
  * 
- * @param planetIndex 行星索引（从0开始）
- * @param totalPlanets 该星系总行星数
+ * @param planetIndex 行星在该星系中的索引（0, 1, 2...）
+ * @param existingOrbits 已使用的轨道半径数组
+ * @param galaxyOffset 星系的角度偏移（用于让不同星系的行星初始角度不同）
  * @returns 轨道参数 {radius, angle, speed}
  */
-export function calculatePlanetOrbit(planetIndex: number, totalPlanets: number) {
+export function calculatePlanetOrbit(
+  planetIndex: number, 
+  existingOrbits: number[] = [], 
+  galaxyOffset: number = 0
+) {
   const baseOrbitRadius = 3   // 第一个行星的轨道半径
   const orbitGap = 1.5         // 轨道间距
   
-  // 轨道半径：从内到外递增
-  const radius = baseOrbitRadius + planetIndex * orbitGap
+  // 计算候选轨道半径
+  let radius = baseOrbitRadius + planetIndex * orbitGap
   
-  // 初始角度：均匀分布
-  const angle = (planetIndex * 360 / totalPlanets) * (Math.PI / 180)
+  // 确保轨道半径唯一（不与现有轨道冲突）
+  const tolerance = 0.1 // 轨道半径容差
+  let attempts = 0
+  while (attempts < 50) {
+    const hasConflict = existingOrbits.some(existingRadius => 
+      Math.abs(existingRadius - radius) < tolerance
+    )
+    
+    if (!hasConflict) {
+      break
+    }
+    
+    // 如果有冲突，尝试下一个轨道
+    attempts++
+    radius = baseOrbitRadius + (planetIndex + attempts) * orbitGap
+  }
+  
+  // 初始角度：结合行星索引和星系偏移
+  // 1. 使用黄金角分布确保同一星系内的行星均匀分布
+  // 2. 加上星系偏移确保不同星系的行星不会在同一角度
+  const goldenAngle = 137.508 // 黄金角（度）
+  const planetAngle = (planetIndex * goldenAngle) % 360
+  const totalAngle = (planetAngle + galaxyOffset) % 360
+  const angle = totalAngle * (Math.PI / 180) // 转换为弧度
   
   // 公转速度：内圈快，外圈慢（开普勒第三定律的简化）
   const speed = 0.2 / Math.sqrt(radius)

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuthSession } from "@/types/auth";
+import { calculatePlanetOrbit } from "@/lib/galaxy/layout";
 
 // 获取项目列表
 export async function GET(request: NextRequest) {
@@ -100,6 +101,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 获取该用户现有的所有行星项目，用于计算新行星的轨道
+    const existingPlanets = await prisma.project.findMany({
+      where: {
+        authorId: session.user.id,
+        projectType: 'PLANET',
+        orbitRadius: { not: null }
+      },
+      select: {
+        orbitRadius: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    // 提取已使用的轨道半径
+    const existingOrbits = existingPlanets
+      .map(p => p.orbitRadius)
+      .filter((r): r is number => r !== null);
+
+    // 计算星系偏移（基于用户加入顺序）
+    const allUsers = await prisma.user.findMany({
+      orderBy: {
+        galaxyJoinedAt: 'asc'
+      },
+      select: { id: true }
+    });
+    
+    const userIndex = allUsers.findIndex(u => u.id === session.user.id);
+    const galaxyOffset = userIndex >= 0 ? userIndex * 60 : 0;
+
+    // 计算新行星的轨道参数
+    const planetIndex = existingPlanets.length;
+    const orbit = calculatePlanetOrbit(planetIndex, existingOrbits, galaxyOffset);
+
     const project = await prisma.project.create({
       data: {
         title,
@@ -109,6 +145,10 @@ export async function POST(request: NextRequest) {
         demoUrl,
         githubUrl,
         imageUrl,
+        projectType: 'PLANET', // 默认创建的都是行星项目
+        orbitRadius: orbit.radius,
+        orbitAngle: orbit.angle,
+        orbitSpeed: orbit.speed,
         authorId: session.user.id
       },
       include: {

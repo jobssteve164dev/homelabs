@@ -158,6 +158,11 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
           rotateSpeed={0.4}
           minDistance={8}
           maxDistance={100}
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,   // 左键：旋转
+            MIDDLE: THREE.MOUSE.PAN,    // 中键：平移（原本是缩放）
+            RIGHT: THREE.MOUSE.PAN      // 右键：平移
+          }}
         />
       </Canvas>
     </div>
