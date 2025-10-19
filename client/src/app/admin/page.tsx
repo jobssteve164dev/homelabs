@@ -71,55 +71,92 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      // 这里应该调用实际的API
-      // 暂时使用模拟数据
-      setUsers([
-        {
-          id: '1',
-          name: '张三',
-          email: 'zhangsan@example.com',
-          role: 'USER',
-          createdAt: '2025-01-15T10:00:00Z',
-          _count: { projects: 3 }
-        },
-        {
-          id: '2',
-          name: '李四',
-          email: 'lisi@example.com',
-          role: 'ADMIN',
-          createdAt: '2025-01-10T08:00:00Z',
-          _count: { projects: 5 }
-        }
+      // 并行获取用户、项目和统计数据
+      const [usersRes, projectsRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/projects')
       ]);
 
-      setProjects([
-        {
-          id: '1',
-          title: 'AI文本生成器',
-          description: '基于GPT的智能文本生成工具',
-          category: '文本处理',
-          isActive: true,
-          viewCount: 150,
-          likeCount: 25,
-          createdAt: '2025-01-15T10:00:00Z',
-          author: { name: '张三', email: 'zhangsan@example.com' }
-        },
-        {
-          id: '2',
-          title: '图像识别系统',
-          description: '高精度图像识别系统',
-          category: '图像处理',
-          isActive: true,
-          viewCount: 200,
-          likeCount: 30,
-          createdAt: '2025-01-14T15:00:00Z',
-          author: { name: '李四', email: 'lisi@example.com' }
-        }
-      ]);
+      if (!usersRes.ok || !projectsRes.ok) {
+        throw new Error('获取数据失败');
+      }
+
+      const usersData = await usersRes.json();
+      const projectsData = await projectsRes.json();
+
+      setUsers(usersData.users || []);
+      setProjects(projectsData.projects || []);
     } catch (error) {
       console.error('获取数据失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 切换项目状态
+  const toggleProjectStatus = async (projectId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch('/api/admin/projects', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, isActive: !currentStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error('更新项目状态失败');
+      }
+
+      // 刷新数据
+      fetchData();
+    } catch (error) {
+      console.error('更新项目状态错误:', error);
+      alert('更新项目状态失败');
+    }
+  };
+
+  // 删除项目
+  const deleteProject = async (projectId: string) => {
+    if (!confirm('确定要删除这个项目吗？此操作不可恢复。')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/projects?projectId=${projectId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('删除项目失败');
+      }
+
+      // 刷新数据
+      fetchData();
+    } catch (error) {
+      console.error('删除项目错误:', error);
+      alert('删除项目失败');
+    }
+  };
+
+  // 删除用户
+  const deleteUser = async (userId: string) => {
+    if (!confirm('确定要删除这个用户吗？此操作将同时删除该用户的所有项目，且不可恢复。')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users?userId=${userId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('删除用户失败');
+      }
+
+      // 刷新数据
+      fetchData();
+    } catch (error) {
+      console.error('删除用户错误:', error);
+      alert('删除用户失败');
     }
   };
 
@@ -341,11 +378,12 @@ export default function AdminPage() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-2">
-                          <button className="p-1 text-foreground/60 hover:text-neon-blue transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 text-foreground/60 hover:text-neon-purple transition-colors">
-                            <Edit className="w-4 h-4" />
+                          <button 
+                            onClick={() => deleteUser(user.id)}
+                            className="p-1 text-foreground/60 hover:text-red-400 transition-colors"
+                            title="删除用户"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -400,13 +438,22 @@ export default function AdminPage() {
                       <td className="py-3 px-4 text-sm text-foreground">{project.viewCount}</td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-2">
-                          <button className="p-1 text-foreground/60 hover:text-neon-blue transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 text-foreground/60 hover:text-neon-purple transition-colors">
+                          <button 
+                            onClick={() => toggleProjectStatus(project.id, project.isActive)}
+                            className={`p-1 transition-colors ${
+                              project.isActive 
+                                ? 'text-foreground/60 hover:text-yellow-400' 
+                                : 'text-foreground/60 hover:text-green-400'
+                            }`}
+                            title={project.isActive ? '暂停项目' : '激活项目'}
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="p-1 text-foreground/60 hover:text-red-400 transition-colors">
+                          <button 
+                            onClick={() => deleteProject(project.id)}
+                            className="p-1 text-foreground/60 hover:text-red-400 transition-colors"
+                            title="删除项目"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
