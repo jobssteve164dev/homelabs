@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuthSession } from "@/types/auth";
 import { calculatePlanetOrbit } from "@/lib/galaxy/layout";
+import { createProjectSchema, validateRequest } from "@/lib/validation";
+import { logError } from "@/lib/logger";
+import { apiRateLimit, checkRateLimit } from "@/lib/ratelimit";
 
 // 获取项目列表
 export async function GET(request: NextRequest) {
@@ -13,6 +16,10 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, apiRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -73,9 +80,11 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error("获取项目列表错误:", error);
+    logError("获取项目列表错误", error, {
+      userId: await getServerSession(authOptions).then(s => (s as AuthSession)?.user?.id),
+    });
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
@@ -89,17 +98,23 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, apiRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
-    const { title, description, category, tags, demoUrl, githubUrl, imageUrl } = body;
-
-    // 验证必填字段
-    if (!title || !description || !category) {
+    
+    // 使用Zod验证输入
+    const validation = validateRequest(createProjectSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "标题、描述和分类是必填项" },
+        { error: validation.error },
         { status: 400 }
       );
     }
+    
+    const { title, description, category, tags, demoUrl, githubUrl, imageUrl } = validation.data;
 
     // 获取该用户现有的所有行星项目，用于计算新行星的轨道
     const existingPlanets = await prisma.project.findMany({
@@ -167,9 +182,11 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("创建项目错误:", error);
+    logError("创建项目错误", error, {
+      userId: session?.user?.id,
+    });
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }

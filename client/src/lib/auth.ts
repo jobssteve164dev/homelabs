@@ -2,6 +2,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./db";
 import bcrypt from "bcryptjs";
+import { logSecurityEvent } from "./logger";
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -24,6 +25,10 @@ export const authOptions = {
         });
 
         if (!user) {
+          // 记录登录失败事件
+          logSecurityEvent('Login attempt with non-existent email', {
+            email: credentials.email,
+          });
           return null;
         }
 
@@ -33,6 +38,10 @@ export const authOptions = {
         );
 
         if (!isPasswordValid) {
+          // 记录密码错误事件
+          logSecurityEvent('Login attempt with invalid password', {
+            email: credentials.email,
+          });
           return null;
         }
 

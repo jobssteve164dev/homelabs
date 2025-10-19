@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuthSession } from "@/types/auth";
 import { Prisma } from "@prisma/client";
+import { logError, logInfo } from "@/lib/logger";
+import { adminRateLimit, checkRateLimit } from "@/lib/ratelimit";
 
 /**
  * GET /api/admin/projects
@@ -20,6 +22,10 @@ export async function GET(request: NextRequest) {
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: "无权限访问" }, { status: 403 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, adminRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -76,9 +82,9 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error("获取项目列表错误:", error);
+    logError("获取项目列表错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
@@ -96,6 +102,10 @@ export async function PATCH(request: NextRequest) {
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: "无权限访问" }, { status: 403 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, adminRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
     const { projectId, isActive } = body;
@@ -121,11 +131,18 @@ export async function PATCH(request: NextRequest) {
       }
     });
 
+    // 记录管理操作
+    logInfo("Admin updated project status", {
+      adminId: session.user.id,
+      projectId,
+      isActive,
+    });
+    
     return NextResponse.json({ project: updatedProject });
   } catch (error) {
-    console.error("更新项目错误:", error);
+    logError("更新项目错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
@@ -143,6 +160,10 @@ export async function DELETE(request: NextRequest) {
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: "无权限访问" }, { status: 403 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, adminRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -155,12 +176,18 @@ export async function DELETE(request: NextRequest) {
     await prisma.project.delete({
       where: { id: projectId }
     });
+    
+    // 记录管理操作
+    logInfo("Admin deleted project", {
+      adminId: session.user.id,
+      deletedProjectId: projectId,
+    });
 
     return NextResponse.json({ message: "项目删除成功" });
   } catch (error) {
-    console.error("删除项目错误:", error);
+    logError("删除项目错误", error, { adminId: session?.user?.id });
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }

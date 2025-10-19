@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuthSession } from "@/types/auth";
+import { updateProjectSchema, validateRequest } from "@/lib/validation";
+import { logError } from "@/lib/logger";
+import { apiRateLimit, checkRateLimit } from "@/lib/ratelimit";
 
 // 获取单个项目详情
 export async function GET(
@@ -15,6 +18,10 @@ export async function GET(
     if (!session) {
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, apiRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     const project = await prisma.project.findUnique({
@@ -41,9 +48,9 @@ export async function GET(
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error("获取项目详情错误:", error);
+    logError("获取项目详情错误", error);
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
@@ -60,9 +67,23 @@ export async function PUT(
     if (!session) {
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, apiRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
-    const { title, description, category, tags, demoUrl, githubUrl, imageUrl, isActive } = body;
+    
+    // 使用Zod验证输入
+    const validation = validateRequest(updateProjectSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+    
+    const { title, description, category, tags, demoUrl, githubUrl, imageUrl, isActive } = validation.data;
 
     const { id } = await params;
     
@@ -107,9 +128,9 @@ export async function PUT(
       { message: "项目更新成功", project }
     );
   } catch (error) {
-    console.error("更新项目错误:", error);
+    logError("更新项目错误", error);
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
@@ -126,6 +147,10 @@ export async function DELETE(
     if (!session) {
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
+    
+    // 速率限制检查
+    const rateLimitResponse = await checkRateLimit(request, apiRateLimit);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     
@@ -149,9 +174,9 @@ export async function DELETE(
 
     return NextResponse.json({ message: "项目删除成功" });
   } catch (error) {
-    console.error("删除项目错误:", error);
+    logError("删除项目错误", error);
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      { error: "服务器内部错误,请稍后重试" },
       { status: 500 }
     );
   }
