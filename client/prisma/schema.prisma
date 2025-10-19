@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -21,6 +18,13 @@ model User {
   password      String
   role          Role      @default(USER)
   avatar        String?
+  
+  // 星系相关字段
+  galaxyJoinedAt DateTime  @default(now())   // 加入AI宇宙的时间（用于星系排序）
+  galaxyX        Float?                      // 星系中心X坐标（持久化）
+  galaxyY        Float?                      // 星系中心Y坐标
+  galaxyZ        Float?                      // 星系中心Z坐标
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -34,23 +38,38 @@ model User {
 
 // 项目模型
 model Project {
-  id            String    @id @default(cuid())
+  id            String      @id @default(cuid())
   title         String
   description   String
   category      String
   tags          String[]
+  
+  // 星系相关字段
+  projectType   ProjectType @default(PLANET)  // 项目类型
+  
+  // 个人介绍卡片字段（仅恒星项目使用）
+  userBio       String?                       // 用户简介
+  userTitle     String?                       // 用户头衔
+  userSkills    String[]    @default([])      // 用户技能标签
+  socialLinks   Json?                         // 社交链接 {github, linkedin, twitter, etc.}
+  
+  // 空间坐标（持久化，避免每次计算）
+  orbitRadius   Float?                        // 行星轨道半径
+  orbitAngle    Float?                        // 行星轨道初始角度
+  orbitSpeed    Float?                        // 行星公转速度
+  
   demoUrl       String?
   githubUrl     String?
   imageUrl      String?
-  isActive      Boolean   @default(true)
-  viewCount     Int       @default(0)
-  likeCount     Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isActive      Boolean     @default(true)
+  viewCount     Int         @default(0)
+  likeCount     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   
   // 关联关系
   authorId      String
-  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author        User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   
   @@unique([title, authorId])
   @@map("projects")
@@ -100,4 +119,10 @@ model VerificationToken {
 enum Role {
   USER
   ADMIN
+}
+
+// 项目类型枚举
+enum ProjectType {
+  STAR      // 恒星项目（用户个人介绍）
+  PLANET    // 行星项目（AI工具）
 }
