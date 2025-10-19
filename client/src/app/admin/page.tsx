@@ -8,6 +8,17 @@ import { Shield, Users, FolderOpen, BarChart3, Settings, Eye, Edit, Trash2, Home
 import Link from 'next/link';
 import { logClientError } from '@/lib/clientLogger';
 
+const categories = [
+  '文本处理',
+  '图像处理',
+  '语音处理',
+  '开发工具',
+  '数据分析',
+  '对话系统',
+  '机器学习',
+  '其他'
+];
+
 interface ExtendedUser {
   id: string;
   name?: string | null;
@@ -57,6 +68,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [maintenanceLoading, setMaintenanceLoading] = useState<string | null>(null);
   const [projectTypeFilter, setProjectTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // 检查管理员权限
   useEffect(() => {
@@ -72,7 +84,7 @@ export default function AdminPage() {
     if (session?.user?.role === 'ADMIN') {
       fetchData();
     }
-  }, [session, projectTypeFilter]);
+  }, [session, projectTypeFilter, categoryFilter]);
 
   const fetchData = async () => {
     try {
@@ -80,6 +92,9 @@ export default function AdminPage() {
       const projectsUrl = new URL('/api/admin/projects', window.location.origin);
       if (projectTypeFilter && projectTypeFilter !== 'all') {
         projectsUrl.searchParams.set('projectType', projectTypeFilter);
+      }
+      if (categoryFilter && categoryFilter !== 'all') {
+        projectsUrl.searchParams.set('category', categoryFilter);
       }
 
       // 并行获取用户、项目和统计数据
@@ -718,21 +733,56 @@ export default function AdminPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-foreground">项目列表</h3>
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">项目列表</h3>
+              </div>
               
-              {/* 类型筛选器 */}
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-foreground/60">项目类型：</label>
-                <select
-                  value={projectTypeFilter}
-                  onChange={(e) => setProjectTypeFilter(e.target.value)}
-                  className="px-4 py-2 rounded-lg bg-sci-darker border border-neon-blue/30 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-neon-blue/50 hover:border-neon-blue/50 transition-all cursor-pointer"
-                >
-                  <option value="all">全部类型</option>
-                  <option value="PLANET">行星项目（AI工具）</option>
-                  <option value="STAR">恒星项目（个人介绍）</option>
-                </select>
+              {/* 筛选器组 */}
+              <div className="flex flex-wrap items-center gap-4 p-4 bg-sci-darker/50 rounded-lg border border-neon-blue/20">
+                {/* 类型筛选器 */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-foreground/60 whitespace-nowrap">项目类型：</label>
+                  <select
+                    value={projectTypeFilter}
+                    onChange={(e) => setProjectTypeFilter(e.target.value)}
+                    className="px-4 py-2 rounded-lg bg-sci-darker border border-neon-blue/30 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-neon-blue/50 hover:border-neon-blue/50 transition-all cursor-pointer"
+                  >
+                    <option value="all">全部类型</option>
+                    <option value="PLANET">行星项目（AI工具）</option>
+                    <option value="STAR">恒星项目（个人介绍）</option>
+                  </select>
+                </div>
+
+                {/* 分类筛选器 */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-foreground/60 whitespace-nowrap">项目分类：</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="px-4 py-2 rounded-lg bg-sci-darker border border-neon-purple/30 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-neon-purple/50 hover:border-neon-purple/50 transition-all cursor-pointer"
+                  >
+                    <option value="all">全部分类</option>
+                    {categories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 重置筛选按钮 */}
+                {(projectTypeFilter !== 'all' || categoryFilter !== 'all') && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setProjectTypeFilter('all');
+                      setCategoryFilter('all');
+                    }}
+                    className="ml-auto px-4 py-2 rounded-lg bg-foreground/10 border border-foreground/20 text-foreground/80 text-sm hover:bg-foreground/20 hover:border-foreground/30 transition-all"
+                  >
+                    重置筛选
+                  </motion.button>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
