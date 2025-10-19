@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { Plus, Search, Edit, Trash2, ExternalLink, Github, Home, ArrowLeft, Star } from 'lucide-react';
+import { logClientError } from '@/lib/clientLogger';
 
 interface Project {
   id: string;
@@ -54,7 +55,7 @@ export default function DashboardPage() {
         setProjects(data.projects);
       }
     } catch (error) {
-      console.error('获取项目列表失败:', error);
+      logClientError('获取项目列表失败', error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export default function DashboardPage() {
         alert('删除失败');
       }
     } catch (error) {
-      console.error('删除项目失败:', error);
+      logClientError('删除项目失败', error);
       alert('删除失败');
     }
   };

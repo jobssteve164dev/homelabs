@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Shield, Users, FolderOpen, BarChart3, Settings, Eye, Edit, Trash2, Home, ArrowLeft, Power } from 'lucide-react';
 import Link from 'next/link';
+import { logClientError } from '@/lib/clientLogger';
 
 interface ExtendedUser {
   id: string;
@@ -87,7 +88,7 @@ export default function AdminPage() {
       setUsers(usersData.users || []);
       setProjects(projectsData.projects || []);
     } catch (error) {
-      console.error('获取数据失败:', error);
+      logClientError('获取管理后台数据失败', error);
     } finally {
       setLoading(false);
     }

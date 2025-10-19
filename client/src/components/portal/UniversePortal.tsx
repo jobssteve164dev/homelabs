@@ -7,6 +7,7 @@ import { PlanetDetail } from './PlanetDetail';
 import { StarDetail } from './StarDetail';
 import { UniverseHUD } from './UniverseHUD';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logClientError } from '@/lib/clientLogger';
 
 /**
  * UniversePortal组件
@@ -42,10 +43,10 @@ export function UniversePortal() {
         const data = await response.json();
         setGalaxies(data.galaxies || []);
       } else {
-        console.error('获取星系列表失败:', response.statusText);
+        logClientError('获取星系列表失败', response.statusText);
       }
     } catch (error) {
-      console.error('获取星系列表失败:', error);
+      logClientError('获取星系列表失败', error);
     } finally {
       setLoading(false);
     }
