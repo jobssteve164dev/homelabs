@@ -2,9 +2,10 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import { Galaxy } from './Galaxy';
 import { Stardust } from './Stardust';
+import * as THREE from 'three';
 
 // 星系数据类型
 export interface GalaxyData {
@@ -70,10 +71,32 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
   // 如果提供了galaxies，使用新的星系系统
   const useGalaxySystem = galaxies.length > 0;
 
+  // 计算第一个星系（通常是管理员）的中心位置，作为默认聚焦点
+  const firstGalaxyCenter = useMemo(() => {
+    if (galaxies.length > 0) {
+      const firstGalaxy = galaxies[0];
+      return new THREE.Vector3(
+        firstGalaxy.galaxyCenter.x,
+        firstGalaxy.galaxyCenter.y,
+        firstGalaxy.galaxyCenter.z
+      );
+    }
+    return new THREE.Vector3(0, 0, 0);
+  }, [galaxies]);
+
+  // 计算相机的初始位置（相对于第一个星系）
+  const cameraPosition = useMemo(() => {
+    return [
+      firstGalaxyCenter.x,
+      firstGalaxyCenter.y + 5,
+      firstGalaxyCenter.z + 25
+    ] as [number, number, number];
+  }, [firstGalaxyCenter]);
+
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 5, 25], fov: 75 }}
+        camera={{ position: cameraPosition, fov: 75 }}
         gl={{ antialias: true, alpha: true }}
       >
         {/* 环境光 */}
@@ -124,8 +147,9 @@ export function Universe({ galaxies = [], onStarClick, onPlanetClick, planets }:
           return null;
         })}
         
-        {/* 相机控制 */}
+        {/* 相机控制 - 设置target为第一个星系的中心 */}
         <OrbitControls
+          target={firstGalaxyCenter}
           enableZoom={true}
           enablePan={true}
           enableRotate={true}
