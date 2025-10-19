@@ -11,7 +11,7 @@ import { PopularPlanetsList } from './PopularPlanetsList';
 interface UniverseHUDProps {
   totalPlanets: number;
   activePlanets: number;
-  onNavigateToPlanet?: (galaxyCenter: { x: number; y: number; z: number }) => void;
+  onNavigateToPlanet?: (planetId: string, galaxyCenter: { x: number; y: number; z: number }) => void;
 }
 
 export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }: UniverseHUDProps) {

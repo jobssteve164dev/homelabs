@@ -85,16 +85,35 @@ export function UniversePortal() {
   };
 
   // 处理跳转到指定星球
-  const handleNavigateToPlanet = (galaxyCenter: { x: number; y: number; z: number }) => {
-    // 设置相机跳转目标
-    setCameraTarget(galaxyCenter);
+  const handleNavigateToPlanet = (planetId: string, galaxyCenter: { x: number; y: number; z: number }) => {
+    // 找到目标星球
+    const targetPlanet = galaxies
+      .flatMap(g => g.planets)
+      .find(p => p.id === planetId);
     
-    // 关闭详情面板
-    setSelectedPlanetId(null);
+    if (targetPlanet) {
+      // 计算星球在3D空间中的实际位置
+      const planetPosition = {
+        x: galaxyCenter.x + Math.cos(targetPlanet.orbitAngle) * targetPlanet.orbitRadius,
+        y: galaxyCenter.y,
+        z: galaxyCenter.z + Math.sin(targetPlanet.orbitAngle) * targetPlanet.orbitRadius,
+      };
+      
+      // 设置相机跳转目标到星球位置
+      setCameraTarget(planetPosition);
+      
+      // 设置选中星球以触发高亮效果
+      setSelectedPlanetId(planetId);
+    } else {
+      // 如果找不到星球，跳转到星系中心
+      setCameraTarget(galaxyCenter);
+    }
+    
+    // 关闭其他面板
     setSelectedUserId(null);
     setShowWelcome(false);
     
-    // 3秒后清除跳转目标，恢复正常的相机控制
+    // 3秒后清除跳转目标，但保持星球选中状态
     setTimeout(() => {
       setCameraTarget(null);
     }, 3000);

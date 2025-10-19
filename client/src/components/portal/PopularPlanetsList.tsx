@@ -35,7 +35,7 @@ interface PopularPlanet {
 interface PopularPlanetsListProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigateToPlanet: (galaxyCenter: { x: number; y: number; z: number }) => void;
+  onNavigateToPlanet: (planetId: string, galaxyCenter: { x: number; y: number; z: number }) => void;
 }
 
 /**
@@ -54,13 +54,30 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
 
   // 获取热门星球数据
   useEffect(() => {
     if (isOpen) {
       fetchPopularPlanets();
+      setLastActivity(Date.now());
     }
   }, [isOpen]);
+
+  // 30秒不活跃自动关闭机制
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const checkInactivity = () => {
+      const now = Date.now();
+      if (now - lastActivity > 30000) { // 30秒
+        onClose();
+      }
+    };
+
+    const interval = setInterval(checkInactivity, 1000); // 每秒检查一次
+    return () => clearInterval(interval);
+  }, [isOpen, lastActivity, onClose]);
 
   const fetchPopularPlanets = async () => {
     setLoading(true);
@@ -82,17 +99,24 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
     }
   };
 
+  const updateActivity = () => {
+    setLastActivity(Date.now());
+  };
+
   const handlePlanetClick = (planet: PopularPlanet) => {
-    onNavigateToPlanet(planet.author.galaxyCenter);
+    updateActivity();
+    onNavigateToPlanet(planet.id, planet.author.galaxyCenter);
     onClose();
   };
 
   const handleExternalLink = (url: string, event: React.MouseEvent) => {
     event.stopPropagation();
+    updateActivity();
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const toggleExpanded = (planetId: string) => {
+    updateActivity();
     const newExpanded = new Set(expandedItems);
     if (newExpanded.has(planetId)) {
       newExpanded.delete(planetId);
@@ -112,9 +136,9 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
       transition={{ duration: 0.2 }}
       className="absolute top-full right-0 mt-2 z-50"
     >
-      <div className="glass-card px-4 py-3 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs min-w-[400px] max-w-[500px]">
+      <div className="glass-card px-5 py-4 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs min-w-[420px] max-w-[520px]">
         {/* 标题栏 */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <div className="text-neon-blue font-bold">热门星球排行榜</div>
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -127,7 +151,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         </div>
 
         {/* 内容区域 */}
-        <div className="space-y-1 max-h-[400px] overflow-y-auto">
+        <div className="space-y-2 max-h-[450px] overflow-y-auto">
           {loading ? (
             <div className="text-center py-4">
               <div className="text-foreground/60">加载中...</div>
@@ -157,11 +181,11 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.05 }}
-                  className="border-b border-foreground/10 last:border-b-0 pb-1 last:pb-0"
+                  className="border-b border-foreground/10 last:border-b-0 pb-2 last:pb-0"
                 >
                   {/* 主要信息行 */}
                   <div 
-                    className="flex items-center justify-between py-1 cursor-pointer hover:bg-foreground/5 rounded px-1 -mx-1"
+                    className="flex items-center justify-between py-2 cursor-pointer hover:bg-foreground/5 rounded px-2 -mx-2"
                     onClick={() => toggleExpanded(planet.id)}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -201,7 +225,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="pl-6 pr-2 py-2 space-y-2">
+                        <div className="pl-6 pr-3 py-3 space-y-3">
                           {/* 描述 */}
                           <div className="text-foreground/60 text-xs leading-relaxed">
                             {planet.description}
@@ -277,7 +301,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         </div>
 
         {/* 底部提示 */}
-        <div className="mt-3 pt-2 border-t border-foreground/10">
+        <div className="mt-4 pt-3 border-t border-foreground/10">
           <div className="text-foreground/40 text-xs text-center">
             点击展开查看详情 • 点击位置图标跳转
           </div>
