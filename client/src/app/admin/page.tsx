@@ -69,6 +69,7 @@ export default function AdminPage() {
   const [maintenanceLoading, setMaintenanceLoading] = useState<string | null>(null);
   const [projectTypeFilter, setProjectTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [projectSearchTerm, setProjectSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProjects, setTotalProjects] = useState(0);
@@ -96,12 +97,12 @@ export default function AdminPage() {
     if (session?.user?.role === 'ADMIN') {
       fetchData();
     }
-  }, [session, projectTypeFilter, categoryFilter, currentPage, userStatusFilter, userSearchTerm, userCurrentPage]);
+  }, [session, projectTypeFilter, categoryFilter, projectSearchTerm, currentPage, userStatusFilter, userSearchTerm, userCurrentPage]);
 
   // 项目筛选条件变化时重置到第一页
   useEffect(() => {
     setCurrentPage(1);
-  }, [projectTypeFilter, categoryFilter]);
+  }, [projectTypeFilter, categoryFilter, projectSearchTerm]);
 
   // 用户筛选条件变化时重置到第一页
   useEffect(() => {
@@ -125,6 +126,9 @@ export default function AdminPage() {
       const projectsUrl = new URL('/api/admin/projects', window.location.origin);
       projectsUrl.searchParams.set('page', currentPage.toString());
       projectsUrl.searchParams.set('limit', itemsPerPage.toString());
+      if (projectSearchTerm) {
+        projectsUrl.searchParams.set('search', projectSearchTerm);
+      }
       if (projectTypeFilter && projectTypeFilter !== 'all') {
         projectsUrl.searchParams.set('projectType', projectTypeFilter);
       }
@@ -996,6 +1000,18 @@ export default function AdminPage() {
               
               {/* 筛选器组 */}
               <div className="flex flex-wrap items-center gap-4 p-4 bg-sci-darker/50 rounded-lg border border-neon-blue/20">
+                {/* 搜索框 */}
+                <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+                  <label className="text-sm text-foreground/60 whitespace-nowrap">搜索：</label>
+                  <input
+                    type="text"
+                    value={projectSearchTerm}
+                    onChange={(e) => setProjectSearchTerm(e.target.value)}
+                    placeholder="搜索项目标题或描述..."
+                    className="flex-1 px-4 py-2 rounded-lg bg-sci-darker border border-neon-blue/30 text-foreground text-sm placeholder-foreground/40 focus:outline-none focus:ring-2 focus:ring-neon-blue/50 hover:border-neon-blue/50 transition-all"
+                  />
+                </div>
+
                 {/* 类型筛选器 */}
                 <div className="flex items-center gap-3">
                   <label className="text-sm text-foreground/60 whitespace-nowrap">项目类型：</label>
@@ -1033,13 +1049,14 @@ export default function AdminPage() {
                   </span>
                   
                   {/* 重置筛选按钮 */}
-                  {(projectTypeFilter !== 'all' || categoryFilter !== 'all') && (
+                  {(projectTypeFilter !== 'all' || categoryFilter !== 'all' || projectSearchTerm) && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         setProjectTypeFilter('all');
                         setCategoryFilter('all');
+                        setProjectSearchTerm('');
                       }}
                       className="px-4 py-2 rounded-lg bg-foreground/10 border border-foreground/20 text-foreground/80 text-sm hover:bg-foreground/20 hover:border-foreground/30 transition-all"
                     >
