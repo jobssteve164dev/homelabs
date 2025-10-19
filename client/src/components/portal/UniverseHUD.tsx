@@ -6,7 +6,7 @@ import { Rocket, Zap, Globe, LogIn, UserPlus, Home, FolderKanban, PlusCircle, Se
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { AuthSession } from '@/types/auth';
-import { PopularPlanetsModal } from './PopularPlanetsModal';
+import { PopularPlanetsList } from './PopularPlanetsList';
 
 interface UniverseHUDProps {
   totalPlanets: number;
@@ -207,7 +207,8 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         transition={{ duration: 0.5 }}
         className="absolute top-4 right-4 md:top-6 md:right-6 z-10"
       >
-        <div className="flex items-center gap-4">
+        <div className="relative">
+          <div className="flex items-center gap-4">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -236,6 +237,14 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
               </div>
             </div>
           </motion.div>
+          </div>
+          
+          {/* 热门星球排行榜列表 */}
+          <PopularPlanetsList
+            isOpen={showPopularPlanets}
+            onClose={() => setShowPopularPlanets(false)}
+            onNavigateToPlanet={onNavigateToPlanet || (() => {})}
+          />
         </div>
       </motion.div>
 
@@ -264,12 +273,6 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         </div>
       </motion.div>
 
-      {/* 热门星球排行榜模态框 */}
-      <PopularPlanetsModal
-        isOpen={showPopularPlanets}
-        onClose={() => setShowPopularPlanets(false)}
-        onNavigateToPlanet={onNavigateToPlanet || (() => {})}
-      />
     </>
   );
 }

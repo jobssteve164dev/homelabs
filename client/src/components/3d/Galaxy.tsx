@@ -2,6 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { Star } from './Star';
 import { Planet } from './Planet';
 import { OrbitRing } from './OrbitRing';
