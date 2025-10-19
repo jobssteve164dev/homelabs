@@ -191,31 +191,18 @@ export function detectAndAvoidCollisions(
   angle: number;
   speed: number;
 }> {
-  // 考虑行星实际大小，设置合理的安全距离
-  const planetRadius = 1.5; // 行星的实际半径
-  const minSafeDistance = planetRadius * 2 + 1.0; // 两个行星半径 + 额外安全距离 = 4.0
-  const warningDistance = minSafeDistance + 0.5; // 4.5
-  
-  // 创建调整后的行星数组，保持原始速度作为基准
-  const adjustedPlanets = planets.map(planet => ({ ...planet }));
-  
-  // 记录哪些行星已经被调整过，避免重复调整
-  const adjustedIndices = new Set<number>();
+  const minSafeDistance = 2.5; // 最小安全距离
+  const adjustedPlanets = [...planets];
   
   // 检查每对行星的当前距离
   for (let i = 0; i < adjustedPlanets.length; i++) {
     for (let j = i + 1; j < adjustedPlanets.length; j++) {
-      // 如果这两个行星中任何一个已经被调整过，跳过
-      if (adjustedIndices.has(i) || adjustedIndices.has(j)) {
-        continue;
-      }
-      
       const planet1 = adjustedPlanets[i];
       const planet2 = adjustedPlanets[j];
       
-      // 计算当前时刻两行星的位置（使用原始速度）
-      const angle1 = planet1.angle + planets[i].speed * elapsedTime;
-      const angle2 = planet2.angle + planets[j].speed * elapsedTime;
+      // 计算当前时刻两行星的位置
+      const angle1 = planet1.angle + planet1.speed * elapsedTime;
+      const angle2 = planet2.angle + planet2.speed * elapsedTime;
       
       // 计算两行星在3D空间中的距离
       const x1 = planet1.radius * Math.cos(angle1);
@@ -225,41 +212,16 @@ export function detectAndAvoidCollisions(
       
       const distance = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
       
-      // 如果距离过近，进行渐进式调整
-      if (distance < warningDistance) {
-        const dangerLevel = (warningDistance - distance) / warningDistance;
-        
-        // 使用更温和的调整策略，避免瞬移
-        let outerSpeedAdjustment = 0.9; // 外圈行星轻微减速10%
-        let innerSpeedAdjustment = 1.1; // 内圈行星轻微加速10%
-        
-        if (dangerLevel > 0.7) {
-          // 极高危险：外圈减速25%，内圈加速20%
-          outerSpeedAdjustment = 0.75;
-          innerSpeedAdjustment = 1.2;
-        } else if (dangerLevel > 0.4) {
-          // 高危险：外圈减速20%，内圈加速15%
-          outerSpeedAdjustment = 0.8;
-          innerSpeedAdjustment = 1.15;
-        }
-        
-        // 为外圈行星轻微减速，为内圈行星轻微加速，平滑增加相位差
-        // 基于原始速度进行调整，而不是累积调整
+      // 如果距离过近，调整速度
+      if (distance < minSafeDistance) {
+        // 为外圈行星减速，为内圈行星加速，增加相位差
         if (planet1.radius > planet2.radius) {
-          // planet1是外圈，轻微减速
-          adjustedPlanets[i].speed = planets[i].speed * outerSpeedAdjustment;
-          // 同时为内圈行星轻微加速
-          adjustedPlanets[j].speed = planets[j].speed * innerSpeedAdjustment;
+          // planet1是外圈，减速
+          adjustedPlanets[i].speed *= 0.95;
         } else {
-          // planet2是外圈，轻微减速
-          adjustedPlanets[j].speed = planets[j].speed * outerSpeedAdjustment;
-          // 同时为内圈行星轻微加速
-          adjustedPlanets[i].speed = planets[i].speed * innerSpeedAdjustment;
+          // planet2是外圈，减速
+          adjustedPlanets[j].speed *= 0.95;
         }
-        
-        // 标记这两个行星已经被调整过
-        adjustedIndices.add(i);
-        adjustedIndices.add(j);
       }
     }
   }
@@ -289,11 +251,6 @@ export function predictCollisionRisk(
   closestApproach: number;
   riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}>;
 } {
-  // 使用与碰撞检测相同的安全距离标准
-  const planetRadius = 1.5;
-  const minSafeDistance = planetRadius * 2 + 1.0; // 4.0
-  const warningDistance = minSafeDistance + 0.5; // 4.5
-  
   let minDistance = Infinity;
   let closestTime = 0;
   const riskPairs: Array<{planet1: string; planet2: string; minDistance: number; time: number}> = [];
@@ -320,8 +277,8 @@ export function predictCollisionRisk(
           closestTime = t;
         }
         
-        // 记录风险对（使用更严格的标准）
-        if (distance < warningDistance) {
+        // 记录风险对
+        if (distance < 3.0) {
           riskPairs.push({
             planet1: planet1.id,
             planet2: planet2.id,
@@ -333,16 +290,16 @@ export function predictCollisionRisk(
     }
   }
   
-  // 评估风险等级（使用更严格的标准）
+  // 评估风险等级
   let riskLevel: 'low' | 'medium' | 'high' = 'low';
-  if (minDistance < minSafeDistance) {
+  if (minDistance < 2.0) {
     riskLevel = 'high';
-  } else if (minDistance < warningDistance) {
+  } else if (minDistance < 2.5) {
     riskLevel = 'medium';
   }
   
   return {
-    hasRisk: minDistance < warningDistance,
+    hasRisk: minDistance < 3.0,
     riskLevel,
     closestApproach: minDistance,
     riskPairs
