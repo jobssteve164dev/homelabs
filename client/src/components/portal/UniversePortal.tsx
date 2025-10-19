@@ -1,86 +1,98 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Universe } from '../3d/Universe';
 import { PlanetDetail } from './PlanetDetail';
 import { UniverseHUD } from './UniverseHUD';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// 示例星球数据
-const samplePlanets = [
-  {
-    id: '1',
-    name: 'AI文本生成器',
-    position: [0, 0, 0] as [number, number, number],
-    color: '#00ffff',
-    size: 1.5,
-    category: '文本处理',
-    description: '基于GPT的智能文本生成工具',
-    tags: ['GPT', '文本生成', 'AI写作'],
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: '图像识别',
-    position: [4, 2, -3] as [number, number, number],
-    color: '#ff00ff',
-    size: 1.2,
-    category: '图像处理',
-    description: '高精度图像识别系统',
-    tags: ['计算机视觉', '图像识别'],
-    status: 'active',
-  },
-  {
-    id: '3',
-    name: '语音转文字',
-    position: [-5, -1, 2] as [number, number, number],
-    color: '#00ff00',
-    size: 1.0,
-    category: '语音处理',
-    description: '实时语音识别和转录服务',
-    tags: ['语音识别', 'ASR'],
-    status: 'active',
-  },
-  {
-    id: '4',
-    name: '代码助手',
-    position: [3, -3, 4] as [number, number, number],
-    color: '#ff8c00',
-    size: 1.3,
-    category: '开发工具',
-    description: 'AI驱动的代码生成工具',
-    tags: ['代码生成', '编程助手'],
-    status: 'development',
-  },
-  {
-    id: '5',
-    name: '数据分析',
-    position: [-3, 3, -2] as [number, number, number],
-    color: '#1e90ff',
-    size: 1.1,
-    category: '数据分析',
-    description: '智能数据分析平台',
-    tags: ['数据分析', '可视化'],
-    status: 'active',
-  },
-  {
-    id: '6',
-    name: '智能客服',
-    position: [2, 1, 5] as [number, number, number],
-    color: '#ff1493',
-    size: 0.9,
-    category: '对话系统',
-    description: '基于NLP的智能客服系统',
-    tags: ['NLP', '对话系统'],
-    status: 'planning',
-  },
-];
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  demoUrl?: string;
+  githubUrl?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  viewCount: number;
+  likeCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 将项目转换为星球数据的辅助函数
+const convertProjectToPlanet = (project: Project, index: number) => {
+  // 生成3D位置（在球形空间中分布）
+  const radius = 8;
+  const theta = (index * 137.5) % 360; // 黄金角度分布
+  const phi = Math.acos(1 - 2 * index / 20); // 均匀分布在球面上
+  
+  const x = radius * Math.sin(phi) * Math.cos(theta);
+  const y = radius * Math.sin(phi) * Math.sin(theta);
+  const z = radius * Math.cos(phi);
+
+  // 根据分类生成颜色
+  const categoryColors: { [key: string]: string } = {
+    '文本处理': '#00ffff',
+    '图像处理': '#ff00ff',
+    '语音处理': '#00ff00',
+    '开发工具': '#ff8c00',
+    '数据分析': '#1e90ff',
+    '对话系统': '#ff1493',
+    '机器学习': '#9d4edd',
+    '其他': '#f72585'
+  };
+
+  return {
+    id: project.id,
+    name: project.title,
+    position: [x, y, z] as [number, number, number],
+    color: categoryColors[project.category] || '#f72585',
+    size: Math.max(0.8, Math.min(1.5, 1 + project.likeCount / 50)), // 根据点赞数调整大小
+    category: project.category,
+    description: project.description,
+    tags: project.tags,
+    status: project.isActive ? 'active' : 'inactive',
+    demoUrl: project.demoUrl,
+    githubUrl: project.githubUrl,
+    imageUrl: project.imageUrl,
+    viewCount: project.viewCount,
+    likeCount: project.likeCount
+  };
+};
 
 export function UniversePortal() {
+  const { data: session } = useSession();
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const selectedPlanet = samplePlanets.find(p => p.id === selectedPlanetId);
+  // 获取所有公开项目
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects/public');
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.error('获取项目列表失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 转换为星球数据
+  const planets = projects.map(convertProjectToPlanet);
+  const selectedPlanet = planets.find(p => p.id === selectedPlanetId);
 
   // 欢迎提示5秒后自动淡出
   useEffect(() => {
@@ -100,15 +112,26 @@ export function UniversePortal() {
     setSelectedPlanetId(null);
   };
 
+  if (loading) {
+    return (
+      <div className="relative w-full h-screen overflow-hidden bg-sci-darker flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-blue mx-auto mb-4"></div>
+          <p className="text-foreground/60">加载AI宇宙中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-sci-darker">
       {/* 3D宇宙场景 */}
-      <Universe planets={samplePlanets} onPlanetClick={handlePlanetClick} />
+      <Universe planets={planets} onPlanetClick={handlePlanetClick} />
 
       {/* HUD界面 */}
       <UniverseHUD
-        totalPlanets={samplePlanets.length}
-        activePlanets={samplePlanets.filter(p => p.status === 'active').length}
+        totalPlanets={planets.length}
+        activePlanets={planets.filter(p => p.status === 'active').length}
       />
 
       {/* 优雅的欢迎提示 */}
@@ -153,32 +176,33 @@ export function UniversePortal() {
       </AnimatePresence>
 
       {/* 创建星球按钮 */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        className="fixed bottom-8 right-8 z-20 w-16 h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
-        onClick={() => {
-          // TODO: 打开创建星球对话框
-          alert('创建新星球功能即将推出！');
-        }}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-8 h-8 text-white"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {session && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="fixed bottom-8 right-8 z-20 w-16 h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
+          onClick={() => {
+            window.location.href = '/dashboard/create';
+          }}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-      </motion.button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-8 h-8 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+        </motion.button>
+      )}
     </div>
   );
 }

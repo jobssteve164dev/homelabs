@@ -434,6 +434,7 @@ function OrbitParticles({ radius, color }: { radius: number; color: string }) {
           count={particleCount}
           array={positions}
           itemSize={3}
+          args={[positions, 3]}
         />
       </bufferGeometry>
       <pointsMaterial

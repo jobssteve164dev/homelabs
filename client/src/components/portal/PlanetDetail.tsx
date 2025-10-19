@@ -216,7 +216,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8"
             >
               <div className="glass-card p-6 rounded-xl border border-neon-blue/30 hover:border-neon-blue/60 transition-all group">
                 <div className="flex items-center gap-4">
@@ -257,7 +257,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
           </div>
 
           {/* 内容区域 */}
-          <div className="px-6 sm:px-8 lg:px-10 pb-8 sm:pb-10 space-y-8 sm:space-y-10">
+          <div className="px-6 sm:px-8 lg:px-10 pb-8 sm:pb-10 space-y-12 sm:space-y-14">
             {/* 分隔线 */}
             <div className="relative h-px">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
@@ -269,7 +269,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <h3 className="text-lg font-display font-semibold text-foreground mb-6 flex items-center gap-3">
+              <h3 className="text-lg font-display font-semibold text-foreground mb-8 flex items-center gap-3">
                 <div className="w-1 h-6 bg-gradient-to-b from-neon-blue to-neon-purple rounded-full" />
                 项目简介
               </h3>
@@ -285,7 +285,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
               >
-                <h3 className="text-lg font-display font-semibold text-foreground mb-6 flex items-center gap-3">
+                <h3 className="text-lg font-display font-semibold text-foreground mb-8 flex items-center gap-3">
                   <div className="w-1 h-6 bg-gradient-to-b from-neon-purple to-neon-green rounded-full" />
                   <Tag className="w-5 h-5 text-neon-purple" />
                   技术栈
@@ -332,7 +332,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
-              className="flex flex-col sm:flex-row gap-4 sm:gap-6 pt-4"
+              className="flex flex-col sm:flex-row gap-4 sm:gap-6"
             >
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}

@@ -1,21 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
-
-const orbitron = Orbitron({
-  variable: "--font-orbitron",
-  subsets: ["latin"],
-});
+import { SessionProvider } from "@/components/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: "HOMELABS Portal - 科幻未来风AI工具门户",
@@ -38,19 +23,21 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className="dark" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} ${orbitron.variable} antialiased min-h-screen bg-sci-dark text-foreground`}
+        className="antialiased min-h-screen bg-sci-dark text-foreground font-sans"
         suppressHydrationWarning
       >
-        <div className="relative min-h-screen">
-          {/* 科幻背景效果 */}
-          <div className="fixed inset-0 grid-bg opacity-20" />
-          <div className="fixed inset-0 particles" />
-          
-          {/* 主要内容 */}
-          <div className="relative z-10">
-            {children}
+        <SessionProvider>
+          <div className="relative min-h-screen">
+            {/* 科幻背景效果 */}
+            <div className="fixed inset-0 grid-bg opacity-20" />
+            <div className="fixed inset-0 particles" />
+            
+            {/* 主要内容 */}
+            <div className="relative z-10">
+              {children}
+            </div>
           </div>
-        </div>
+        </SessionProvider>
       </body>
     </html>
   );
