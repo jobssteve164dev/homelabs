@@ -24,14 +24,66 @@
 
 ### 问题5: PostgreSQL目录权限警告 ✅
 - ⚠️ 警告: `could not change directory to "/home/***": Permission denied`
-- 🔧 原因: 
-  * `sudo -u postgres psql` 继承当前工作目录（SSH用户的home）
-  * postgres用户没有权限访问SSH用户的home目录
-  * 虽然不影响功能，但产生噪音警告
-- ✅ 修复: 
-  * 在执行psql命令前先 `cd /tmp`
-  * /tmp目录所有用户都有权限访问
-  * 完全消除权限警告
+- 🔧 原因: `sudo -u postgres psql` 继承当前工作目录但postgres用户无权限访问
+- ✅ 修复: 在执行psql命令前先 `cd /tmp`
+
+### 问题6: 环境变量配置未生效（关键问题）✅
+- ❌ 症状: 
+  * GitHub Variables配置: `APP_PORT=3001`
+  * `.env`文件内容正确: `PORT=3001`
+  * 但Next.js实际启动在默认的3000端口
+  * 导致Nginx反向代理到3001失败 → 502 Bad Gateway
+  
+- 🔧 根本原因: 
+  ```
+  环境变量文件位置: /opt/homelabs/.env (父目录)
+  Next.js运行位置:   /opt/homelabs/client/ (子目录)
+  
+  问题: Next.js只在当前工作目录查找.env文件
+  结果: Next.js找不到.env，使用默认配置
+  ```
+
+- 🐛 问题代码:
+  ```yaml
+  # 创建.env文件
+  cd ${{ env.DEPLOY_PATH }}        # /opt/homelabs/
+  echo "PORT=3001" > .env          # .env在父目录
+  
+  # 启动应用
+  cd ${{ env.DEPLOY_PATH }}/client # /opt/homelabs/client/
+  pm2 start npm -- start           # Next.js在子目录找不到.env
+  ```
+
+- ✅ 修复方案:
+  ```yaml
+  # 在正确的位置创建.env文件
+  cd ${{ env.DEPLOY_PATH }}/client # 直接在client目录
+  echo "PORT=3001" > .env          # .env和应用同目录
+  ```
+
+- 📊 验证方法:
+  ```bash
+  # 部署后检查
+  cat /opt/homelabs/client/.env | grep PORT  # 应显示 PORT=3001
+  pm2 logs homelabs-portal                   # 应显示 localhost:3001
+  sudo ss -tlnp | grep :3001                 # 应显示端口监听
+  curl http://localhost:3001                 # 应返回200
+  ```
+
+---
+
+## 💡 经验总结
+
+### 关键教训
+1. **环境变量文件位置至关重要**：必须在应用的工作目录中
+2. **验证不仅看配置内容，更要验证配置是否生效**
+3. **目录结构决定配置查找路径**：单体仓库vs子目录部署需特别注意
+
+### 调试技巧
+- 不要只看`.env`内容，要确认应用是否真的读取到了
+- 检查应用启动日志中的端口信息
+- 使用`ss -tlnp`验证端口实际监听情况
+- 分段测试：应用端口 → Nginx代理 → 外部访问
 
 ---
 
