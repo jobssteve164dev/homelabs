@@ -5,17 +5,17 @@
 | 变量名 | 推荐位置 | 原因 | 示例值 |
 |--------|---------|------|--------|
 | `SERVER_SSH_KEY` | 🔒 **Secrets** | SSH 私钥，高度敏感 | `-----BEGIN OPENSSH...` |
-| `POSTGRES_PASSWORD` | 🔒 **Secrets** | 数据库密码，敏感 | `strong_password_123` |
-| `NEXTAUTH_SECRET` | 🔒 **Secrets** | 认证密钥，敏感 | `random_32_chars...` |
+| `POSTGRES_PASSWORD` | 🔒 **Secrets** | 数据库密码，敏感 | `bD3tddNaIQ/tOSuwbTIiwZecKVR21gHh` |
+| `NEXTAUTH_SECRET` | 🔒 **Secrets** | 认证密钥，敏感 | `KSzrdve42s2sTstWypeEMYBqoEdsjKcZYRr9XI4KQhA=` |
 | `SSL_EMAIL` | 🔒 **Secrets** | 邮箱，个人信息 | `1980296464@qq.com` |
-| `SERVER_HOST` | 📝 **Variables** | 服务器地址，非敏感 | `aiuni.szlk.szite` |
+| `SERVER_HOST` | 📝 **Variables** | 服务器地址，非敏感 | `ssh.szlk.edu.eu.org` |
 | `SSH_USER` | 📝 **Variables** | SSH 用户名，非敏感 | `szlk` |
 | `SSH_PORT` | 📝 **Variables** | SSH 端口，非敏感 | `22223` |
 | `DEPLOY_PATH` | 📝 **Variables** | 部署路径，非敏感 | `/opt/homelabs` |
 | `POSTGRES_DB` | 📝 **Variables** | 数据库名，非敏感 | `homelabs_portal` |
 | `POSTGRES_USER` | 📝 **Variables** | 数据库用户，非敏感 | `homelabs` |
-| `APP_PORT` | 📝 **Variables** | 应用端口，非敏感 | `3333` |
-| `NGINX_PORT` | 📝 **Variables** | Nginx 端口，非敏感 | `443` |
+| `APP_PORT` | 📝 **Variables** | 应用端口，非敏感 | `3001` |
+| `NGINX_PORT` | 📝 **Variables** | Nginx 端口，非敏感 | `3333` |
 | `NEXTAUTH_URL` | 📝 **Variables** | 应用 URL，非敏感 | `https://aiuni.szlk.site` |
 | `APP_URL` | 📝 **Variables** | 应用 URL，非敏感 | `https://aiuni.szlk.site` |
 | `LOG_LEVEL` | 📝 **Variables** | 日志级别，非敏感 | `info` |
