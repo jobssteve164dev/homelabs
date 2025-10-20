@@ -1,22 +1,10 @@
-底部操作提示 - 独立定位 */}
-| ^^^^^^^
-251 |       <motion.div
-252 |         initial={{ opacity: 0, y: 20 }}
-253 |         animate={{ opacity: 1, y: 0 }}
+# 部署日志
 
-Expected '</', got 'jsx text (
+工作流部署失败问题已修复 (2025-10-20)
+- 问题: Nginx配置上传时目标目录不存在
+- 原因: 步骤执行顺序错误，目录创建在文件上传之后
+- 修复: 在上传Nginx配置前先确保部署目录存在
 
-)'
+---
 
-Import traces:
-Client Component Browser:
-./src/components/portal/UniverseHUD.tsx [Client Component Browser]
-./src/components/portal/UniversePortal.tsx [Client Component Browser]
-./src/components/portal/UniversePortal.tsx [Server Component]
-./src/app/page.tsx [Server Component]
-
-Client Component SSR:
-./src/components/portal/UniverseHUD.tsx [Client Component SSR]
-./src/components/portal/UniversePortal.tsx [Client Component SSR]
-./src/components/portal/UniversePortal.tsx [Server Component]
-./src/app/page.tsx [Server Component]
+# 后续部署日志将记录在此

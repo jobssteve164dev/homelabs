@@ -479,6 +479,13 @@ jobs:
         echo "部署Nginx配置..."
         echo "==================================="
         
+        # 确保部署目录存在
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          sudo mkdir -p ${{ env.DEPLOY_PATH }}
+          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+          mkdir -p ${{ env.DEPLOY_PATH }}/logs
+        "
+        
         # 上传配置文件到服务器
         scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} nginx-auto.conf \
           ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/nginx-auto.conf
