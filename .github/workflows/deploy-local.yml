@@ -606,8 +606,9 @@ jobs:
               cd \$(dirname ${{ env.DEPLOY_PATH }})
               OLD_BACKUPS=\$(ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4)
               if [ -n "\$OLD_BACKUPS" ]; then
+                BACKUP_COUNT=\$(echo "\$OLD_BACKUPS" | wc -l)
                 echo "\$OLD_BACKUPS" | xargs sudo rm -rf
-                echo "   已清理 \$(echo \"\$OLD_BACKUPS\" | wc -l) 个旧备份"
+                echo "   已清理 \$BACKUP_COUNT 个旧备份"
               else
                 echo "   无需清理旧备份"
               fi

@@ -1,20 +1,26 @@
 # 部署日志
 
-## 2025-10-20 备份权限问题修复
+## 2025-10-20 部署问题修复历程
 
-### 问题1: Nginx配置上传失败
+### 问题1: Nginx配置上传失败 ✅
 - ❌ 错误: `scp: dest open "/opt/homelabs/nginx-auto.conf": No such file or directory`
 - 🔧 原因: 目录创建在文件上传之后
 - ✅ 修复: 在上传前先创建部署目录
 
-### 问题2: 备份目录创建失败
+### 问题2: 备份目录创建失败 ✅
 - ❌ 错误: `rsync: mkdir "/opt/homelabs_backup_20251020_033728" failed: Permission denied (13)`
 - 🔧 原因: `/opt/` 目录需要sudo权限才能创建子目录
-- ✅ 修复: 
-  * 使用 `sudo mkdir -p` 创建备份目录
-  * 使用 `sudo chown` 将目录所有权转给SSH用户
-  * 清理旧备份时也使用sudo
-  * 回滚操作也使用sudo
+- ✅ 修复: 使用sudo创建备份目录并chown给SSH用户
+
+### 问题3: Bash语法错误 ✅
+- ❌ 错误: `syntax error near unexpected token '('`
+- 🔧 原因: 清理旧备份的echo语句中嵌套了过于复杂的命令替换和引号转义
+- 🐛 问题代码: `echo "已清理 \$(echo \"\$OLD_BACKUPS\" | wc -l) 个旧备份"`
+- ✅ 修复: 先将计数存入变量再输出
+  ```bash
+  BACKUP_COUNT=\$(echo "\$OLD_BACKUPS" | wc -l)
+  echo "已清理 \$BACKUP_COUNT 个旧备份"
+  ```
 
 ---
 
