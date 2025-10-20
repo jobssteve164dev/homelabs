@@ -5,7 +5,7 @@
 | 变量名 | 推荐位置 | 原因 | 示例值 |
 |--------|---------|------|--------|
 | `SERVER_SSH_KEY` | 🔒 **Secrets** | SSH 私钥，高度敏感 | `-----BEGIN OPENSSH...` |
-| `POSTGRES_PASSWORD` | 🔒 **Secrets** | 数据库密码，敏感 | `bD3tddNaIQ/tOSuwbTIiwZecKVR21gHh` |
+| `POSTGRES_PASSWORD` | 🔒 **Secrets** | 数据库密码，敏感 | `8h5WIpYDnVpA6JwiAs139AC7QTr7Jb6Z` |
 | `NEXTAUTH_SECRET` | 🔒 **Secrets** | 认证密钥，敏感 | `KSzrdve42s2sTstWypeEMYBqoEdsjKcZYRr9XI4KQhA=` |
 | `SSL_EMAIL` | 🔒 **Secrets** | 邮箱，个人信息 | `1980296464@qq.com` |
 | `SERVER_HOST` | 📝 **Variables** | 服务器地址，非敏感 | `ssh.szlk.edu.eu.org` |
