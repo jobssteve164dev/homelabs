@@ -1,0 +1,331 @@
+name: 测试SSH连接
+
+on:
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      run_diagnostics:
+        description: '是否执行完整网络诊断'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  test-connection:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检查必需的Secrets配置
+      run: |
+        echo "==================================="
+        echo "检查GitHub Secrets配置..."
+        echo "==================================="
+        
+        MISSING_SECRETS=()
+        
+        if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+          MISSING_SECRETS+=("SERVER_HOST")
+        else
+          echo "✅ SERVER_HOST 已配置"
+        fi
+        
+        if [ -z "${{ secrets.SSH_USER }}" ]; then
+          MISSING_SECRETS+=("SSH_USER")
+        else
+          echo "✅ SSH_USER 已配置"
+        fi
+        
+        if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
+          MISSING_SECRETS+=("SERVER_SSH_KEY")
+        else
+          echo "✅ SERVER_SSH_KEY 已配置"
+        fi
+        
+        if [ -z "${{ secrets.SSH_PORT }}" ]; then
+          echo "⚠️  SSH_PORT 未配置，将使用默认值 22"
+        else
+          echo "✅ SSH_PORT 已配置"
+        fi
+        
+        if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+          echo ""
+          echo "❌ 以下必需的Secrets未配置："
+          for secret in "${MISSING_SECRETS[@]}"; do
+            echo "   - $secret"
+          done
+          echo ""
+          echo "请在GitHub仓库设置中添加这些Secrets："
+          echo "Settings -> Secrets and variables -> Actions -> New repository secret"
+          exit 1
+        fi
+        
+        echo ""
+        echo "✅ 所有必需的Secrets配置检查通过"
+    
+    - name: 设置SSH密钥
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+        ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
+    
+    - name: 确定服务器配置
+      id: server_config
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        # 设置服务器地址和端口
+        echo "SERVER_HOST=${{ secrets.SERVER_HOST }}" >> $GITHUB_ENV
+        echo "SSH_PORT=${{ secrets.SSH_PORT || '22' }}" >> $GITHUB_ENV
+        echo "SSH_USER=${{ secrets.SSH_USER }}" >> $GITHUB_ENV
+        
+        echo "==================================="
+        echo "服务器连接配置:"
+        echo "==================================="
+        echo "服务器地址: ${{ secrets.SERVER_HOST }}"
+        echo "SSH端口: ${{ secrets.SSH_PORT || '22' }}"
+        echo "SSH用户: ${{ secrets.SSH_USER }}"
+    
+    - name: 基本网络连接测试
+      continue-on-error: true
+      run: |
+        echo ""
+        echo "==================================="
+        echo "执行基本网络连接测试..."
+        echo "==================================="
+        
+        # DNS解析测试
+        echo "1. DNS解析测试:"
+        if nslookup ${{ env.SERVER_HOST }}; then
+          echo "✅ DNS解析成功"
+          SERVER_IP=$(dig +short ${{ env.SERVER_HOST }} | tail -n1)
+          echo "   服务器IP: $SERVER_IP"
+        else
+          echo "⚠️  DNS解析失败，可能是IP地址"
+          SERVER_IP=${{ env.SERVER_HOST }}
+        fi
+        
+        # Ping测试
+        echo ""
+        echo "2. Ping连通性测试:"
+        if ping -c 3 -W 2 ${{ env.SERVER_HOST }}; then
+          echo "✅ Ping测试成功"
+        else
+          echo "⚠️  Ping测试失败（可能服务器禁用了ICMP）"
+        fi
+        
+        # 端口连接测试
+        echo ""
+        echo "3. SSH端口连接测试:"
+        if timeout 5 nc -zv -w 3 ${{ env.SERVER_HOST }} ${{ env.SSH_PORT }} 2>&1; then
+          echo "✅ SSH端口 ${{ env.SSH_PORT }} 可达"
+        else
+          echo "❌ 无法连接到SSH端口 ${{ env.SSH_PORT }}"
+          echo "   可能原因:"
+          echo "   - 防火墙阻止了连接"
+          echo "   - 端口号配置错误"
+          echo "   - 服务器SSH服务未启动"
+        fi
+    
+    - name: 完整网络诊断（可选）
+      if: inputs.run_diagnostics == 'true'
+      continue-on-error: true
+      run: |
+        echo ""
+        echo "==================================="
+        echo "执行完整网络诊断..."
+        echo "==================================="
+        
+        # 安装诊断工具
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq telnet traceroute > /dev/null 2>&1
+        
+        # Telnet测试
+        echo "1. Telnet端口测试:"
+        timeout 10 telnet ${{ env.SERVER_HOST }} ${{ env.SSH_PORT }} 2>&1 || echo "Telnet连接失败"
+        
+        # Traceroute测试
+        echo ""
+        echo "2. 网络路径追踪:"
+        traceroute -m 15 ${{ env.SERVER_HOST }} || echo "Traceroute失败"
+        
+        # 检查GitHub Actions运行器出站IP
+        echo ""
+        echo "3. GitHub Actions运行器出站IP:"
+        curl -s https://api.ipify.org || curl -s https://ifconfig.me
+    
+    - name: 添加服务器到已知主机
+      continue-on-error: true
+      run: |
+        echo ""
+        echo "==================================="
+        echo "添加服务器到SSH已知主机..."
+        echo "==================================="
+        
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        touch ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+        
+        # 尝试添加服务器指纹，使用更长的超时时间
+        if timeout 10 ssh-keyscan -p ${{ env.SSH_PORT }} -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>&1; then
+          echo "✅ 成功添加服务器到已知主机"
+        else
+          echo "⚠️  无法获取服务器SSH指纹"
+          echo "   这可能意味着:"
+          echo "   - SSH端口不可达"
+          echo "   - 防火墙阻止了连接"
+          echo "   - 服务器地址或端口配置错误"
+          echo ""
+          echo "   将在后续步骤中使用 StrictHostKeyChecking=no 绕过此检查"
+        fi
+    
+    - name: 测试SSH连接
+      id: ssh_test
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo ""
+        echo "==================================="
+        echo "测试SSH连接..."
+        echo "==================================="
+        echo "连接地址: ${{ env.SERVER_HOST }}"
+        echo "连接端口: ${{ env.SSH_PORT }}"
+        echo "连接用户: ${{ env.SSH_USER }}"
+        echo ""
+        
+        # 显示SSH客户端版本
+        echo "SSH客户端版本:"
+        ssh -V
+        echo ""
+        
+        # 定义服务器信息显示命令
+        SERVER_INFO_CMD="echo '==================================='
+           echo '✅ SSH连接成功！'
+           echo '==================================='
+           echo ''
+           echo '📊 服务器基本信息:'
+           echo '-----------------------------------'
+           echo '🖥️  系统版本:'
+           uname -a
+           echo ''
+           echo '📁 当前用户:'
+           whoami
+           echo ''
+           echo '📂 当前目录:'
+           pwd
+           echo ''
+           echo '💾 磁盘使用:'
+           df -h / | grep -v 'Filesystem'
+           echo ''
+           echo '🧠 内存使用:'
+           free -h | grep -E 'Mem|内存'
+           echo ''
+           echo '==================================='
+           echo '✅ 连接验证完成'
+           echo '==================================='"
+        
+        # 尝试1：标准选项连接
+        echo "🔄 尝试1: 使用标准选项连接..."
+        if timeout 30 ssh \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=30 \
+          -o ServerAliveInterval=10 \
+          -o ServerAliveCountMax=3 \
+          -p ${{ env.SSH_PORT }} \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "$SERVER_INFO_CMD" 2>/dev/null; then
+          exit 0
+        fi
+        
+        # 尝试2：使用RSA密钥类型选项（适配Lucky/Cloudflare环境）
+        echo ""
+        echo "🔄 尝试2: 使用RSA密钥类型选项（适配反向代理环境）..."
+        if timeout 30 ssh \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=30 \
+          -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+          -o HostKeyAlgorithms=+ssh-rsa \
+          -p ${{ env.SSH_PORT }} \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "$SERVER_INFO_CMD" 2>/dev/null; then
+          exit 0
+        fi
+        
+        # 尝试3：使用更长的超时时间和旧版兼容选项
+        echo ""
+        echo "🔄 尝试3: 使用扩展超时和旧版SSH兼容选项..."
+        if timeout 45 ssh \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=40 \
+          -o UseRoaming=no \
+          -o GSSAPIAuthentication=no \
+          -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+          -o HostKeyAlgorithms=+ssh-rsa \
+          -p ${{ env.SSH_PORT }} \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "$SERVER_INFO_CMD" 2>/dev/null; then
+          exit 0
+        fi
+        
+        # 尝试4：强制使用SSH协议版本2（保留详细日志用于调试）
+        echo ""
+        echo "🔄 尝试4: 强制使用SSH协议版本2（详细模式）..."
+        if timeout 30 ssh -vvv -2 \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=30 \
+          -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+          -o HostKeyAlgorithms=+ssh-rsa \
+          -p ${{ env.SSH_PORT }} \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "$SERVER_INFO_CMD" 2>&1 | tee ssh_log.txt; then
+          exit 0
+        fi
+        
+        # 如果所有尝试都失败
+        echo ""
+        echo "==================================="
+        echo "❌ 所有SSH连接尝试均失败"
+        echo "==================================="
+        echo ""
+        
+        # 分析失败原因
+        if grep -q "Connection refused" ssh_log.txt; then
+          echo "错误类型: 连接被拒绝"
+          echo "可能原因:"
+          echo "  - SSH服务未运行"
+          echo "  - 端口号配置错误"
+          echo "  - 防火墙阻止了连接"
+        elif grep -q "Connection timed out" ssh_log.txt; then
+          echo "错误类型: 连接超时"
+          echo "可能原因:"
+          echo "  - 服务器不可达（Lucky反向代理或Cloudflare CDN可能有问题）"
+          echo "  - 网络防火墙阻止"
+          echo "  - 服务器地址或端口配置错误"
+        elif grep -q "Permission denied" ssh_log.txt; then
+          echo "错误类型: 权限被拒绝"
+          echo "可能原因:"
+          echo "  - SSH密钥不正确"
+          echo "  - 服务器未配置此公钥"
+          echo "  - 用户名不正确"
+        elif grep -q "Connection reset" ssh_log.txt; then
+          echo "错误类型: 连接被重置"
+          echo "可能原因:"
+          echo "  - SSH配置限制"
+          echo "  - fail2ban等安全工具阻止"
+          echo "  - Lucky反向代理配置问题"
+        else
+          echo "错误类型: 未知错误"
+          echo "请查看上方的详细日志"
+        fi
+        
+        echo ""
+        echo "建议检查项:"
+        echo "1. 确认SERVER_HOST、SSH_PORT、SSH_USER在GitHub Secrets中配置正确"
+        echo "2. 确认Lucky反向代理22222端口转发规则正常"
+        echo "3. 确认内网服务器(192.168.2.65) SSH服务正在运行"
+        echo "4. 确认服务器authorized_keys包含正确的公钥"
+        echo "5. 尝试在本地测试: ssh -p 22222 <用户>@pmp.szlk.edu.eu.org"
+        
+        exit 1

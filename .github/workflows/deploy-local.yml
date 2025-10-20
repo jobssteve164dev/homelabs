@@ -1,0 +1,845 @@
+name: 本地环境部署（非Docker）
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: '部署模式'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all          # 全部部署
+          - app-only     # 仅应用
+          - check        # 仅检查环境
+
+jobs:
+  deploy-local:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+    
+    - name: 设置SSH密钥
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+        ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
+    
+    - name: 设置服务器配置
+      id: server_config
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "SERVER_HOST=${{ vars.SERVER_HOST || secrets.SERVER_HOST }}" >> $GITHUB_ENV
+        echo "SSH_PORT=${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}" >> $GITHUB_ENV
+        echo "SSH_USER=${{ vars.SSH_USER || secrets.SSH_USER }}" >> $GITHUB_ENV
+        echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}" >> $GITHUB_ENV
+    
+    - name: 检查并安装服务器环境
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "检查并准备服务器环境..."
+        echo "==================================="
+        echo ""
+        
+        # 检测操作系统类型
+        echo "检测操作系统类型..."
+        OS_TYPE=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            echo \$ID
+          elif [ -f /etc/redhat-release ]; then
+            echo 'rhel'
+          else
+            echo 'unknown'
+          fi
+        ")
+        echo "📋 检测到操作系统: $OS_TYPE"
+        echo ""
+        
+        # ========================================
+        # 1. 检查并安装 Node.js
+        # ========================================
+        echo "-----------------------------------"
+        echo "1️⃣  检查 Node.js..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v node &> /dev/null"; then
+          NODE_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "node --version" 2>/dev/null || echo "v0.0.0")
+          NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
+          echo "✅ Node.js已安装: $NODE_VERSION"
+          
+          if [ "$NODE_MAJOR" -lt 18 ]; then
+            echo "⚠️  Node.js版本过低 (需要 >= 18)，将重新安装..."
+            
+            if [ "$OS_TYPE" = "amzn" ]; then
+              echo "使用NodeSource仓库升级到Node.js 20 (Amazon Linux 2)..."
+              ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+                'sudo yum remove -y nodejs npm nodesource-release 2>/dev/null || true && \
+                sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
+                sudo yum clean all && \
+                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && \
+                sudo yum install -y nodejs && \
+                node --version && \
+                npm --version'
+            else
+              echo "使用NodeSource仓库升级到Node.js 20..."
+              ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+                'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && \
+                sudo apt-get remove -y nodejs npm 2>/dev/null || true && \
+                sudo apt-get install -y nodejs && \
+                node --version && \
+                npm --version'
+            fi
+            
+            echo "✅ Node.js升级完成"
+          fi
+        else
+          echo "📦 Node.js未安装，开始自动安装..."
+          
+          if [ "$OS_TYPE" = "amzn" ]; then
+            echo "检测到Amazon Linux 2，安装Node.js 20..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+              'sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
+              sudo yum clean all && \
+              curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && \
+              sudo yum install -y nodejs && \
+              node --version && \
+              npm --version'
+          else
+            echo "检测到Ubuntu/Debian，安装Node.js 20..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+              'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && \
+              sudo apt-get install -y nodejs && \
+              node --version && \
+              npm --version'
+          fi
+          
+          echo "✅ Node.js安装完成"
+        fi
+        echo ""
+        
+        # ========================================
+        # 2. 检查并安装 PM2
+        # ========================================
+        echo "-----------------------------------"
+        echo "2️⃣  检查 PM2..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v pm2 &> /dev/null"; then
+          PM2_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "pm2 --version")
+          echo "✅ PM2已安装: $PM2_VERSION"
+        else
+          echo "📦 PM2未安装，开始自动安装..."
+          ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+            'sudo npm install -g pm2 && pm2 --version'
+          echo "✅ PM2安装完成"
+        fi
+        echo ""
+        
+        # ========================================
+        # 3. 检查并安装 PostgreSQL
+        # ========================================
+        echo "-----------------------------------"
+        echo "3️⃣  检查 PostgreSQL..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v psql &> /dev/null"; then
+          PG_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "psql --version | head -1")
+          echo "✅ PostgreSQL已安装: $PG_VERSION"
+        else
+          echo "📦 PostgreSQL未安装，开始自动安装..."
+          
+          if [ "$OS_TYPE" = "amzn" ]; then
+            echo "检测到Amazon Linux系统，使用yum安装..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+              'sudo amazon-linux-extras install postgresql15 -y && \
+              sudo yum install -y postgresql-server postgresql-contrib && \
+              sudo postgresql-setup initdb && \
+              sudo systemctl start postgresql && \
+              sudo systemctl enable postgresql && \
+              psql --version'
+          elif [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            echo "检测到Ubuntu/Debian系统，使用apt安装..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo apt-get update
+              sudo apt-get install -y postgresql postgresql-contrib
+              sudo systemctl start postgresql
+              sudo systemctl enable postgresql
+              psql --version
+            '
+          else
+            echo "⚠️  未识别的操作系统类型: $OS_TYPE"
+            echo "请手动安装PostgreSQL: https://www.postgresql.org/download/"
+            exit 1
+          fi
+          
+          echo "✅ PostgreSQL安装完成"
+        fi
+        
+        # 确保PostgreSQL服务正在运行
+        echo "检查PostgreSQL服务状态..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if ! sudo systemctl is-active --quiet postgresql; then
+            echo '启动PostgreSQL服务...'
+            sudo systemctl start postgresql
+            sudo systemctl enable postgresql
+            sleep 3
+          fi
+          sudo systemctl status postgresql | head -5
+        "
+        echo ""
+        
+        # ========================================
+        # 3.1 创建或更新PostgreSQL数据库和用户
+        # ========================================
+        echo "-----------------------------------"
+        echo "3.1️⃣  创建或更新PostgreSQL数据库和用户..."
+        echo "-----------------------------------"
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'POSTGRES_SETUP'
+          DB_NAME="${{ secrets.POSTGRES_DB || 'homelabs_portal' }}"
+          DB_USER="${{ secrets.POSTGRES_USER || 'homelabs' }}"
+          DB_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+          
+          echo "配置数据库: $DB_NAME"
+          echo "配置用户: $DB_USER"
+          
+          # 使用postgres用户执行SQL命令
+          sudo -u postgres psql <<'EOSQL'
+            DO \$\$
+            BEGIN
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
+                CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+              ELSE
+                ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+              END IF;
+            END
+            \$\$;
+            
+            SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_USER'
+            WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+            
+            GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
+            ALTER USER $DB_USER CREATEDB;
+        EOSQL
+          
+          echo "✅ PostgreSQL数据库和用户配置完成"
+        POSTGRES_SETUP
+        
+        echo ""
+        
+        # ========================================
+        # 4. 检查并安装jq
+        # ========================================
+        echo "-----------------------------------"
+        echo "4️⃣  检查并安装jq..."
+        echo "-----------------------------------"
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          if ! command -v jq &> /dev/null; then
+            echo "📦 jq未安装，开始自动安装..."
+            if command -v apt-get &> /dev/null; then
+              sudo apt-get update -y && sudo apt-get install -y jq
+            elif command -v yum &> /dev/null; then
+              sudo yum install -y jq
+            else
+              echo "⚠️ 无法自动安装jq，请手动安装"
+              exit 1
+            fi
+            echo "✅ jq安装完成"
+          else
+            echo "✅ jq已安装"
+          fi
+        '
+        echo ""
+        
+        # ========================================
+        # 5. 最终验证
+        # ========================================
+        echo "==================================="
+        echo "📊 环境最终验证"
+        echo "==================================="
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} <<'ENV_VERIFY'
+          echo '✅ Node.js版本:'
+          node --version
+          
+          echo '✅ npm版本:'
+          npm --version
+          
+          echo '✅ PM2版本:'
+          pm2 --version
+          
+          echo '✅ PostgreSQL服务:'
+          sudo systemctl is-active postgresql && echo 'PostgreSQL运行中' || echo 'PostgreSQL未运行'
+          
+          echo '✅ PostgreSQL版本:'
+          psql --version
+        ENV_VERIFY
+        
+        echo ""
+        echo "==================================="
+        echo "✅ 环境准备完成！"
+        echo "==================================="
+    
+    # ========================================
+    # Nginx自动配置步骤
+    # ========================================
+    
+    - name: 🔧 检查并安装Nginx
+      if: inputs.deploy_mode == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "检查并安装Nginx..."
+        echo "==================================="
+        
+        if ! ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v nginx &> /dev/null"; then
+          echo "📦 Nginx未安装，开始安装..."
+          
+          OS_TYPE=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+            if [ -f /etc/os-release ]; then
+              . /etc/os-release
+              echo \$ID
+            else
+              echo 'unknown'
+            fi
+          ")
+          
+          if [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            echo "使用apt安装Nginx..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+              "sudo apt update && sudo apt install -y nginx"
+          elif [ "$OS_TYPE" = "centos" ] || [ "$OS_TYPE" = "rhel" ] || [ "$OS_TYPE" = "amzn" ]; then
+            echo "使用yum安装Nginx..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+              "sudo yum install -y epel-release && sudo yum install -y nginx"
+          else
+            echo "❌ 不支持的操作系统: $OS_TYPE"
+            echo "请手动安装Nginx"
+            exit 1
+          fi
+          
+          # 启动Nginx
+          ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+            "sudo systemctl start nginx && sudo systemctl enable nginx"
+          
+          echo "✅ Nginx安装完成"
+        else
+          echo "✅ Nginx已安装"
+          NGINX_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "nginx -v 2>&1")
+          echo "   版本: $NGINX_VERSION"
+        fi
+        
+        echo ""
+    
+    - name: 📝 生成Nginx配置文件
+      if: inputs.deploy_mode == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "生成Nginx配置文件..."
+        echo "==================================="
+        
+        # 获取部署环境配置
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
+        ADDITIONAL_DOMAINS="${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}"
+        USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
+        SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
+        NGINX_PORT="${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}"
+        BEHIND_PROXY="${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}"
+        PROXY_IP="${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}"
+        APP_PORT="${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}"
+        DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+        
+        echo "配置参数:"
+        echo "  部署环境: $DEPLOY_ENVIRONMENT"
+        echo "  主域名: $PRIMARY_DOMAIN"
+        echo "  备用域名: $ADDITIONAL_DOMAINS"
+        echo "  SSL启用: $USE_SSL"
+        echo "  Nginx端口: $NGINX_PORT"
+        echo "  应用端口: $APP_PORT"
+        echo "  反向代理: $BEHIND_PROXY"
+        echo ""
+        
+        # 生成Nginx配置
+        echo "# HOMELABS Portal Nginx配置" > nginx-auto.conf
+        echo "# 自动生成 - 请勿手动编辑" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        
+        # 构建server_name
+        SERVER_NAMES="$PRIMARY_DOMAIN"
+        if [ -n "$ADDITIONAL_DOMAINS" ]; then
+          SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
+        fi
+        
+        echo "server {" >> nginx-auto.conf
+        
+        # 根据环境和SSL设置决定监听端口
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ]; then
+          echo "    # HTTP重定向到HTTPS" >> nginx-auto.conf
+          echo "    listen 80;" >> nginx-auto.conf
+          echo "    listen [::]:80;" >> nginx-auto.conf
+          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+          echo "    return 301 https://\$server_name\$request_uri;" >> nginx-auto.conf
+          echo "}" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+          echo "server {" >> nginx-auto.conf
+          echo "    # HTTPS配置" >> nginx-auto.conf
+          echo "    listen 443 ssl http2;" >> nginx-auto.conf
+          echo "    listen [::]:443 ssl http2;" >> nginx-auto.conf
+          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+          echo "    # SSL证书配置" >> nginx-auto.conf
+          echo "    ssl_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem;" >> nginx-auto.conf
+          echo "    ssl_certificate_key /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem;" >> nginx-auto.conf
+          echo "    ssl_trusted_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem;" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+          echo "    # SSL安全配置" >> nginx-auto.conf
+          echo "    ssl_protocols TLSv1.2 TLSv1.3;" >> nginx-auto.conf
+          echo "    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;" >> nginx-auto.conf
+          echo "    ssl_prefer_server_ciphers on;" >> nginx-auto.conf
+          echo "    ssl_session_cache shared:SSL:10m;" >> nginx-auto.conf
+          echo "    ssl_session_timeout 10m;" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+          echo "    # 安全头" >> nginx-auto.conf
+          echo "    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;" >> nginx-auto.conf
+          echo "    add_header X-Frame-Options SAMEORIGIN always;" >> nginx-auto.conf
+          echo "    add_header X-Content-Type-Options nosniff always;" >> nginx-auto.conf
+        else
+          echo "    # HTTP配置" >> nginx-auto.conf
+          echo "    listen ${NGINX_PORT};" >> nginx-auto.conf
+          echo "    listen [::]:${NGINX_PORT};" >> nginx-auto.conf
+          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+        fi
+        
+        echo "" >> nginx-auto.conf
+        
+        # 添加反向代理真实IP处理（如果启用）
+        if [ "$BEHIND_PROXY" = "true" ]; then
+          echo "    # 反向代理真实IP处理" >> nginx-auto.conf
+          echo "    set_real_ip_from ${PROXY_IP};" >> nginx-auto.conf
+          echo "    real_ip_header X-Forwarded-For;" >> nginx-auto.conf
+          echo "    real_ip_recursive on;" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+        fi
+        
+        # Next.js应用代理配置
+        echo "    # Next.js应用代理" >> nginx-auto.conf
+        echo "    location / {" >> nginx-auto.conf
+        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        echo "        proxy_http_version 1.1;" >> nginx-auto.conf
+        echo "        proxy_set_header Upgrade \$http_upgrade;" >> nginx-auto.conf
+        echo "        proxy_set_header Connection 'upgrade';" >> nginx-auto.conf
+        echo "        proxy_set_header Host \$host;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Real-IP \$remote_addr;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> nginx-auto.conf
+        echo "        proxy_cache_bypass \$http_upgrade;" >> nginx-auto.conf
+        echo "        proxy_buffering off;" >> nginx-auto.conf
+        echo "        proxy_read_timeout 86400;" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        
+        # 静态资源优化
+        echo "    # 静态资源优化" >> nginx-auto.conf
+        echo "    location /_next/static/ {" >> nginx-auto.conf
+        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        echo "        expires 1y;" >> nginx-auto.conf
+        echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        
+        # 图片优化
+        echo "    location ~* \\.(jpg|jpeg|png|gif|ico|svg|webp)\$ {" >> nginx-auto.conf
+        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        echo "        expires 30d;" >> nginx-auto.conf
+        echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        
+        # 日志配置
+        echo "    # 日志配置" >> nginx-auto.conf
+        echo "    access_log ${DEPLOY_PATH}/logs/nginx-access.log;" >> nginx-auto.conf
+        echo "    error_log ${DEPLOY_PATH}/logs/nginx-error.log warn;" >> nginx-auto.conf
+        echo "}" >> nginx-auto.conf
+        
+        echo "✅ Nginx配置文件生成完成"
+        echo ""
+    
+    - name: 🚀 部署Nginx配置
+      if: inputs.deploy_mode == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "部署Nginx配置..."
+        echo "==================================="
+        
+        # 上传配置文件到服务器
+        scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} nginx-auto.conf \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/nginx-auto.conf
+        
+        # 部署到Nginx目录
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+          PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
+          USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
+          SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
+          
+          # 备份现有配置
+          if [ -f /etc/nginx/sites-available/homelabs ]; then
+            echo "备份现有Nginx配置..."
+            sudo cp /etc/nginx/sites-available/homelabs /etc/nginx/sites-available/homelabs.backup.$(date +%Y%m%d%H%M%S)
+          fi
+          
+          # 复制新配置
+          echo "部署新Nginx配置..."
+          sudo cp $DEPLOY_PATH/nginx-auto.conf /etc/nginx/sites-available/homelabs
+          
+          # 创建符号链接
+          sudo ln -sf /etc/nginx/sites-available/homelabs /etc/nginx/sites-enabled/homelabs
+          
+          # 删除默认站点（避免冲突）
+          if [ -f /etc/nginx/sites-enabled/default ]; then
+            echo "删除默认Nginx站点..."
+            sudo rm -f /etc/nginx/sites-enabled/default
+          fi
+          
+          # 生产环境SSL证书处理
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ] && [ -n "$SSL_EMAIL" ]; then
+            echo "处理生产环境SSL证书..."
+            
+            # 检查certbot是否已安装
+            if ! command -v certbot &> /dev/null; then
+              echo "安装certbot..."
+              if command -v apt-get &> /dev/null; then
+                sudo apt-get update
+                sudo apt-get install -y certbot python3-certbot-nginx
+              elif command -v yum &> /dev/null; then
+                sudo yum install -y certbot python3-certbot-nginx
+              fi
+            fi
+            
+            # 检查证书是否存在
+            if [ ! -f "/etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem" ]; then
+              echo "申请SSL证书..."
+              sudo certbot --nginx -d $PRIMARY_DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive --redirect
+              echo "✅ SSL证书申请完成"
+            else
+              echo "SSL证书已存在"
+            fi
+          fi
+          
+          # 测试配置
+          echo "测试Nginx配置..."
+          sudo nginx -t
+          
+          # 重载Nginx
+          echo "重载Nginx服务..."
+          if sudo systemctl is-active --quiet nginx; then
+            sudo systemctl reload nginx
+          else
+            sudo systemctl start nginx
+          fi
+          
+          sudo systemctl enable nginx
+          echo "✅ Nginx配置部署完成"
+        ENDSSH
+        
+        echo "✅ Nginx部署成功"
+        echo ""
+    
+    - name: 备份当前版本
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "备份当前版本..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          BACKUP_DIR=${{ env.DEPLOY_PATH }}_backup_\$(date +%Y%m%d_%H%M%S)
+          
+          if [ -d ${{ env.DEPLOY_PATH }} ]; then
+            echo '📦 创建备份: '\$BACKUP_DIR
+            
+            # 确保备份目录的父目录存在
+            BACKUP_PARENT=\$(dirname \$BACKUP_DIR)
+            mkdir -p \$BACKUP_PARENT
+            
+            # 使用rsync备份（排除不必要的文件）
+            echo '🔄 开始备份...'
+            rsync -aL \
+              --exclude 'node_modules' \
+              --exclude '.next' \
+              --exclude 'logs' \
+              --exclude '*.log' \
+              --exclude '.git' \
+              ${{ env.DEPLOY_PATH }}/ \$BACKUP_DIR/ || {
+              echo '❌ 备份失败！'
+              exit 1
+            }
+            
+            # 验证备份
+            if [ -d \$BACKUP_DIR ] && [ \"\$(ls -A \$BACKUP_DIR 2>/dev/null)\" ]; then
+              echo '✅ 备份验证成功'
+              
+              # 保留最近3个备份
+              cd \$(dirname ${{ env.DEPLOY_PATH }})
+              ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+              
+              # 记录备份路径
+              echo \$BACKUP_DIR > /tmp/homelabs_last_backup
+              echo '✅ 备份完成'
+            else
+              echo '❌ 备份验证失败！'
+              exit 1
+            fi
+          else
+            echo '⚠️  首次部署，无需备份'
+          fi
+        "
+    
+    - name: 停止现有服务并清理
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "停止现有服务并清理环境..."
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -d ${{ env.DEPLOY_PATH }} ]; then
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo '1️⃣  停止所有PM2进程...'
+            pm2 stop all 2>/dev/null || true
+            pm2 delete all 2>/dev/null || true
+            pm2 kill 2>/dev/null || true
+            
+            echo '2️⃣  清理PM2持久化配置...'
+            rm -f ~/.pm2/dump.pm2
+            rm -rf ~/.pm2/logs/*
+            rm -rf ~/.pm2/pids/*
+            echo '   ✅ PM2配置已清理'
+            
+            echo '3️⃣  清理环境变量文件...'
+            rm -f .env .env.* 2>/dev/null || true
+            echo '   ✅ 环境文件已清理'
+          fi
+        "
+    
+    - name: 创建部署目录
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "创建部署目录..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          sudo mkdir -p ${{ env.DEPLOY_PATH }}
+          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+          mkdir -p ${{ env.DEPLOY_PATH }}/logs
+        "
+    
+    - name: 传输代码到服务器
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "传输代码到服务器..."
+        echo "==================================="
+        
+        # 使用rsync传输代码
+        rsync -avz --delete \
+          -e "ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }}" \
+          --exclude 'node_modules' \
+          --exclude '.git' \
+          --exclude '.github' \
+          --exclude '.next' \
+          --exclude 'logs' \
+          --exclude '*.log' \
+          --exclude '.DS_Store' \
+          --exclude '.env' \
+          --exclude '.env*' \
+          --exclude 'plan report' \
+          --exclude 'progress report' \
+          --exclude 'README.md' \
+          --exclude 'PROJECT_MEMORY.md' \
+          --exclude 'dev.sh' \
+          --exclude 'dev.local' \
+          ./ ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/
+        
+        echo "✅ 代码传输完成"
+    
+    - name: 创建环境配置文件
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "创建生产环境配置文件..."
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          cd ${{ env.DEPLOY_PATH }}
+          
+          echo \"# =================== 环境配置 ===================\" > .env
+          echo \"NODE_ENV=production\" >> .env
+          echo \"\" >> .env
+          
+          echo \"# =================== 数据库配置 ===================\" >> .env
+          echo \"DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env
+          echo \"\" >> .env
+          
+          echo \"# =================== NextAuth配置 ===================\" >> .env
+          echo \"NEXTAUTH_URL=${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}\" >> .env
+          echo \"NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}\" >> .env
+          echo \"\" >> .env
+          
+          echo \"# =================== 应用配置 ===================\" >> .env
+          echo \"APP_URL=${{ vars.APP_URL || secrets.APP_URL }}\" >> .env
+          echo \"PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\" >> .env
+          echo \"\" >> .env
+          
+          echo \"# =================== 日志配置 ===================\" >> .env
+          echo \"LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\" >> .env
+          
+          echo \"✅ 环境配置文件已创建\"
+        "
+    
+    - name: 安装依赖并构建
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      timeout-minutes: 30
+      run: |
+        echo "==================================="
+        echo "安装依赖并构建应用..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          cd ${{ env.DEPLOY_PATH }}/client
+          
+          echo "📥 安装依赖..."
+          npm install --production=false
+          
+          echo "🔄 生成Prisma客户端..."
+          npx prisma generate
+          
+          echo "🗄️  运行数据库迁移..."
+          npx prisma db push --skip-generate
+          
+          echo "🔨 构建Next.js应用..."
+          npm run build
+          
+          echo "✅ 构建完成"
+        '
+    
+    - name: 启动应用服务
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "启动应用服务..."
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          cd ${{ env.DEPLOY_PATH }}/client
+          
+          # 使用PM2启动Next.js生产服务器
+          pm2 start npm --name homelabs-portal \
+            --log ${{ env.DEPLOY_PATH }}/logs/app-combined.log \
+            --error ${{ env.DEPLOY_PATH }}/logs/app-error.log \
+            --time \
+            --merge-logs \
+            -- start
+          
+          pm2 save
+          pm2 startup || echo '⚠️  pm2 startup需要手动配置sudo权限'
+          
+          echo '✅ 应用服务已启动'
+        "
+    
+    - name: 验证部署
+      if: inputs.deploy_mode != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "验证部署..."
+        echo "==================================="
+        
+        # 等待服务启动
+        sleep 10
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          echo '1. PM2服务状态:'
+          pm2 status
+          
+          echo ''
+          echo '2. 检查应用端口:'
+          sudo ss -tlnp | grep :3000 || echo '应用端口3000未监听'
+          
+          echo ''
+          echo '3. 检查PostgreSQL:'
+          sudo systemctl status postgresql | head -5
+          
+          echo ''
+          echo '4. 测试应用访问:'
+          if curl -f -s http://localhost:3000 > /dev/null 2>&1; then
+            echo '✅ 应用响应正常'
+          else
+            echo '⚠️  应用未响应'
+          fi
+        "
+        
+        echo ""
+        echo "==================================="
+        echo "✅ 部署完成！"
+        echo "==================================="
+        echo "访问地址: http://${{ env.SERVER_HOST }}"
+        echo ""
+        echo "查看日志:"
+        echo "  应用: pm2 logs homelabs-portal"
+        echo "  Nginx: tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-access.log"
+    
+    - name: 清理和回滚（失败时）
+      if: ${{ failure() && inputs.deploy_mode != 'check' }}
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "⚠️  部署失败，执行回滚..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          # 停止失败的服务
+          pm2 stop all 2>/dev/null || true
+          pm2 delete all 2>/dev/null || true
+          
+          # 检查备份并回滚
+          if [ -f /tmp/homelabs_last_backup ]; then
+            BACKUP_DIR=$(cat /tmp/homelabs_last_backup)
+            
+            if [ -d "$BACKUP_DIR" ]; then
+              echo "发现备份: $BACKUP_DIR"
+              echo "正在回滚..."
+              
+              rm -rf ${{ env.DEPLOY_PATH }}
+              mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
+              
+              # 尝试重启旧版本
+              cd ${{ env.DEPLOY_PATH }}/client
+              pm2 start npm --name homelabs-portal -- start 2>/dev/null || true
+              pm2 save
+              
+              echo "✅ 已回滚到之前的版本"
+            fi
+          fi
+        '
+

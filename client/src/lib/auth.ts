@@ -32,6 +32,15 @@ export const authOptions = {
           return null;
         }
 
+        // 检查账户是否被冻结
+        if (!user.isActive) {
+          logSecurityEvent('Login attempt with frozen account', {
+            email: credentials.email,
+            userId: user.id,
+          });
+          return null;
+        }
+
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password

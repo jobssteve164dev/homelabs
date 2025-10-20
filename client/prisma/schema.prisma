@@ -18,6 +18,7 @@ model User {
   password      String
   role          Role      @default(USER)
   avatar        String?
+  isActive      Boolean   @default(true)      // 账户状态：true=正常，false=已冻结
   
   // 星系相关字段
   galaxyJoinedAt DateTime  @default(now())   // 加入AI宇宙的时间（用于星系排序）

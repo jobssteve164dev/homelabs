@@ -1,321 +1,282 @@
-# HOMELABS Portal 部署文档
+# HOMELABS Portal 本地部署文档
 
-## 概述
+## 📋 概述
 
-本文档详细说明如何在ESXi虚拟机中部署科幻未来风私域AI工具门户网站。
+本文档介绍如何使用 GitHub Actions 将 HOMELABS Portal 部署到你的家庭服务器（非 Docker 模式）。
 
-## 系统要求
+## 🛠️ 技术栈
 
-### 最低配置
-- **CPU**: 2核心
-- **内存**: 4GB RAM
-- **存储**: 20GB 可用空间
-- **网络**: 1个网络接口
+- **应用框架**: Next.js 14 (App Router)
+- **数据库**: PostgreSQL 15+
+- **进程管理**: PM2
+- **反向代理**: Nginx
+- **运行环境**: Node.js 18+
 
-### 推荐配置
-- **CPU**: 4核心
-- **内存**: 8GB RAM
-- **存储**: 50GB 可用空间
-- **网络**: 1个网络接口
+## 📦 前置要求
 
-## 部署方式
+### 服务器要求
 
-### 方式一: Docker Compose 部署 (推荐)
+- **操作系统**: Ubuntu 20.04+ / Debian 11+ / Amazon Linux 2
+- **CPU**: 最低 2 核
+- **内存**: 最低 4GB RAM
+- **磁盘**: 最低 20GB 可用空间
+- **网络**: 开放端口 80 (HTTP) 或 443 (HTTPS)
 
-#### 1. 准备ESXi虚拟机
+### GitHub 配置要求
 
-```bash
-# 创建虚拟机
-# 操作系统: Ubuntu 22.04 LTS
-# 分配资源: 4核8G内存50G存储
-# 网络: 桥接模式
-```
+#### 必需的 Secrets
 
-#### 2. 安装Docker和Docker Compose
+在 GitHub 仓库的 `Settings > Secrets and variables > Actions` 中配置以下 Secrets：
 
-```bash
-# 更新系统
-sudo apt update && sudo apt upgrade -y
+| Secret 名称 | 说明 | 示例值 |
+|------------|------|--------|
+| `SERVER_SSH_KEY` | 服务器 SSH 私钥 | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
+| `SERVER_HOST` | 服务器 IP 或域名 | `192.168.1.100` |
+| `SSH_USER` | SSH 登录用户名 | `ubuntu` |
+| `POSTGRES_PASSWORD` | PostgreSQL 数据库密码 | `strong_password_here` |
+| `NEXTAUTH_SECRET` | NextAuth.js 密钥 | 至少 32 字符的随机字符串 |
+| `NEXTAUTH_URL` | 应用访问 URL | `http://your-domain.com` 或 `http://192.168.1.100` |
 
-# 安装Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+#### 可选的 Secrets
 
-# 安装Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+| Secret 名称 | 说明 | 默认值 |
+|------------|------|--------|
+| `SSH_PORT` | SSH 端口 | `22` |
+| `DEPLOY_PATH` | 部署目录 | `/opt/homelabs` |
+| `POSTGRES_DB` | 数据库名称 | `homelabs_portal` |
+| `POSTGRES_USER` | 数据库用户名 | `homelabs` |
+| `APP_PORT` | 应用端口 | `3000` |
+| `NGINX_PORT` | Nginx 监听端口 | `80` |
+| `APP_URL` | 应用完整 URL | 同 `NEXTAUTH_URL` |
 
-# 验证安装
-docker --version
-docker-compose --version
-```
+#### 生产环境额外配置（可选）
 
-#### 3. 部署应用
+如果部署到生产环境并需要 SSL：
 
-```bash
-# 克隆项目
-git clone <repository-url>
-cd HOMELABS
+| Variable/Secret 名称 | 说明 |
+|---------------------|------|
+| `DEPLOY_ENVIRONMENT` | 设置为 `production` |
+| `PRIMARY_DOMAIN` | 主域名，如 `homelabs.example.com` |
+| `USE_SSL` | 设置为 `true` |
+| `SSL_EMAIL` | Let's Encrypt 邮箱 |
 
-# 配置环境变量
-cp client/.env.example client/.env.local
-# 编辑环境变量文件，设置数据库密码等
+## 🚀 部署步骤
 
-# 启动服务
-cd docker
-docker-compose up -d
+### 1. 生成 SSH 密钥（如果还没有）
 
-# 查看服务状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f
-```
-
-#### 4. 访问应用
-
-- **应用地址**: http://your-vm-ip:3000
-- **数据库管理**: 使用pgAdmin或DBeaver连接PostgreSQL
-- **日志查看**: `docker-compose logs -f app`
-
-### 方式二: 手动部署
-
-#### 1. 安装Node.js和PostgreSQL
+在本地执行：
 
 ```bash
-# 安装Node.js 18+
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# 生成新的 SSH 密钥对
+ssh-keygen -t rsa -b 4096 -C "github-actions@homelabs" -f ~/.ssh/homelabs_deploy
 
-# 安装PostgreSQL
-sudo apt install postgresql postgresql-contrib -y
+# 将公钥复制到服务器
+ssh-copy-id -i ~/.ssh/homelabs_deploy.pub user@your-server
 
-# 创建数据库
-sudo -u postgres createdb homelabs_portal
-sudo -u postgres createuser --interactive
+# 复制私钥内容（添加到 GitHub Secrets）
+cat ~/.ssh/homelabs_deploy
 ```
 
-#### 2. 部署应用
+### 2. 配置 GitHub Secrets
+
+1. 进入 GitHub 仓库
+2. 点击 `Settings` > `Secrets and variables` > `Actions`
+3. 点击 `New repository secret`
+4. 逐个添加上述必需的 Secrets
+
+### 3. 生成 NEXTAUTH_SECRET
 
 ```bash
-# 进入项目目录
-cd client
-
-# 安装依赖
-npm install
-
-# 配置环境变量
-cp .env.example .env.local
-# 编辑.env.local文件
-
-# 初始化数据库
-npx prisma generate
-npx prisma db push
-
-# 构建应用
-npm run build
-
-# 启动生产服务器
-npm start
+# 使用 openssl 生成随机密钥
+openssl rand -base64 32
 ```
 
-## 配置说明
+将输出结果添加到 GitHub Secrets 的 `NEXTAUTH_SECRET`。
 
-### 环境变量
+### 4. 触发部署
+
+#### 方式一：通过 GitHub 网页界面
+
+1. 进入仓库的 `Actions` 标签页
+2. 选择 `本地环境部署（非Docker）` 工作流
+3. 点击 `Run workflow`
+4. 选择部署模式：
+   - `all`: 完整部署（推荐）
+   - `app-only`: 仅部署应用
+   - `check`: 仅检查环境
+5. 点击 `Run workflow` 确认
+
+#### 方式二：通过 Git 推送触发（需配置）
 
 ```bash
-# 数据库配置
-DATABASE_URL="postgresql://username:password@localhost:5432/homelabs_portal"
-
-# NextAuth.js 配置
-NEXTAUTH_URL="http://your-domain.com"
-NEXTAUTH_SECRET="your-secret-key"
-
-# 应用配置
-NODE_ENV="production"
-PORT=3000
+git push origin main
 ```
 
-### 数据库配置
+### 5. 监控部署进度
 
-```sql
--- 创建数据库
-CREATE DATABASE homelabs_portal;
+在 `Actions` 标签页查看实时部署日志，整个部署过程大约需要 10-20 分钟。
 
--- 创建用户
-CREATE USER homelabs_user WITH PASSWORD 'your_password';
+## 📊 部署后验证
 
--- 授权
-GRANT ALL PRIVILEGES ON DATABASE homelabs_portal TO homelabs_user;
-```
+部署完成后，执行以下检查：
 
-## 安全配置
+### 1. 检查服务状态
 
-### 1. 防火墙设置
+SSH 到服务器：
 
 ```bash
-# 开放必要端口
-sudo ufw allow 22    # SSH
-sudo ufw allow 80    # HTTP
-sudo ufw allow 443   # HTTPS
-sudo ufw allow 3000  # 应用端口 (仅内网访问)
+ssh user@your-server
 
-# 启用防火墙
-sudo ufw enable
+# 检查 PM2 状态
+pm2 status
+
+# 检查应用日志
+pm2 logs homelabs-portal
+
+# 检查 Nginx 状态
+sudo systemctl status nginx
+
+# 检查 PostgreSQL 状态
+sudo systemctl status postgresql
 ```
 
-### 2. SSL证书配置
+### 2. 访问应用
+
+在浏览器中访问：
+
+- **本地环境**: `http://your-server-ip`
+- **生产环境**: `https://your-domain.com`
+
+### 3. 检查数据库
 
 ```bash
-# 使用Let's Encrypt获取免费SSL证书
-sudo apt install certbot python3-certbot-nginx -y
+# 连接到数据库
+psql -U homelabs -d homelabs_portal
 
-# 获取证书
-sudo certbot --nginx -d your-domain.com
+# 查看表
+\dt
 
-# 自动续期
-sudo crontab -e
-# 添加: 0 12 * * * /usr/bin/certbot renew --quiet
+# 退出
+\q
 ```
 
-### 3. 数据库安全
+## 🔧 常见问题
 
-```bash
-# 修改PostgreSQL配置
-sudo nano /etc/postgresql/14/main/postgresql.conf
+### Q1: 部署失败，如何查看详细日志？
 
-# 设置监听地址
-listen_addresses = 'localhost'
-
-# 修改认证配置
-sudo nano /etc/postgresql/14/main/pg_hba.conf
-
-# 设置本地连接认证
-local   all             all                                     md5
-host    all             all             127.0.0.1/32            md5
-```
-
-## 监控和维护
-
-### 1. 日志管理
-
-```bash
-# 查看应用日志
-docker-compose logs -f app
-
-# 查看数据库日志
-docker-compose logs -f postgres
-
-# 日志轮转配置
-sudo nano /etc/logrotate.d/homelabs
-```
-
-### 2. 备份策略
-
-```bash
-# 数据库备份脚本
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-docker exec homelabs-postgres pg_dump -U postgres homelabs_portal > backup_$DATE.sql
-
-# 定期备份 (添加到crontab)
-0 2 * * * /path/to/backup_script.sh
-```
-
-### 3. 性能监控
-
-```bash
-# 安装监控工具
-sudo apt install htop iotop nethogs -y
-
-# 监控系统资源
-htop
-iotop
-nethogs
-```
-
-## 故障排除
-
-### 常见问题
-
-1. **端口冲突**
+**A**: 
+1. 在 GitHub Actions 页面查看完整的部署日志
+2. SSH 到服务器查看应用日志：
    ```bash
-   # 检查端口占用
-   sudo netstat -tlnp | grep :3000
-   
-   # 杀死占用进程
-   sudo kill -9 <PID>
+   pm2 logs homelabs-portal --lines 100
+   tail -f /opt/homelabs/logs/app-error.log
    ```
 
-2. **数据库连接失败**
-   ```bash
-   # 检查PostgreSQL状态
-   sudo systemctl status postgresql
-   
-   # 重启PostgreSQL
-   sudo systemctl restart postgresql
-   ```
+### Q2: 如何回滚到上一个版本？
 
-3. **内存不足**
-   ```bash
-   # 检查内存使用
-   free -h
-   
-   # 清理Docker缓存
-   docker system prune -a
-   ```
-
-### 日志分析
+**A**: 工作流会自动保留最近 3 个备份，如果部署失败会自动回滚。手动回滚：
 
 ```bash
-# 查看错误日志
-docker-compose logs app | grep ERROR
+# 查看备份
+ls -la /opt/ | grep homelabs_backup
 
-# 查看访问日志
-docker-compose logs nginx | grep "GET\|POST"
+# 停止当前服务
+pm2 stop homelabs-portal
 
-# 实时监控日志
-docker-compose logs -f --tail=100 app
-```
-
-## 更新和维护
-
-### 应用更新
-
-```bash
-# 拉取最新代码
-git pull origin main
-
-# 重新构建和部署
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-
-# 运行数据库迁移
-docker-compose exec app npx prisma db push
-```
-
-### 系统维护
-
-```bash
-# 定期更新系统
-sudo apt update && sudo apt upgrade -y
-
-# 清理Docker资源
-docker system prune -a
+# 恢复备份
+mv /opt/homelabs /opt/homelabs_broken
+mv /opt/homelabs_backup_20250120_123456 /opt/homelabs
 
 # 重启服务
-docker-compose restart
+cd /opt/homelabs/client
+pm2 start npm --name homelabs-portal -- start
+pm2 save
 ```
 
-## 联系支持
+### Q3: 如何更新环境变量？
 
-如果在部署过程中遇到问题，请：
+**A**: 
+1. 更新 GitHub Secrets
+2. 重新触发部署，或手动更新：
+   ```bash
+   cd /opt/homelabs
+   nano .env  # 编辑环境变量
+   pm2 restart homelabs-portal
+   ```
 
-1. 查看本文档的故障排除部分
-2. 检查应用日志和系统日志
-3. 联系技术支持团队
+### Q4: 数据库迁移失败怎么办？
+
+**A**:
+```bash
+cd /opt/homelabs/client
+npx prisma db push --skip-generate  # 强制推送
+# 或
+npx prisma db push --force-reset    # 重置数据库（危险！）
+```
+
+### Q5: Nginx 配置错误怎么办？
+
+**A**:
+```bash
+# 测试 Nginx 配置
+sudo nginx -t
+
+# 查看错误日志
+sudo tail -f /var/log/nginx/error.log
+
+# 恢复备份配置
+sudo cp /etc/nginx/sites-available/homelabs.backup.* /etc/nginx/sites-available/homelabs
+sudo systemctl reload nginx
+```
+
+## 🔐 安全建议
+
+1. **定期更新密钥**: 每 90 天更新 `NEXTAUTH_SECRET` 和数据库密码
+2. **启用 SSL**: 生产环境必须使用 HTTPS
+3. **防火墙配置**: 只开放必要的端口（80, 443, SSH）
+4. **定期备份**: 配置自动数据库备份
+   ```bash
+   # 创建备份脚本
+   pg_dump -U homelabs homelabs_portal > backup_$(date +%Y%m%d).sql
+   ```
+5. **监控日志**: 定期检查应用和系统日志
+
+## 📈 性能优化
+
+### 1. 启用数据库连接池
+
+在 `.env` 中配置：
+
+```env
+DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public&connection_limit=10"
+```
+
+### 2. 配置 PM2 集群模式（可选）
+
+```bash
+pm2 start npm --name homelabs-portal -i max -- start
+```
+
+### 3. 启用 Nginx 缓存（可选）
+
+编辑 `/etc/nginx/sites-available/homelabs`，添加缓存配置。
+
+## 🆘 紧急联系
+
+如果遇到无法解决的问题：
+
+1. 查看 [GitHub Issues](https://github.com/your-repo/issues)
+2. 查看项目文档 `PROJECT_MEMORY.md`
+3. 联系技术支持
+
+## 📚 相关文档
+
+- [Next.js 部署文档](https://nextjs.org/docs/deployment)
+- [Prisma 生产部署](https://www.prisma.io/docs/guides/deployment)
+- [PM2 文档](https://pm2.keymetrics.io/docs/usage/quick-start/)
+- [Nginx 配置指南](https://nginx.org/en/docs/)
 
 ---
 
-**注意**: 请确保在生产环境中使用强密码和安全的配置设置。
+**最后更新**: 2025-10-20
+**维护者**: AI Assistant
