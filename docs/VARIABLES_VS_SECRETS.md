@@ -7,30 +7,71 @@
 | `SERVER_SSH_KEY` | 🔒 **Secrets** | SSH 私钥，高度敏感 | `-----BEGIN OPENSSH...` |
 | `POSTGRES_PASSWORD` | 🔒 **Secrets** | 数据库密码，敏感 | `strong_password_123` |
 | `NEXTAUTH_SECRET` | 🔒 **Secrets** | 认证密钥，敏感 | `random_32_chars...` |
-| `SSL_EMAIL` | 🔒 **Secrets** | 邮箱，个人信息 | `admin@example.com` |
-| `SERVER_HOST` | 📝 **Variables** | 服务器地址，非敏感 | `192.168.1.100` |
-| `SSH_USER` | 📝 **Variables** | SSH 用户名，非敏感 | `ubuntu` |
-| `SSH_PORT` | 📝 **Variables** | SSH 端口，非敏感 | `22` |
+| `SSL_EMAIL` | 🔒 **Secrets** | 邮箱，个人信息 | `1980296464@qq.com` |
+| `SERVER_HOST` | 📝 **Variables** | 服务器地址，非敏感 | `aiuni.szlk.szite` |
+| `SSH_USER` | 📝 **Variables** | SSH 用户名，非敏感 | `szlk` |
+| `SSH_PORT` | 📝 **Variables** | SSH 端口，非敏感 | `22223` |
 | `DEPLOY_PATH` | 📝 **Variables** | 部署路径，非敏感 | `/opt/homelabs` |
 | `POSTGRES_DB` | 📝 **Variables** | 数据库名，非敏感 | `homelabs_portal` |
 | `POSTGRES_USER` | 📝 **Variables** | 数据库用户，非敏感 | `homelabs` |
-| `APP_PORT` | 📝 **Variables** | 应用端口，非敏感 | `3000` |
-| `NGINX_PORT` | 📝 **Variables** | Nginx 端口，非敏感 | `80` |
-| `NEXTAUTH_URL` | 📝 **Variables** | 应用 URL，非敏感 | `http://192.168.1.100` |
-| `APP_URL` | 📝 **Variables** | 应用 URL，非敏感 | `http://192.168.1.100` |
+| `APP_PORT` | 📝 **Variables** | 应用端口，非敏感 | `3333` |
+| `NGINX_PORT` | 📝 **Variables** | Nginx 端口，非敏感 | `443` |
+| `NEXTAUTH_URL` | 📝 **Variables** | 应用 URL，非敏感 | `https://aiuni.szlk.site` |
+| `APP_URL` | 📝 **Variables** | 应用 URL，非敏感 | `https://aiuni.szlk.site` |
 | `LOG_LEVEL` | 📝 **Variables** | 日志级别，非敏感 | `info` |
 | `DEPLOY_ENVIRONMENT` | 📝 **Variables** | 环境类型，非敏感 | `local` |
-| `PRIMARY_DOMAIN` | 📝 **Variables** | 主域名，非敏感 | `homelabs.local` |
-| `ADDITIONAL_DOMAINS` | 📝 **Variables** | 额外域名，非敏感 | `api.homelabs.local` |
+| `PRIMARY_DOMAIN` | 📝 **Variables** | 主域名，非敏感 | `aiuni.szlk.site` |
+| `ADDITIONAL_DOMAINS` | 📝 **Variables** | 额外域名，非敏感 | `aiuni.site` |
 | `USE_SSL` | 📝 **Variables** | SSL 开关，非敏感 | `false` |
 | `BEHIND_PROXY` | 📝 **Variables** | 代理开关，非敏感 | `false` |
-| `PROXY_REAL_IP_FROM` | 📝 **Variables** | 代理 IP 段，非敏感 | `192.168.0.0/16` |
+| `PROXY_REAL_IP_FROM` | 📝 **Variables** | 代理 IP 段，非敏感 | `192.168.2.0/24` |
 
 ## 🎯 分类统计
 
 - **Secrets（敏感）**: 4 个
 - **Variables（非敏感）**: 17 个
 - **总计**: 21 个
+
+## 💡 `NEXTAUTH_URL` vs `APP_URL` 详解
+
+这两个变量经常让人困惑，让我们详细对比一下：
+
+| 特性 | `NEXTAUTH_URL` | `APP_URL` |
+|------|---------------|-----------|
+| **是否必需** | ✅ **必需** | ❌ 可选 |
+| **来源** | NextAuth.js 官方要求 | 应用自定义变量 |
+| **主要用途** | • OAuth 回调 URL<br>• 会话验证<br>• CORS 配置 | • 邮件通知链接<br>• 分享链接生成<br>• API 基础 URL |
+| **谁在使用** | NextAuth.js 库内部 | 应用代码（如果需要） |
+| **典型值** | `https://aiuni.szlk.site` | `https://aiuni.szlk.site` |
+| **不配置会怎样** | ❌ NextAuth 无法工作 | ✅ 可以在代码中使用 `NEXTAUTH_URL` 代替 |
+
+### 📝 配置建议
+
+**方案一：只配置 `NEXTAUTH_URL`（推荐）**
+```bash
+gh variable set NEXTAUTH_URL -b "https://aiuni.szlk.site"
+# APP_URL 不配置，应用代码中需要时使用 process.env.NEXTAUTH_URL
+```
+
+**方案二：两者都配置相同值**
+```bash
+gh variable set NEXTAUTH_URL -b "https://aiuni.szlk.site"
+gh variable set APP_URL -b "https://aiuni.szlk.site"
+# 语义更清晰，但配置略繁琐
+```
+
+### 🤔 什么时候它们的值可能不同？
+
+极少数边缘场景：
+- **内网 + 公网双域名**: 
+  - `NEXTAUTH_URL` = `http://192.168.1.100`（内网认证）
+  - `APP_URL` = `https://aiuni.szlk.site`（公网分享链接）
+  
+- **多域名环境**: 
+  - `NEXTAUTH_URL` = `https://auth.example.com`（认证专用域名）
+  - `APP_URL` = `https://app.example.com`（应用主域名）
+
+**对于大多数用户**: 两者保持相同即可！
 
 ## 📋 详细说明
 
@@ -116,17 +157,20 @@
     - 默认值: `3000`
     - 配置: 同上（可选）
 
-12. **NEXTAUTH_URL**
-    - 说明: NextAuth 回调 URL
-    - 示例: `http://192.168.1.100`
+12. **NEXTAUTH_URL** ⚠️ 必需
+    - 说明: NextAuth.js 官方环境变量，用于认证回调和会话验证
+    - 用途: OAuth 回调 URL、会话验证、CORS 配置
+    - 示例: `https://aiuni.szlk.site`
     - 默认值: 无
     - 配置: 同上
 
-13. **APP_URL**
-    - 说明: 应用完整 URL（通常与 NEXTAUTH_URL 相同）
-    - 示例: `http://192.168.1.100`
-    - 默认值: 与 `NEXTAUTH_URL` 相同
+13. **APP_URL** (可选)
+    - 说明: 应用自定义 URL，用于非认证场景（如邮件链接、分享链接等）
+    - 用途: 应用内部生成绝对 URL、邮件通知、API 调用基础 URL
+    - 示例: `https://aiuni.szlk.site`
+    - 默认值: 如不配置，应用代码中可以使用 `NEXTAUTH_URL` 代替
     - 配置: 同上（可选）
+    - 💡 **建议**: 大多数情况下可以不配置，直接使用 `NEXTAUTH_URL`
 
 14. **LOG_LEVEL**
     - 说明: 应用日志级别

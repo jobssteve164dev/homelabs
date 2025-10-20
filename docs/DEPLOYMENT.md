@@ -51,7 +51,7 @@
 |--------------|------|--------|
 | `SERVER_HOST` | 服务器 IP 或域名 | `192.168.1.100` |
 | `SSH_USER` | SSH 登录用户名 | `ubuntu` |
-| `NEXTAUTH_URL` | 应用访问 URL | `http://192.168.1.100` |
+| `NEXTAUTH_URL` | NextAuth 认证 URL（应用访问地址） | `http://192.168.1.100` |
 
 #### 可选的 Variables
 
@@ -63,7 +63,7 @@
 | `POSTGRES_USER` | 数据库用户名 | `homelabs` |
 | `APP_PORT` | 应用端口 | `3000` |
 | `NGINX_PORT` | Nginx 监听端口 | `80` |
-| `APP_URL` | 应用完整 URL | 同 `NEXTAUTH_URL` |
+| `APP_URL` | 应用自定义 URL（可选，大多数情况使用 `NEXTAUTH_URL` 即可） | 同 `NEXTAUTH_URL` |
 | `LOG_LEVEL` | 日志级别 | `info` |
 
 #### 生产环境额外配置（可选）
