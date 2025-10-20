@@ -380,20 +380,20 @@ export default function DashboardPage() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-sci-dark border border-red-500/30 rounded-xl p-6 max-w-md mx-4"
+                className="bg-sci-darker/95 backdrop-blur-xl border-2 border-red-500/50 rounded-xl p-8 max-w-md mx-4 shadow-2xl shadow-red-500/20"
               >
-                <h3 className="text-lg font-semibold text-foreground mb-2">确认删除</h3>
-                <p className="text-foreground/70 mb-6">此操作无法撤销，确定要删除这个项目吗？</p>
-                <div className="flex space-x-3">
+                <h3 className="text-xl font-bold text-white mb-3">确认删除</h3>
+                <p className="text-white/90 text-base mb-8">此操作无法撤销，确定要删除这个项目吗？</p>
+                <div className="flex space-x-4">
                   <button
                     onClick={() => setShowDeleteConfirm(null)}
-                    className="flex-1 px-4 py-2 bg-sci-darker border border-foreground/20 text-foreground rounded-lg hover:bg-foreground/5 transition-colors"
+                    className="flex-1 px-5 py-3 bg-white/10 border border-white/30 text-white rounded-lg hover:bg-white/20 transition-all font-semibold"
                   >
                     取消
                   </button>
                   <button
                     onClick={() => handleDelete(showDeleteConfirm)}
-                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    className="flex-1 px-5 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/30 transition-all font-semibold"
                   >
                     删除
                   </button>
