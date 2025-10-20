@@ -19,6 +19,11 @@
             "date": 1760952101641,
             "name": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/exceptions-2025-10-20.log.1",
             "hash": "03e62c3e85720773ab1820b79002aae6d093bf1929eaac93909388f2b40929ac"
+        },
+        {
+            "date": 1760954671278,
+            "name": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/exceptions-2025-10-20.log.2",
+            "hash": "6a6fda2d54d9a473bf75cf5f1f815768ba70c3fba520e88c8e17237444c2deb2"
         }
     ],
     "hashType": "sha256"

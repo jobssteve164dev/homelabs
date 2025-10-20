@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { AuthSession } from '@/types/auth';
 import { StarForm } from '@/components/dashboard/StarForm';
 import { prisma } from '@/lib/db';
+import { StarPageNav } from '@/components/dashboard/StarPageNav';
 
 export default async function StarPage() {
   const session = await getServerSession(authOptions) as AuthSession | null;
@@ -21,23 +22,28 @@ export default async function StarPage() {
   });
 
   return (
-    <div className="min-h-screen bg-sci-darker py-12 px-4">
-      <StarForm 
-        mode={existingStar ? 'edit' : 'create'}
-        initialData={existingStar ? {
-          title: existingStar.title,
-          userTitle: existingStar.userTitle || undefined,
-          userBio: existingStar.userBio || undefined,
-          userSkills: existingStar.userSkills as string[] | undefined,
-          socialLinks: existingStar.socialLinks as {
-            github?: string;
-            linkedin?: string;
-            twitter?: string;
-            website?: string;
-            email?: string;
-          } | undefined,
-        } : undefined}
-      />
+    <div className="min-h-screen bg-sci-darker">
+      {/* 顶部导航栏 */}
+      <StarPageNav />
+
+      <div className="py-12 px-4">
+        <StarForm 
+          mode={existingStar ? 'edit' : 'create'}
+          initialData={existingStar ? {
+            title: existingStar.title,
+            userTitle: existingStar.userTitle || undefined,
+            userBio: existingStar.userBio || undefined,
+            userSkills: existingStar.userSkills as string[] | undefined,
+            socialLinks: existingStar.socialLinks as {
+              github?: string;
+              linkedin?: string;
+              twitter?: string;
+              website?: string;
+              email?: string;
+            } | undefined,
+          } : undefined}
+        />
+      </div>
     </div>
   );
 }
