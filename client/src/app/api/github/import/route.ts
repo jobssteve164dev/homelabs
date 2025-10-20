@@ -94,9 +94,26 @@ export async function POST(request: NextRequest) {
     const galaxyOffset = userIndex >= 0 ? userIndex * 60 : 0;
 
     // 6. 准备批量创建数据（过滤重复项）
-    const projectsToCreate = [];
-    const skippedProjects = [];
-    let currentPlanetIndex = existingPlanets.length;
+    const projectsToCreate: Array<{
+      title: string;
+      description: string;
+      category: string;
+      tags: string[];
+      githubUrl: string;
+      demoUrl?: string;
+      projectType: ProjectType;
+      orbitRadius: number;
+      orbitAngle: number;
+      orbitSpeed: number;
+      authorId: string;
+    }> = [];
+    const skippedProjects: Array<{ title: string; reason: string }> = [];
+    
+    // 修复：从最大轨道半径开始分配，而不是从行星数量
+    const baseOrbitRadius = 4;
+    const orbitGap = 3.0;
+    const maxExistingOrbit = existingOrbits.length > 0 ? Math.max(...existingOrbits) : 0;
+    let nextOrbitRadius = maxExistingOrbit > 0 ? maxExistingOrbit + orbitGap : baseOrbitRadius;
 
     for (const project of importResult.projects) {
       // 检查是否已存在相同GitHub URL或标题
@@ -108,10 +125,20 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 计算轨道参数
-      const orbit = calculatePlanetOrbit(currentPlanetIndex, existingOrbits, galaxyOffset);
-      existingOrbits.push(orbit.radius); // 添加到已使用轨道列表
-      currentPlanetIndex++;
+      // 计算轨道参数（确保不与现有轨道冲突）
+      while (existingOrbits.some(r => Math.abs(r - nextOrbitRadius) < 0.5)) {
+        nextOrbitRadius += orbitGap;
+      }
+
+      // 计算角度和速度
+      const planetIndex: number = existingPlanets.length + projectsToCreate.length;
+      const goldenAngle: number = 137.508;
+      const planetAngle: number = (planetIndex * goldenAngle) % 360;
+      const totalAngle: number = (planetAngle + galaxyOffset) % 360;
+      const angle: number = totalAngle * (Math.PI / 180);
+      const speed: number = 0.2 / Math.sqrt(nextOrbitRadius);
+
+      existingOrbits.push(nextOrbitRadius); // 添加到已使用轨道列表
 
       projectsToCreate.push({
         title: project.title,
@@ -121,11 +148,14 @@ export async function POST(request: NextRequest) {
         githubUrl: project.githubUrl,
         demoUrl: project.demoUrl,
         projectType: 'PLANET' as ProjectType,
-        orbitRadius: orbit.radius,
-        orbitAngle: orbit.angle,
-        orbitSpeed: orbit.speed,
+        orbitRadius: nextOrbitRadius,
+        orbitAngle: angle,
+        orbitSpeed: speed,
         authorId: session.user.id,
       });
+
+      // 为下一个行星准备轨道
+      nextOrbitRadius += orbitGap;
     }
 
     // 7. 批量创建项目
