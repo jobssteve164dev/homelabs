@@ -710,6 +710,10 @@ jobs:
           --exclude 'node_modules' \
           --exclude '.git' \
           --exclude '.github' \
+          --exclude 'client/.next' \
+          --exclude '.playWright-mcp' \
+          --exclude 'client/node_modules' \
+          --exclude 'client/build' \
           --exclude '.next' \
           --exclude 'logs' \
           --exclude '*.log' \

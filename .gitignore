@@ -30,3 +30,6 @@ backups/
 *.sql
 *.backup
 
+# Playwright MCP screenshots and artifacts
+.playwright-mcp/
+

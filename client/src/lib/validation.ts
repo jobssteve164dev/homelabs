@@ -48,6 +48,19 @@ export const registerSchema = z.object({
 });
 
 /**
+ * 账户更新Schema（名称可选，密码修改需提供当前密码）
+ */
+export const accountUpdateSchema = z.object({
+  name: nameSchema.optional(),
+  currentPassword: z.string().min(1, "当前密码不能为空").optional(),
+  newPassword: passwordSchema.optional(),
+}).refine((data) => {
+  // 如果提供 newPassword，必须同时提供 currentPassword
+  if (data.newPassword && !data.currentPassword) return false;
+  return true;
+}, { message: "修改密码需要提供当前密码", path: ["currentPassword"] });
+
+/**
  * 登录请求验证Schema
  */
 export const loginSchema = z.object({
