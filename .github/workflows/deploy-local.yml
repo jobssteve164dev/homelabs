@@ -704,39 +704,6 @@ jobs:
         
         echo "✅ 代码传输完成"
     
-    - name: 创建环境配置文件
-      if: inputs.deploy_mode != 'check'
-      env:
-        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
-      run: |
-        echo "创建生产环境配置文件..."
-        
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
-          cd ${{ env.DEPLOY_PATH }}/client
-          
-          echo \"# =================== 环境配置 ===================\" > .env
-          echo \"NODE_ENV=production\" >> .env
-          echo \"\" >> .env
-          
-          echo \"# =================== 数据库配置 ===================\" >> .env
-          echo \"DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env
-          echo \"\" >> .env
-          
-          echo \"# =================== NextAuth配置 ===================\" >> .env
-          echo \"NEXTAUTH_URL=${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}\" >> .env
-          echo \"NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}\" >> .env
-          echo \"\" >> .env
-          
-          echo \"# =================== 应用配置 ===================\" >> .env
-          echo \"APP_URL=${{ vars.APP_URL || secrets.APP_URL }}\" >> .env
-          echo \"PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\" >> .env
-          echo \"\" >> .env
-          
-          echo \"# =================== 日志配置 ===================\" >> .env
-          echo \"LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\" >> .env
-          
-          echo \"✅ 环境配置文件已创建: ${{ env.DEPLOY_PATH }}/client/.env\"
-        "
     
     - name: 安装依赖并构建
       if: inputs.deploy_mode != 'check'
