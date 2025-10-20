@@ -14,7 +14,11 @@ import {
   Plus,
   X,
   Save,
-  Sparkles
+  Sparkles,
+  Download,
+  Loader2,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 
 interface StarFormProps {
@@ -54,6 +58,18 @@ export function StarForm({ mode, initialData }: StarFormProps) {
     website: initialData?.socialLinks?.website || '',
     email: initialData?.socialLinks?.email || '',
   });
+
+  // GitHub导入状态
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: {
+      imported: number;
+      skipped: number;
+      total: number;
+    };
+  } | null>(null);
 
   const handleAddSkill = () => {
     if (currentSkill.trim() && !userSkills.includes(currentSkill.trim())) {
@@ -95,6 +111,52 @@ export function StarForm({ mode, initialData }: StarFormProps) {
       setError(err instanceof Error ? err.message : '操作失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // GitHub项目导入
+  const handleImportGitHub = async () => {
+    if (!socialLinks.github) {
+      setImportResult({
+        success: false,
+        message: '请先输入GitHub主页链接',
+      });
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const response = await fetch('/api/github/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ githubUrl: socialLinks.github }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '导入失败');
+      }
+
+      setImportResult({
+        success: true,
+        message: data.message,
+        details: data.result,
+      });
+
+      // 3秒后自动刷新页面以显示新创建的行星
+      setTimeout(() => {
+        router.refresh();
+      }, 3000);
+    } catch (err) {
+      setImportResult({
+        success: false,
+        message: err instanceof Error ? err.message : '导入失败',
+      });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -238,18 +300,68 @@ export function StarForm({ mode, initialData }: StarFormProps) {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-foreground/70 mb-2 flex items-center gap-2">
               <Github className="w-4 h-4" />
               GitHub
             </label>
-            <input
-              type="url"
-              value={socialLinks.github}
-              onChange={(e) => setSocialLinks({ ...socialLinks, github: e.target.value })}
-              className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
-              placeholder="https://github.com/username"
-            />
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={socialLinks.github}
+                onChange={(e) => {
+                  setSocialLinks({ ...socialLinks, github: e.target.value });
+                  setImportResult(null); // 清除之前的导入结果
+                }}
+                className="flex-1 px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+                placeholder="https://github.com/username"
+              />
+              <button
+                type="button"
+                onClick={handleImportGitHub}
+                disabled={importing || !socialLinks.github}
+                className="px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2 whitespace-nowrap"
+                title="自动导入GitHub上的AI相关开源项目"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    导入中...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    导入项目
+                  </>
+                )}
+              </button>
+            </div>
+            {/* 导入结果提示 */}
+            {importResult && (
+              <div className={`mt-3 p-4 rounded-lg border ${
+                importResult.success 
+                  ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+              } flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300`}>
+                {importResult.success ? (
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <p className="font-semibold">{importResult.message}</p>
+                  {importResult.details && (
+                    <p className="text-sm mt-1 opacity-80">
+                      成功导入 <span className="font-bold">{importResult.details.imported}</span> 个AI项目
+                      {importResult.details.skipped > 0 && (
+                        <>, 跳过 {importResult.details.skipped} 个已存在项目</>
+                      )}
+                      <> (共扫描 {importResult.details.total} 个仓库)</>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
