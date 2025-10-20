@@ -215,3 +215,4 @@ gh workflow run deploy-local.yml -f deploy_mode=all
 
 **你的密码**: `bD3tddNaIQ/tOSuwbTIiwZecKVR21gHh` 在部署时会被正确配置到数据库和应用中！✅
 
+
