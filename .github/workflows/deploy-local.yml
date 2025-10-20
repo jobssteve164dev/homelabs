@@ -206,6 +206,9 @@ jobs:
           echo "配置数据库: $DB_NAME"
           echo "配置用户: $DB_USER"
           
+          # 切换到/tmp目录避免权限警告
+          cd /tmp
+          
           # 创建或更新用户
           sudo -u postgres psql -c "
             DO \$\$
