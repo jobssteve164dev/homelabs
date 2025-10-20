@@ -1,4 +1,222 @@
-{"environment":"production","error":"\nInvalid `prisma.user.findUnique()` invocation:\n\n\nThe provided database string is invalid. Error parsing connection string: invalid port number in database URL. Please refer to the documentation in https://www.prisma.io/docs/reference/database-reference/connection-urls for constructing a correct connection string. In some cases, certain characters must be escaped. Please check the string for any illegal characters.","ip":"172.69.176.28, 172.69.176.28, 192.168.2.55","level":"error","message":"注册错误","service":"homelabs-portal","timestamp":"2025-10-20 08:36:08"}
-{"environment":"production","error":"\nInvalid `prisma.user.findUnique()` invocation:\n\n\nThe provided database string is invalid. Error parsing connection string: invalid port number in database URL. Please refer to the documentation in https://www.prisma.io/docs/reference/database-reference/connection-urls for constructing a correct connection string. In some cases, certain characters must be escaped. Please check the string for any illegal characters.","ip":"172.69.176.28, 172.69.176.28, 192.168.2.55","level":"error","message":"注册错误","service":"homelabs-portal","timestamp":"2025-10-20 08:38:11"}
-{"environment":"production","error":"\nInvalid `prisma.user.findUnique()` invocation:\n\n\nThe provided database string is invalid. Error parsing connection string: invalid port number in database URL. Please refer to the documentation in https://www.prisma.io/docs/reference/database-reference/connection-urls for constructing a correct connection string. In some cases, certain characters must be escaped. Please check the string for any illegal characters.","ip":"172.69.176.28, 172.69.176.28, 192.168.2.55","level":"error","message":"注册错误","service":"homelabs-portal","timestamp":"2025-10-20 08:39:44"}
-{"environment":"production","error":"\nInvalid `prisma.user.findUnique()` invocation:\n\n\nThe provided database string is invalid. Error parsing connection string: invalid port number in database URL. Please refer to the documentation in https://www.prisma.io/docs/reference/database-reference/connection-urls for constructing a correct connection string. In some cases, certain characters must be escaped. Please check the string for any illegal characters.","ip":"172.69.176.28, 172.69.176.28, 192.168.2.55","level":"error","message":"注册错误","service":"homelabs-portal","timestamp":"2025-10-20 08:39:46"}
+Run echo "创建完整的生产环境配置文件（从GitHub Secrets读取）..."
+  echo "创建完整的生产环境配置文件（从GitHub Secrets读取）..."
+  
+  # 在服务器上逐行写入环境配置（确保GitHub Actions变量正确替换）
+  ssh -o StrictHostKeyChecking=no -p *** ***@*** "
+    echo \"# =================== 环境标识 ===================\" > /opt/homelabs/.env
+    echo \"NODE_ENV=production\" >> /opt/homelabs/.env
+    echo \"TZ=Asia/Shanghai\" >> /opt/homelabs/.env
+    echo \"PRODUCTION_DEPLOYMENT=true\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 生产环境安全配置 ===================\" >> /opt/homelabs/.env
+    echo \"# 🚨 以下开发环境变量必须保持未设置状态\" >> /opt/homelabs/.env
+    echo \"# ENABLE_DEV_MODE - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# DEV_AUTH_BYPASS - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# DEV_PERMISSIONS_BYPASS - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# DEV_AUTH_BYPASS_KEY - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# INIT_TEST_DATA - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# DEV_TOKEN - 必须不存在\" >> /opt/homelabs/.env
+    echo \"# DEV_ALLOW_AUTH_BYPASS_WITH_KEY - 必须不存在\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== API配置 ===================\" >> /opt/homelabs/.env
+    echo \"BACKEND_PORT=5555\" >> /opt/homelabs/.env
+    echo \"FRONTEND_PORT=3333\" >> /opt/homelabs/.env
+    echo \"REACT_APP_API_URL=\" >> /opt/homelabs/.env
+    echo \"APP_URL=https://aiuni.***.site\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== JWT配置 ===================\" >> /opt/homelabs/.env
+    echo \"JWT_SECRET=\" >> /opt/homelabs/.env
+    echo \"ACCESS_TOKEN_EXPIRE=30m\" >> /opt/homelabs/.env
+    echo \"REFRESH_TOKEN_EXPIRE=7d\" >> /opt/homelabs/.env
+    echo \"JWT_COOKIE_EXPIRE=30\" >> /opt/homelabs/.env
+    echo \"JWT_EXPIRE=30d\" >> /opt/homelabs/.env
+    echo \"REFRESH_TOKEN_SECRET=\" >> /opt/homelabs/.env
+    echo \"JWT_KEY_ROTATION_INTERVAL=168\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 数据库配置 ===================\" >> /opt/homelabs/.env
+    echo \"MONGO_INITDB_ROOT_USERNAME=\" >> /opt/homelabs/.env
+    echo \"MONGO_INITDB_ROOT_PASSWORD=\" >> /opt/homelabs/.env
+    echo \"MONGO_URI=\" >> /opt/homelabs/.env
+    echo \"REDIS_URI=\" >> /opt/homelabs/.env
+    echo \"REDIS_PASSWORD=\" >> /opt/homelabs/.env
+    echo \"REDIS_HOST=127.0.0.1\" >> /opt/homelabs/.env
+    echo \"REDIS_PORT=6379\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== AI API配置 ===================\" >> /opt/homelabs/.env
+    echo \"OPENAI_API_KEY=\" >> /opt/homelabs/.env
+    echo \"DEEPSEEK_API_KEY=\" >> /opt/homelabs/.env
+    echo \"OPENROUTER_API_KEY=\" >> /opt/homelabs/.env
+    echo \"SILICONFLOW_API_KEY=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 邮件服务配置 ===================\" >> /opt/homelabs/.env
+    echo \"MAIL_ENABLED=true\" >> /opt/homelabs/.env
+    echo \"SMTP_HOST=\" >> /opt/homelabs/.env
+    echo \"SMTP_PORT=587\" >> /opt/homelabs/.env
+    echo \"SMTP_USER=\" >> /opt/homelabs/.env
+    echo \"SMTP_PASSWORD=\" >> /opt/homelabs/.env
+    echo \"SMTP_SECURE=true\" >> /opt/homelabs/.env
+    echo \"FROM_NAME=PlanovAI\" >> /opt/homelabs/.env
+    echo \"FROM_EMAIL=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 管理员配置 ===================\" >> /opt/homelabs/.env
+    echo \"ADMIN_NAME=\" >> /opt/homelabs/.env
+    echo \"ADMIN_EMAIL=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 客户端配置 ===================\" >> /opt/homelabs/.env
+    echo \"CLIENT_URL=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 安全配置 ===================\" >> /opt/homelabs/.env
+    echo \"RATE_LIMIT_ENABLED_IN_DEV=false\" >> /opt/homelabs/.env
+    echo \"CSRF_PROTECTION_ENABLED_IN_DEV=false\" >> /opt/homelabs/.env
+    echo \"CONFIG_ENCRYPTION_KEY=\" >> /opt/homelabs/.env
+    echo \"ENCRYPTION_KEY=\" >> /opt/homelabs/.env
+    echo \"SIGNATURE_SECRET=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 插件系统配置 ===================\" >> /opt/homelabs/.env
+    echo \"USE_PLUGIN_AUTH=true\" >> /opt/homelabs/.env
+    echo \"USE_PLUGIN_RATE_LIMIT=true\" >> /opt/homelabs/.env
+    echo \"PLUGIN_SYSTEM_STAGE=production\" >> /opt/homelabs/.env
+    echo \"ENABLE_TRADITIONAL_FALLBACK=true\" >> /opt/homelabs/.env
+    echo \"FORCE_PLUGIN_MODE=false\" >> /opt/homelabs/.env
+    echo \"ENABLE_MIDDLEWARE_BRIDGE=true\" >> /opt/homelabs/.env
+    echo \"BRIDGE_INTEGRATION_MODE=auto\" >> /opt/homelabs/.env
+    echo \"BRIDGE_MONITORING_ENABLED=false\" >> /opt/homelabs/.env
+    echo \"BRIDGE_FALLBACK_ENABLED=true\" >> /opt/homelabs/.env
+    echo \"CLIENT_SECURITY_PLUGIN_ENABLED=true\" >> /opt/homelabs/.env
+    echo \"CLIENT_RATE_LIMIT_ENABLED=true\" >> /opt/homelabs/.env
+    echo \"CLIENT_PLUGIN_DEBUG=false\" >> /opt/homelabs/.env
+    echo \"CLIENT_PLUGIN_VERBOSE_LOGGING=false\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 文件上传配置 ===================\" >> /opt/homelabs/.env
+    echo \"UPLOAD_PATH=uploads\" >> /opt/homelabs/.env
+    echo \"MAX_FILE_SIZE=52428800\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 日志配置 ===================\" >> /opt/homelabs/.env
+    echo \"DEBUG=false\" >> /opt/homelabs/.env
+    echo \"LOG_LEVEL=info\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 会话配置 ===================\" >> /opt/homelabs/.env
+    echo \"MAX_SESSIONS_PER_USER=5\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== AI配置 ===================\" >> /opt/homelabs/.env
+    echo \"AI_AGENT_DEBUG=false\" >> /opt/homelabs/.env
+    echo \"EMBEDDING_PROVIDER=openai\" >> /opt/homelabs/.env
+    echo \"EMBEDDING_MODEL=text-embedding-3-small\" >> /opt/homelabs/.env
+    
+    echo \"# =================== 测试用户配置 ===================\" >> /opt/homelabs/.env
+    echo \"TEST_USER_EMAIL=test@planovai.com\" >> /opt/homelabs/.env
+    echo \"TEST_USER_PASSWORD=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== SSL/TLS配置 ===================\" >> /opt/homelabs/.env
+    echo \"USE_HTTPS=true\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== CORS配置 ===================\" >> /opt/homelabs/.env
+    echo \"CORS_ORIGIN=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== Socket.IO配置 ===================\" >> /opt/homelabs/.env
+    echo \"SOCKET_CORS_ORIGINS=\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 前端配置 ===================\" >> /opt/homelabs/.env
+    echo \"REACT_APP_VERSION=1.0.0\" >> /opt/homelabs/.env
+    echo \"REACT_APP_WS_URL=\" >> /opt/homelabs/.env
+    echo \"REACT_APP_MCP_DOC_URL=\" >> /opt/homelabs/.env
+    echo \"REACT_APP_SIGNATURE_KEY=\" >> /opt/homelabs/.env
+    echo \"REACT_APP_ENABLE_THREE_LAYER_ENCRYPTION=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_ENABLE_BASE_OBFUSCATION=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_ENABLE_BASE_ENCRYPTION=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_ENABLE_E2E_ENCRYPTION=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_LOGS=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_DEBUG=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_INFO=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_WARN=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_ERROR=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_PLUGINS=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_API=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_COMPONENTS=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_COLLABORATION=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_SILENT=true\" >> /opt/homelabs/.env
+    echo \"REACT_APP_CONSOLE_DEBUG_MODE=false\" >> /opt/homelabs/.env
+    echo \"REACT_APP_DEBUG_MODE=false\" >> /opt/homelabs/.env
+    echo \"\" >> /opt/homelabs/.env
+    echo \"# =================== 监控和日志 ===================\" >> /opt/homelabs/.env
+    echo \"AUDIT_LOG_PATH=./logs/security-audit.log\" >> /opt/homelabs/.env
+    echo \"GEOIP_ENDPOINT=https://ipapi.co\" >> /opt/homelabs/.env
+  "
+  
+  echo "✅ 环境配置文件已创建（从GitHub Secrets读取完整配置）"
+  
+  # 验证.env文件是否真的创建成功
+  echo ""
+  echo "🔍 验证.env文件创建..."
+  ssh -o StrictHostKeyChecking=no -p *** ***@*** "
+    if [ -f /opt/homelabs/.env ]; then
+      echo '✅ .env文件存在'
+      echo '📁 文件路径: /opt/homelabs/.env'
+      echo '📊 文件大小: '\$(ls -lh /opt/homelabs/.env | awk '{print \$5}')
+      echo '📝 前10行内容:'
+      head -10 /opt/homelabs/.env
+      echo ''
+      echo '✅ NODE_ENV设置:'
+      grep '^NODE_ENV=' /opt/homelabs/.env || echo '❌ NODE_ENV未找到'
+    else
+      echo '❌ .env文件不存在！'
+      exit 1
+    fi
+  "
+  
+  echo ""
+  echo "📊 配置统计："
+  echo "  - 总变量数: 86个"
+  echo "  - 插件系统配置: 13个（新增）"
+  echo "  - 端口和Redis配置: 3个（新增）"
+  echo "  - 安全变量: ENCRYPTION_KEY, SIGNATURE_SECRET"
+  echo "  - 前端变量: 21个"
+  shell: /usr/bin/bash -e {0}
+  env:
+    DEPLOY_MODE: all
+    SSH_AUTH_SOCK: /home/runner/work/homelabs/homelabs/ssh-auth.sock
+    SSH_AGENT_PID: 2068
+    SERVER_HOST: ***
+    SSH_PORT: ***
+    SSH_USER: ***
+    DEPLOY_PATH: /opt/homelabs
+创建完整的生产环境配置文件（从GitHub Secrets读取）...
+✅ 环境配置文件已创建（从GitHub Secrets读取完整配置）
+🔍 验证.env文件创建...
+✅ .env文件存在
+📁 文件路径: /opt/homelabs/.env
+📊 文件大小: 3.7K
+📝 前10行内容:
+# =================== 环境标识 ===================
+NODE_ENV=production
+TZ=Asia/Shanghai
+PRODUCTION_DEPLOYMENT=true
+# =================== 生产环境安全配置 ===================
+# 🚨 以下开发环境变量必须保持未设置状态
+# ENABLE_DEV_MODE - 必须不存在
+# DEV_AUTH_BYPASS - 必须不存在
+# DEV_PERMISSIONS_BYPASS - 必须不存在
+✅ NODE_ENV设置:
+NODE_ENV=production
+📊 配置统计：
+  - 总变量数: 86个
+  - 插件系统配置: 13个（新增）
+  - 端口和Redis配置: 3个（新增）
+  - 安全变量: ENCRYPTION_KEY, SIGNATURE_SECRET
+  - 前端变量: 21个
+2s
+Run echo "==================================="
+===================================
+🔍 验证环境配置...
+===================================
+1️⃣  检查禁止的开发环境变量...
+✅ 未发现禁止的变量
+2️⃣  检查必需的生产环境变量...
+✅ NODE_ENV=production
+✅ PRODUCTION_DEPLOYMENT=true
+2️⃣.1 检查关键环境变量...
+❌ 错误: MONGO_URI 的值为空
+❌ 错误: JWT_SECRET 的值为空
+🚨 环境配置验证失败！关键环境变量缺失或为空
+请检查 GitHub Secrets 中是否正确设置了 MONGO_URI 和 JWT_SECRET
+Error: Process completed with exit code 1.
