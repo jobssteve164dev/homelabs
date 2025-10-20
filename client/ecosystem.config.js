@@ -24,9 +24,11 @@ module.exports = {
     args: 'start',
     cwd: process.cwd(),
     
-    // 只设置NODE_ENV，其他变量由Next.js从.env文件读取
+    // 设置运行时环境变量
+    // PORT必须在这里设置，因为Next.js在npm start时不读取.env文件
     env: {
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      PORT: process.env.PORT || 3001
     },
     
     // 日志配置
