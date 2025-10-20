@@ -17,7 +17,7 @@ export function StarPageNav() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-blue/10 border border-neon-blue/30 text-neon-blue hover:bg-neon-blue/20 transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">返回闭星</span>
+              <span className="text-sm font-medium">返回项目</span>
             </motion.button>
           </Link>
 

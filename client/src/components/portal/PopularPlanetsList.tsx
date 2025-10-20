@@ -55,6 +55,9 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [remoteResults, setRemoteResults] = useState<PopularPlanet[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // 获取热门星球数据
   useEffect(() => {
@@ -109,6 +112,51 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
     onClose();
   };
 
+  // 模糊匹配：按顺序匹配字符（title、tags、category、author.name）
+  const fuzzyMatch = (text: string, query: string) => {
+    if (!query) return true;
+    const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = escaped.split('').join('.*');
+    try {
+      const re = new RegExp(pattern, 'i');
+      return re.test(text);
+    } catch {
+      return text.toLowerCase().includes(query.toLowerCase());
+    }
+  };
+
+  const filteredPlanets = planets.filter((p) => {
+    if (!searchQuery) return true;
+    const haystacks = [
+      p.title,
+      p.category,
+      p.author?.name || '',
+      (p.tags || []).join(' '),
+      p.description || ''
+    ].join(' ');
+    return fuzzyMatch(haystacks, searchQuery);
+  });
+
+  // 全局远程搜索（防抖）
+  useEffect(() => {
+    if (!isOpen) return;
+    const q = searchQuery.trim();
+    if (!q) { setRemoteResults(null); return; }
+    setSearchLoading(true);
+    const handler = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/planets/search?q=${encodeURIComponent(q)}&limit=20`);
+        const data = await res.json();
+        setRemoteResults((data.planets || []) as PopularPlanet[]);
+      } catch (e) {
+        setRemoteResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [isOpen, searchQuery]);
+
   const handleExternalLink = (url: string, event: React.MouseEvent) => {
     event.stopPropagation();
     updateActivity();
@@ -138,7 +186,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
     >
       <div className="glass-card px-5 py-4 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs min-w-[420px] max-w-[520px]">
         {/* 标题栏 */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="text-neon-blue font-bold">热门星球排行榜</div>
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -149,6 +197,21 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
             ×
           </motion.button>
         </div>
+
+        {/* 搜索框（低对比度边框，更和谐） */}
+        <div className="mb-3">
+          <input
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); updateActivity(); }}
+            className="w-full px-3 py-2 bg-sci-darker/60 border border-foreground/10 focus:border-neon-blue/30 outline-none rounded-full placeholder-foreground/40 text-foreground transition-colors"
+            placeholder="搜索全宇宙星球、作者、分类或标签（模糊匹配）"
+          />
+        </div>
+
+        {/* 远程搜索状态提示 */}
+        {searchLoading && (
+          <div className="text-foreground/40 text-[11px] mb-2">正在搜索全宇宙星球…</div>
+        )}
 
         {/* 内容区域 */}
         <div className="space-y-2 max-h-[450px] overflow-y-auto">
@@ -168,12 +231,12 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
                 重试
               </motion.button>
             </div>
-          ) : planets.length === 0 ? (
+          ) : (remoteResults ?? filteredPlanets).length === 0 ? (
             <div className="text-center py-4">
-              <div className="text-foreground/60">暂无热门星球数据</div>
+              <div className="text-foreground/60">未找到匹配的星球</div>
             </div>
           ) : (
-            planets.map((planet, index) => {
+            (remoteResults ?? filteredPlanets).map((planet, index) => {
               const isExpanded = expandedItems.has(planet.id);
               return (
                 <motion.div

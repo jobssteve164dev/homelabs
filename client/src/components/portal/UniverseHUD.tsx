@@ -210,11 +210,11 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowPopularPlanets(true)}
-            className="glass-card px-4 py-2 rounded-lg border border-neon-blue/30 hover:border-neon-blue/50 transition-all duration-200 cursor-pointer group"
+            className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 hover:border-neon-blue/50 transition-all duration-200 cursor-pointer group"
             title="点击查看热门星球排行榜"
           >
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-neon-blue group-hover:text-neon-purple transition-colors" />
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-neon-blue group-hover:text-neon-purple transition-colors" />
               <div className="text-sm">
                 <span className="text-foreground/60">星球总数: </span>
                 <span className="text-neon-blue font-bold group-hover:text-neon-purple transition-colors">{totalPlanets}</span>
@@ -224,10 +224,10 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="glass-card px-4 py-2 rounded-lg border border-neon-green/30"
+            className="glass-card px-6 py-3 rounded-full border border-neon-green/30"
           >
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-neon-green" />
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 text-neon-green" />
               <div className="text-sm">
                 <span className="text-foreground/60">活跃: </span>
                 <span className="text-neon-green font-bold">{activePlanets}</span>
