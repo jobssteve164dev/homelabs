@@ -657,7 +657,6 @@ jobs:
             echo '3️⃣  清理环境变量文件...'
             rm -f .env .env.* 2>/dev/null || true
             rm -f client/.env client/.env.* 2>/dev/null || true
-            rm -f client/.env.production 2>/dev/null || true
             echo '   ✅ 环境文件已清理'
           fi
         "
@@ -715,29 +714,28 @@ jobs:
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           cd ${{ env.DEPLOY_PATH }}/client
           
-          # 创建.env.production文件（Next.js生产模式会读取此文件）
-          echo \"# =================== 环境配置 ===================\" > .env.production
-          echo \"NODE_ENV=production\" >> .env.production
-          echo \"\" >> .env.production
+          echo \"# =================== 环境配置 ===================\" > .env
+          echo \"NODE_ENV=production\" >> .env
+          echo \"\" >> .env
           
-          echo \"# =================== 数据库配置 ===================\" >> .env.production
-          echo \"DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env.production
-          echo \"\" >> .env.production
+          echo \"# =================== 数据库配置 ===================\" >> .env
+          echo \"DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env
+          echo \"\" >> .env
           
-          echo \"# =================== NextAuth配置 ===================\" >> .env.production
-          echo \"NEXTAUTH_URL=${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}\" >> .env.production
-          echo \"NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}\" >> .env.production
-          echo \"\" >> .env.production
+          echo \"# =================== NextAuth配置 ===================\" >> .env
+          echo \"NEXTAUTH_URL=${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}\" >> .env
+          echo \"NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}\" >> .env
+          echo \"\" >> .env
           
-          echo \"# =================== 应用配置 ===================\" >> .env.production
-          echo \"APP_URL=${{ vars.APP_URL || secrets.APP_URL }}\" >> .env.production
-          echo \"PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\" >> .env.production
-          echo \"\" >> .env.production
+          echo \"# =================== 应用配置 ===================\" >> .env
+          echo \"APP_URL=${{ vars.APP_URL || secrets.APP_URL }}\" >> .env
+          echo \"PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\" >> .env
+          echo \"\" >> .env
           
-          echo \"# =================== 日志配置 ===================\" >> .env.production
-          echo \"LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\" >> .env.production
+          echo \"# =================== 日志配置 ===================\" >> .env
+          echo \"LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\" >> .env
           
-          echo \"✅ 环境配置文件已创建: ${{ env.DEPLOY_PATH }}/client/.env.production\"
+          echo \"✅ 环境配置文件已创建: ${{ env.DEPLOY_PATH }}/client/.env\"
         "
     
     - name: 安装依赖并构建
@@ -780,7 +778,8 @@ jobs:
           
           # 使用PM2启动Next.js生产服务器
           # 日志由Winston统一管理，PM2只负责进程管理和监控
-          pm2 start npm --name homelabs-portal \
+          # 显式传递PORT环境变量
+          PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }} pm2 start npm --name homelabs-portal \
             --log ${{ env.DEPLOY_PATH }}/logs/pm2-combined.log \
             --error ${{ env.DEPLOY_PATH }}/logs/pm2-error.log \
             --time \
