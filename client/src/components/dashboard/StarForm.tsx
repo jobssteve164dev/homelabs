@@ -93,6 +93,7 @@ export function StarForm({ mode, initialData }: StarFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
+          description: userBio || '暂无简介', // API要求必填，使用userBio作为description
           userTitle,
           userBio,
           userSkills,
