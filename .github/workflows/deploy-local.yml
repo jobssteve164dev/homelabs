@@ -198,7 +198,7 @@ jobs:
         echo "3.1️⃣  创建或更新PostgreSQL数据库和用户..."
         echo "-----------------------------------"
         
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'POSTGRES_SETUP'
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
           DB_NAME="${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}"
           DB_USER="${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}"
           DB_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
@@ -206,27 +206,31 @@ jobs:
           echo "配置数据库: $DB_NAME"
           echo "配置用户: $DB_USER"
           
-          # 使用postgres用户执行SQL命令
-          sudo -u postgres psql <<'EOSQL'
+          # 创建或更新用户
+          sudo -u postgres psql -c "
             DO \$\$
             BEGIN
-              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
-                CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '"'"'$DB_USER'"'"') THEN
+                CREATE USER $DB_USER WITH PASSWORD '"'"'$DB_PASSWORD'"'"';
+                RAISE NOTICE '"'"'用户 % 已创建'"'"', '"'"'$DB_USER'"'"';
               ELSE
-                ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+                ALTER USER $DB_USER WITH PASSWORD '"'"'$DB_PASSWORD'"'"';
+                RAISE NOTICE '"'"'用户 % 密码已更新'"'"', '"'"'$DB_USER'"'"';
               END IF;
             END
             \$\$;
-            
-            SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_USER'
-            WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
-            
-            GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
-            ALTER USER $DB_USER CREATEDB;
-        EOSQL
+          " || echo "警告: 用户配置可能失败"
+          
+          # 创建数据库（如果不存在）
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '"'"'$DB_NAME'"'"'" | grep -q 1 || \
+            sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER"
+          
+          # 授予权限
+          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER"
+          sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB"
           
           echo "✅ PostgreSQL数据库和用户配置完成"
-        POSTGRES_SETUP
+        '
         
         echo ""
         
