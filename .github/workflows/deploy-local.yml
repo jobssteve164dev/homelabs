@@ -776,15 +776,21 @@ jobs:
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           cd ${{ env.DEPLOY_PATH }}/client
           
-          # 使用PM2启动Next.js生产服务器
-          # 日志由Winston统一管理，PM2只负责进程管理和监控
-          # 显式传递PORT环境变量
-          PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }} pm2 start npm --name homelabs-portal \
+          # 导出环境变量到当前shell
+          # PM2 ecosystem配置会从process.env中读取这些变量
+          export NODE_ENV=production
+          export PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}
+          export DATABASE_URL=\"postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\"
+          export NEXTAUTH_URL=\"${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}\"
+          export NEXTAUTH_SECRET=\"${{ secrets.NEXTAUTH_SECRET }}\"
+          export APP_URL=\"${{ vars.APP_URL || secrets.APP_URL }}\"
+          export LOG_LEVEL=\"${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\"
+          
+          # 使用PM2 ecosystem配置启动应用
+          # ecosystem.config.js会从上面export的环境变量中读取配置
+          pm2 start ecosystem.config.js \
             --log ${{ env.DEPLOY_PATH }}/logs/pm2-combined.log \
-            --error ${{ env.DEPLOY_PATH }}/logs/pm2-error.log \
-            --time \
-            --merge-logs \
-            -- start
+            --error ${{ env.DEPLOY_PATH }}/logs/pm2-error.log
           
           pm2 save
           pm2 startup || echo '⚠️  pm2 startup需要手动配置sudo权限'
