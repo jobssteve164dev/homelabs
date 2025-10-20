@@ -1,4 +1,133 @@
-创建生产环境配置文件...
-bash: -c: line 1: unexpected EOF while looking for matching `"'
-bash: -c: line 2: syntax error: unexpected end of file
-Error: Process completed with exit code 2.
+szlk@szlk:/tmp$ ./troubleshooting_check.sh
+==========================================
+🔍 HOMELABS 应用状态检查
+==========================================
+
+1️⃣  检查PM2进程状态:
+-----------------------------------
+┌────┬────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ homelabs-portal    │ default     │ N/A     │ fork    │ 153651   │ 42s    │ 0    │ online    │ 0%       │ 56.2mb   │ szlk     │ disabled │
+└────┴────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+[TAILING] Tailing last 30 lines for [homelabs-portal] process (change the value with --lines option)
+/home/szlk/.pm2/logs/homelabs-portal-error.log last 30 lines:
+/home/szlk/.pm2/logs/homelabs-portal-out.log last 30 lines:
+0|homelabs | 2025-10-20T04:55:22: 
+0|homelabs | 2025-10-20T04:55:22: > homelabs-portal@1.0.0 start
+0|homelabs | 2025-10-20T04:55:22: > next start
+0|homelabs | 2025-10-20T04:55:22: 
+0|homelabs | 2025-10-20T04:55:22:    ▲ Next.js 15.5.5
+0|homelabs | 2025-10-20T04:55:22:    - Local:        http://localhost:3000
+0|homelabs | 2025-10-20T04:55:22:    - Network:      http://192.168.2.85:3000
+0|homelabs | 2025-10-20T04:55:22: 
+0|homelabs | 2025-10-20T04:55:22:  ✓ Starting...
+0|homelabs | 2025-10-20T04:55:23:  ✓ Ready in 546ms
+
+
+2️⃣  检查端口监听情况:
+-----------------------------------
+应用端口 3001:
+⚠️  端口3001未监听
+
+Nginx端口 3333:
+LISTEN 0      511          0.0.0.0:3333      0.0.0.0:*    users:(("nginx",pid=152732,fd=15),("nginx",pid=152731,fd=15),("nginx",pid=140935,fd=15))
+LISTEN 0      511             [::]:3333         [::]:*    users:(("nginx",pid=152732,fd=16),("nginx",pid=152731,fd=16),("nginx",pid=140935,fd=16))
+
+3️⃣  检查Nginx状态和配置:
+-----------------------------------
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2025-10-20 03:30:09 UTC; 1h 25min ago
+       Docs: man:nginx(8)
+   Main PID: 140935 (nginx)
+      Tasks: 3 (limit: 2236)
+     Memory: 3.8M
+        CPU: 102ms
+     CGroup: /system.slice/nginx.service
+             ├─140935 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+
+Nginx配置测试:
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+4️⃣  检查Nginx配置内容:
+-----------------------------------
+找到Nginx配置文件:
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+--
+        proxy_pass http://localhost:3001;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location ~* \.(jpg|jpeg|png|gif|ico|svg|webp)$ {
+        proxy_pass http://localhost:3001;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 日志配置
+
+5️⃣  测试本地访问:
+-----------------------------------
+测试应用端口 3001:
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (7) Failed to connect to localhost port 3001 after 0 ms: Connection refused
+
+测试Nginx端口 3333:
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0   166    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+HTTP/1.1 502 Bad Gateway
+Server: nginx/1.18.0 (Ubuntu)
+Date: Mon, 20 Oct 2025 04:56:05 GMT
+Content-Type: text/html
+Content-Length: 166
+Connection: keep-alive
+
+
+6️⃣  检查应用日志 (最近30行):
+-----------------------------------
+=== PM2日志 ===
+无PM2错误日志
+
+=== 应用错误日志 ===
+
+=== 最近的综合日志 ===
+
+7️⃣  检查环境变量配置:
+-----------------------------------
+⚠️  环境配置文件不存在
+
+8️⃣  检查PostgreSQL数据库连接:
+-----------------------------------
+     datname     
+-----------------
+ homelabs_portal
+(1 row)
+
+
+9️⃣  检查进程详情:
+-----------------------------------
+szlk      153680  0.0  0.0   2892   956 ?        S    04:55   0:00 sh -c next start
+szlk      153681  2.6  8.6 13360008 173992 ?     Sl   04:55   0:01 next-server (v15.5.5)
+
+==========================================
+✅ 检查完成
+==========================================
+
+💡 快速修复建议:
+  - 如果PM2显示stopped: pm2 restart homelabs-portal
+  - 如果端口未监听: 检查应用日志中的错误
+  - 如果Nginx未运行: sudo systemctl start nginx
+  - 查看实时日志: pm2 logs homelabs-portal
+szlk@szlk:/tmp$ 
