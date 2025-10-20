@@ -199,8 +199,8 @@ jobs:
         echo "-----------------------------------"
         
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'POSTGRES_SETUP'
-          DB_NAME="${{ secrets.POSTGRES_DB || 'homelabs_portal' }}"
-          DB_USER="${{ secrets.POSTGRES_USER || 'homelabs' }}"
+          DB_NAME="${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}"
+          DB_USER="${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}"
           DB_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
           
           echo "配置数据库: $DB_NAME"
@@ -694,7 +694,7 @@ jobs:
           echo \"\" >> .env
           
           echo \"# =================== 数据库配置 ===================\" >> .env
-          echo \"DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env
+          echo \"DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public\" >> .env
           echo \"\" >> .env
           
           echo \"# =================== NextAuth配置 ===================\" >> .env

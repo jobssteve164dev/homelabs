@@ -24,23 +24,39 @@
 
 ### GitHub 配置要求
 
-#### 必需的 Secrets
+> 💡 **Variables vs Secrets 分类说明**
+> 
+> GitHub Actions 支持两种配置方式：
+> - **Secrets** 🔒: 用于存储敏感信息（密码、密钥），日志中会被遮蔽
+> - **Variables** 📝: 用于存储非敏感配置（端口、路径、URL），日志中可见，便于调试
+> 
+> 📖 详细的分类指南和配置示例，请参考：[Variables vs Secrets 完整指南](./VARIABLES_VS_SECRETS.md)
 
-在 GitHub 仓库的 `Settings > Secrets and variables > Actions` 中配置以下 Secrets：
+#### 必需的 Secrets（敏感信息）
+
+在 GitHub 仓库的 `Settings > Secrets and variables > Actions > Secrets` 标签页中配置：
 
 | Secret 名称 | 说明 | 示例值 |
 |------------|------|--------|
 | `SERVER_SSH_KEY` | 服务器 SSH 私钥 | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
-| `SERVER_HOST` | 服务器 IP 或域名 | `192.168.1.100` |
-| `SSH_USER` | SSH 登录用户名 | `ubuntu` |
 | `POSTGRES_PASSWORD` | PostgreSQL 数据库密码 | `strong_password_here` |
 | `NEXTAUTH_SECRET` | NextAuth.js 密钥 | 至少 32 字符的随机字符串 |
-| `NEXTAUTH_URL` | 应用访问 URL | `http://your-domain.com` 或 `http://192.168.1.100` |
+| `SSL_EMAIL` | Let's Encrypt 证书邮箱（可选） | `admin@example.com` |
 
-#### 可选的 Secrets
+#### 必需的 Variables（非敏感配置）
 
-| Secret 名称 | 说明 | 默认值 |
-|------------|------|--------|
+在 GitHub 仓库的 `Settings > Secrets and variables > Actions > Variables` 标签页中配置：
+
+| Variable 名称 | 说明 | 示例值 |
+|--------------|------|--------|
+| `SERVER_HOST` | 服务器 IP 或域名 | `192.168.1.100` |
+| `SSH_USER` | SSH 登录用户名 | `ubuntu` |
+| `NEXTAUTH_URL` | 应用访问 URL | `http://192.168.1.100` |
+
+#### 可选的 Variables
+
+| Variable 名称 | 说明 | 默认值 |
+|--------------|------|--------|
 | `SSH_PORT` | SSH 端口 | `22` |
 | `DEPLOY_PATH` | 部署目录 | `/opt/homelabs` |
 | `POSTGRES_DB` | 数据库名称 | `homelabs_portal` |
@@ -48,17 +64,28 @@
 | `APP_PORT` | 应用端口 | `3000` |
 | `NGINX_PORT` | Nginx 监听端口 | `80` |
 | `APP_URL` | 应用完整 URL | 同 `NEXTAUTH_URL` |
+| `LOG_LEVEL` | 日志级别 | `info` |
 
 #### 生产环境额外配置（可选）
 
 如果部署到生产环境并需要 SSL：
 
-| Variable/Secret 名称 | 说明 |
-|---------------------|------|
-| `DEPLOY_ENVIRONMENT` | 设置为 `production` |
-| `PRIMARY_DOMAIN` | 主域名，如 `homelabs.example.com` |
-| `USE_SSL` | 设置为 `true` |
-| `SSL_EMAIL` | Let's Encrypt 邮箱 |
+| Variable/Secret 名称 | 说明 | 默认值 |
+|---------------------|------|--------|
+| `DEPLOY_ENVIRONMENT` | 设置为 `production` | `local` |
+| `PRIMARY_DOMAIN` | 主域名 | `localhost` |
+| `ADDITIONAL_DOMAINS` | 额外的域名（空格分隔） | 空 |
+| `USE_SSL` | 设置为 `true` 启用 HTTPS | `false` |
+| `SSL_EMAIL` | Let's Encrypt 证书申请邮箱 | 空 |
+
+#### 反向代理配置（可选）
+
+如果服务器位于 Lucky 等反向代理后面：
+
+| Variable/Secret 名称 | 说明 | 默认值 |
+|---------------------|------|--------|
+| `BEHIND_PROXY` | 设置为 `true` 启用真实 IP 检测 | `false` |
+| `PROXY_REAL_IP_FROM` | 反向代理服务器的 IP 段 | `192.168.0.0/16` |
 
 ## 🚀 部署步骤
 

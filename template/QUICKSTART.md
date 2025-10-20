@@ -38,24 +38,35 @@ echo "POSTGRES_PASSWORD: $POSTGRES_PASSWORD" >> ~/homelabs-secrets.txt
 echo "✅ 密钥已保存到: ~/homelabs-secrets.txt"
 ```
 
-### 步骤 3: 配置 GitHub Secrets
+### 步骤 3: 配置 GitHub Secrets 和 Variables
 
 ```bash
 # 确保你在项目目录下
 cd /path/to/HOMELABS
 
-# 使用 GitHub CLI 配置 Secrets
+# 配置 Secrets（敏感信息）
 gh secret set SERVER_SSH_KEY < ~/.ssh/homelabs_deploy
-gh secret set SERVER_HOST -b "your_server_ip"
-gh secret set SSH_USER -b "your_username"
 gh secret set POSTGRES_PASSWORD -b "$POSTGRES_PASSWORD"
 gh secret set NEXTAUTH_SECRET -b "$NEXTAUTH_SECRET"
-gh secret set NEXTAUTH_URL -b "http://your_server_ip"
+
+# 配置 Variables（非敏感配置）
+gh variable set SERVER_HOST -b "your_server_ip"
+gh variable set SSH_USER -b "your_username"
+gh variable set NEXTAUTH_URL -b "http://your_server_ip"
 
 # 验证配置
 echo "✅ 已配置的 Secrets:"
 gh secret list
+echo ""
+echo "✅ 已配置的 Variables:"
+gh variable list
 ```
+
+> 💡 **为什么区分 Secrets 和 Variables？**
+> - **Secrets**: 密码、密钥等敏感信息，日志中会被遮蔽为 `***`
+> - **Variables**: IP 地址、端口等配置，日志中可见，便于调试
+> 
+> 详见：[Variables vs Secrets 完整指南](../docs/VARIABLES_VS_SECRETS.md)
 
 ### 步骤 4: 触发部署
 
@@ -88,24 +99,27 @@ echo "   http://your_server_ip"
 
 ### 可选配置项
 
-如果需要自定义配置，可以设置以下可选 Secrets：
+如果需要自定义配置，可以设置以下可选 Variables：
 
 ```bash
 # 自定义 SSH 端口（默认 22）
-gh secret set SSH_PORT -b "2222"
+gh variable set SSH_PORT -b "2222"
 
 # 自定义部署路径（默认 /opt/homelabs）
-gh secret set DEPLOY_PATH -b "/home/user/homelabs"
+gh variable set DEPLOY_PATH -b "/home/user/homelabs"
 
 # 自定义数据库配置
-gh secret set POSTGRES_DB -b "my_portal_db"
-gh secret set POSTGRES_USER -b "my_db_user"
+gh variable set POSTGRES_DB -b "my_portal_db"
+gh variable set POSTGRES_USER -b "my_db_user"
 
 # 自定义应用端口（默认 3000）
-gh secret set APP_PORT -b "3000"
+gh variable set APP_PORT -b "3000"
 
 # 自定义 Nginx 端口（默认 80）
-gh secret set NGINX_PORT -b "8080"
+gh variable set NGINX_PORT -b "8080"
+
+# 日志级别（默认 info）
+gh variable set LOG_LEVEL -b "debug"
 ```
 
 ### 生产环境配置（启用 HTTPS）
@@ -113,16 +127,24 @@ gh secret set NGINX_PORT -b "8080"
 如果要部署到生产环境并启用 SSL：
 
 ```bash
-# 设置环境类型
-gh secret set DEPLOY_ENVIRONMENT -b "production"
+# 使用 Variables 配置环境类型和域名
+gh variable set DEPLOY_ENVIRONMENT -b "production"
+gh variable set PRIMARY_DOMAIN -b "homelabs.yourdomain.com"
+gh variable set USE_SSL -b "true"
+gh variable set ADDITIONAL_DOMAINS -b "www.homelabs.yourdomain.com"
 
-# 设置域名和 SSL
-gh secret set PRIMARY_DOMAIN -b "homelabs.yourdomain.com"
-gh secret set USE_SSL -b "true"
+# 使用 Secret 配置 SSL 邮箱（个人信息）
 gh secret set SSL_EMAIL -b "admin@yourdomain.com"
+```
 
-# 可选：额外的域名
-gh secret set ADDITIONAL_DOMAINS -b "www.homelabs.yourdomain.com portal.yourdomain.com"
+### 反向代理配置（使用 Lucky 等）
+
+如果服务器位于反向代理后面：
+
+```bash
+gh variable set BEHIND_PROXY -b "true"
+gh variable set PROXY_REAL_IP_FROM -b "192.168.0.0/16"
+gh variable set NGINX_PORT -b "3333"  # 避免与反向代理端口冲突
 ```
 
 ---

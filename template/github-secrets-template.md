@@ -20,12 +20,18 @@
 □ POSTGRES_USER - 数据库用户（默认: homelabs）
 □ APP_PORT - 应用端口（默认: 3000）
 □ NGINX_PORT - Nginx 端口（默认: 80）
+□ LOG_LEVEL - 日志级别（默认: info）
 
 生产环境配置（启用 SSL 时）：
 □ DEPLOY_ENVIRONMENT=production
 □ PRIMARY_DOMAIN - 主域名
+□ ADDITIONAL_DOMAINS - 额外域名（可选）
 □ USE_SSL=true
 □ SSL_EMAIL - Let's Encrypt 邮箱
+
+反向代理配置（使用 Lucky 等时）：
+□ BEHIND_PROXY=true
+□ PROXY_REAL_IP_FROM - 代理 IP 段（默认: 192.168.0.0/16）
 ```
 
 ## 🔑 密钥生成指南
@@ -134,12 +140,20 @@ NGINX_PORT: "80"  # Nginx 会自动处理 SSL 重定向
 
 ```yaml
 # 基础配置（同上）
-...
+SERVER_SSH_KEY: "..."
+SERVER_HOST: "192.168.1.100"
+SSH_USER: "ubuntu"
+POSTGRES_PASSWORD: "..."
+NEXTAUTH_SECRET: "..."
+NEXTAUTH_URL: "http://192.168.1.100"
 
 # 反向代理特定配置
 BEHIND_PROXY: "true"
 PROXY_REAL_IP_FROM: "192.168.0.0/16"  # 反向代理服务器 IP 段
 NGINX_PORT: "3333"  # Nginx 监听端口（避免与反向代理冲突）
+
+# 可选：如果有多个域名
+ADDITIONAL_DOMAINS: "homelabs2.example.com homelabs3.example.com"
 ```
 
 ## 🛠️ 配置步骤
