@@ -162,60 +162,112 @@ export default function DashboardPage() {
           <p className="text-foreground/60">管理和探索您的AI工具项目</p>
         </div>
 
-        {/* 操作栏 */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="flex-1 flex gap-4">
-            {/* 搜索框 */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="搜索项目..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
-              />
+        {/* 操作栏 - 仅在有项目时显示 */}
+        {filteredProjects.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex-1 flex gap-4">
+              {/* 搜索框 */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="搜索项目..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                />
+              </div>
+
+              {/* 分类筛选 */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground"
+              >
+                <option value="">所有分类</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
             </div>
-
-            {/* 分类筛选 */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground"
-            >
-              <option value="">所有分类</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
           </div>
-
-          {/* 创建项目按钮 */}
-          <Link
-            href="/dashboard/create"
-            className="flex items-center px-6 py-2 bg-gradient-to-r from-neon-blue to-neon-purple text-white font-medium rounded-lg hover:shadow-glow-blue transition-all duration-300"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            创建项目
-          </Link>
-        </div>
+        )}
 
         {/* 项目网格 */}
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-sci-dark border border-neon-blue/30 flex items-center justify-center">
-              <Plus className="w-12 h-12 text-foreground/40" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <div className="bg-sci-dark/50 backdrop-blur-sm border border-neon-blue/30 rounded-2xl p-12">
+              {/* 空状态图标 */}
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  {/* 外圈光晕效果 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 rounded-full blur-xl"></div>
+                  {/* 主图标 */}
+                  <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-sci-dark to-sci-darker border-2 border-neon-blue/40 flex items-center justify-center">
+                    <svg 
+                      className="w-16 h-16 text-neon-blue" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={1.5} 
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" 
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* 文案区域 */}
+              <div className="text-center space-y-3 mb-8">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
+                  开启您的AI之旅
+                </h3>
+                <p className="text-foreground/70 text-lg">
+                  在宇宙中还没有属于您的星球
+                </p>
+                <p className="text-foreground/50 text-sm max-w-md mx-auto">
+                  创建第一个AI项目，让它成为浩瀚星系中闪耀的新星✨
+                </p>
+              </div>
+
+              {/* 提示卡片 */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-4 text-center">
+                  <div className="text-neon-blue text-2xl mb-2">🌟</div>
+                  <div className="text-sm text-foreground/70">展示您的AI工具</div>
+                </div>
+                <div className="bg-sci-darker/50 border border-neon-purple/20 rounded-lg p-4 text-center">
+                  <div className="text-neon-purple text-2xl mb-2">🚀</div>
+                  <div className="text-sm text-foreground/70">与社区分享创意</div>
+                </div>
+                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-4 text-center">
+                  <div className="text-neon-blue text-2xl mb-2">💫</div>
+                  <div className="text-sm text-foreground/70">探索无限可能</div>
+                </div>
+              </div>
+
+              {/* 行动提示 */}
+              <div className="text-center">
+                <p className="text-foreground/50 text-sm mb-4">
+                  点击右上角的 <span className="text-neon-blue font-medium">&ldquo;创建项目&rdquo;</span> 按钮开始
+                </p>
+                <div className="inline-flex items-center gap-2 text-neon-blue/60 text-xs">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                  <span>您也可以先访问 &ldquo;我的星系&rdquo; 完善个人介绍</span>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-medium text-foreground mb-2">还没有项目</h3>
-            <p className="text-foreground/60 mb-6">创建您的第一个AI项目，开始探索无限可能</p>
-            <Link
-              href="/dashboard/create"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-neon-blue to-neon-purple text-white font-medium rounded-lg hover:shadow-glow-blue transition-all duration-300"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              创建项目
-            </Link>
-          </div>
+          </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project, index) => (

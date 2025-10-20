@@ -41,21 +41,45 @@ export async function POST(request: NextRequest) {
     // 加密密码
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // 创建用户 (使用安全选择器)
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: "USER"
-      },
-      select: userSelectPublic, // 使用统一选择器,自动排除密码
+    // 使用事务创建用户和默认恒星项目
+    const result = await prisma.$transaction(async (tx) => {
+      // 创建用户
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          role: "USER"
+        },
+        select: userSelectPublic, // 使用统一选择器,自动排除密码
+      });
+
+      // 自动创建恒星项目（个人介绍）
+      await tx.project.create({
+        data: {
+          title: `${name || email.split('@')[0]}的星系`,
+          description: '欢迎来到我的AI宇宙！这是我的个人星系，在这里我将分享我的AI工具和创意。',
+          category: '个人介绍',
+          tags: ['个人介绍', 'AI爱好者'],
+          projectType: 'STAR',
+          userTitle: 'AI探索者',
+          userBio: '🚀 热爱AI技术，探索智能未来',
+          userSkills: ['人工智能', '技术创新'],
+          socialLinks: {
+            email: email
+          },
+          isActive: true,
+          authorId: user.id,
+        }
+      });
+
+      return user;
     });
 
     return NextResponse.json(
       { 
-        message: "注册成功", 
-        user 
+        message: "注册成功，您的专属星系已创建！", 
+        user: result 
       },
       { status: 201 }
     );

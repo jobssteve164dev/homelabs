@@ -11,9 +11,14 @@
             "hash": "c2f2f28ec74341d0825304b0774b57e3ebcdba0ea2dd4d5515977301091a1987"
         },
         {
-            "date": 1760949487670,
+            "date": 1760919278211,
             "name": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/exceptions-2025-10-20.log",
-            "hash": "3954c5b61eee7e7ab07d61a5598e0002d5e3a36927f1053b06b73882f0d40412"
+            "hash": "3d1f8d00638631e37351be8205bdf9277edea06830fb034bfe083509ca5ab7dd"
+        },
+        {
+            "date": 1760952101641,
+            "name": "/Users/walker/Documents/Qsync/00.AI_PROJECT/HOMELABS/logs/exceptions-2025-10-20.log.1",
+            "hash": "03e62c3e85720773ab1820b79002aae6d093bf1929eaac93909388f2b40929ac"
         }
     ],
     "hashType": "sha256"
