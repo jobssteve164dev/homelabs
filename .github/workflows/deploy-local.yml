@@ -1,6 +1,14 @@
 name: 本地环境部署（非Docker）
 
 on:
+  # 监控 changelog.md 文件变更，自动触发部署
+  push:
+    branches:
+      - main
+    paths:
+      - 'changelog.md'
+  
+  # 保留手动触发方式
   workflow_dispatch:
     inputs:
       deploy_mode:
@@ -10,7 +18,8 @@ on:
         type: choice
         options:
           - all          # 全部部署
-          - app-only     # 仅应用
+          - frontend     # 仅前端
+          - backend      # 仅后端
           - check        # 仅检查环境
 
 jobs:
@@ -18,6 +27,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: 设置默认部署模式
+      id: set_deploy_mode
+      run: |
+        # 当通过push事件（changelog变更）触发时，使用all模式
+        # 当手动触发时，使用用户选择的模式
+        if [ -z "${{ inputs.deploy_mode }}" ]; then
+          echo "DEPLOY_MODE=all" >> $GITHUB_ENV
+          echo "📝 自动触发部署，使用默认模式: all"
+        else
+          echo "DEPLOY_MODE=${{ inputs.deploy_mode }}" >> $GITHUB_ENV
+          echo "📝 手动触发部署，使用选择模式: ${{ inputs.deploy_mode }}"
+        fi
+    
     - name: 检出代码
       uses: actions/checkout@v3
     
@@ -35,7 +57,7 @@ jobs:
         echo "SERVER_HOST=${{ vars.SERVER_HOST || secrets.SERVER_HOST }}" >> $GITHUB_ENV
         echo "SSH_PORT=${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}" >> $GITHUB_ENV
         echo "SSH_USER=${{ vars.SSH_USER || secrets.SSH_USER }}" >> $GITHUB_ENV
-        echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}" >> $GITHUB_ENV
+        echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/pmp' }}" >> $GITHUB_ENV
     
     - name: 检查并安装服务器环境
       env:
@@ -61,66 +83,66 @@ jobs:
         echo "📋 检测到操作系统: $OS_TYPE"
         echo ""
         
-        # ========================================
-        # 1. 检查并安装 Node.js
-        # ========================================
-        echo "-----------------------------------"
-        echo "1️⃣  检查 Node.js..."
-        echo "-----------------------------------"
-        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v node &> /dev/null"; then
-          NODE_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "node --version" 2>/dev/null || echo "v0.0.0")
-          NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
-          echo "✅ Node.js已安装: $NODE_VERSION"
-          
-          if [ "$NODE_MAJOR" -lt 18 ]; then
-            echo "⚠️  Node.js版本过低 (需要 >= 18)，将重新安装..."
+          # ========================================
+          # 1. 检查并安装 Node.js
+          # ========================================
+          echo "-----------------------------------"
+          echo "1️⃣  检查 Node.js..."
+          echo "-----------------------------------"
+          if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v node &> /dev/null"; then
+            NODE_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "node --version" 2>/dev/null || echo "v0.0.0")
+            NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
+            echo "✅ Node.js已安装: $NODE_VERSION"
+            
+            if [ "$NODE_MAJOR" -lt 20 ]; then
+              echo "⚠️  Node.js版本过低 (需要 >= 20)，将重新安装..."
+              
+              if [ "$OS_TYPE" = "amzn" ]; then
+                echo "使用NodeSource仓库升级到Node.js 20 (Amazon Linux 2)..."
+                ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+                  'sudo yum remove -y nodejs npm nodesource-release 2>/dev/null || true && \
+                  sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
+                  sudo yum clean all && \
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && \
+                  sudo yum install -y nodejs && \
+                  node --version && \
+                  npm --version'
+              else
+                echo "使用NodeSource仓库升级到Node.js 20..."
+                ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+                  'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && \
+                  sudo apt-get remove -y nodejs npm 2>/dev/null || true && \
+                  sudo apt-get install -y nodejs && \
+                  node --version && \
+                  npm --version'
+              fi
+              
+              echo "✅ Node.js升级完成"
+            fi
+          else
+            echo "📦 Node.js未安装，开始自动安装..."
             
             if [ "$OS_TYPE" = "amzn" ]; then
-              echo "使用NodeSource仓库升级到Node.js 20 (Amazon Linux 2)..."
+              echo "检测到Amazon Linux 2，安装Node.js 20..."
               ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
-                'sudo yum remove -y nodejs npm nodesource-release 2>/dev/null || true && \
-                sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
+                'sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
                 sudo yum clean all && \
                 curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && \
                 sudo yum install -y nodejs && \
                 node --version && \
                 npm --version'
             else
-              echo "使用NodeSource仓库升级到Node.js 20..."
+              echo "检测到Ubuntu/Debian，安装Node.js 20..."
               ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
                 'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && \
-                sudo apt-get remove -y nodejs npm 2>/dev/null || true && \
                 sudo apt-get install -y nodejs && \
                 node --version && \
                 npm --version'
             fi
             
-            echo "✅ Node.js升级完成"
+            echo "✅ Node.js安装完成"
           fi
-        else
-          echo "📦 Node.js未安装，开始自动安装..."
-          
-          if [ "$OS_TYPE" = "amzn" ]; then
-            echo "检测到Amazon Linux 2，安装Node.js 20..."
-            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
-              'sudo rm -rf /etc/yum.repos.d/nodesource*.repo && \
-              sudo yum clean all && \
-              curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && \
-              sudo yum install -y nodejs && \
-              node --version && \
-              npm --version'
-          else
-            echo "检测到Ubuntu/Debian，安装Node.js 20..."
-            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
-              'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && \
-              sudo apt-get install -y nodejs && \
-              node --version && \
-              npm --version'
-          fi
-          
-          echo "✅ Node.js安装完成"
-        fi
-        echo ""
+          echo ""
         
         # ========================================
         # 2. 检查并安装 PM2
@@ -140,108 +162,343 @@ jobs:
         echo ""
         
         # ========================================
-        # 3. 检查并安装 PostgreSQL
+        # 3. 检查并安装 MongoDB
         # ========================================
         echo "-----------------------------------"
-        echo "3️⃣  检查 PostgreSQL..."
+        echo "3️⃣  检查 MongoDB..."
         echo "-----------------------------------"
-        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v psql &> /dev/null"; then
-          PG_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "psql --version | head -1")
-          echo "✅ PostgreSQL已安装: $PG_VERSION"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v mongod &> /dev/null"; then
+          MONGO_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "mongod --version | head -1")
+          echo "✅ MongoDB已安装: $MONGO_VERSION"
         else
-          echo "📦 PostgreSQL未安装，开始自动安装..."
+          echo "📦 MongoDB未安装，开始自动安装..."
           
           if [ "$OS_TYPE" = "amzn" ]; then
             echo "检测到Amazon Linux系统，使用yum安装..."
             ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
-              'sudo amazon-linux-extras install postgresql15 -y && \
-              sudo yum install -y postgresql-server postgresql-contrib && \
-              sudo postgresql-setup initdb && \
-              sudo systemctl start postgresql && \
-              sudo systemctl enable postgresql && \
-              psql --version'
+              'echo "[mongodb-org-6.0]" | sudo tee /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              echo "name=MongoDB Repository" | sudo tee -a /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              echo "baseurl=https://repo.mongodb.org/yum/amazon/2/mongodb-org/6.0/x86_64/" | sudo tee -a /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              echo "gpgcheck=1" | sudo tee -a /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              echo "enabled=1" | sudo tee -a /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              echo "gpgkey=https://www.mongodb.org/static/pgp/server-6.0.asc" | sudo tee -a /etc/yum.repos.d/mongodb-org-6.0.repo && \
+              sudo yum install -y mongodb-org && \
+              sudo systemctl start mongod && \
+              sudo systemctl enable mongod && \
+              mongod --version'
           elif [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            # Ubuntu/Debian
             echo "检测到Ubuntu/Debian系统，使用apt安装..."
             ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg
+              echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
               sudo apt-get update
-              sudo apt-get install -y postgresql postgresql-contrib
-              sudo systemctl start postgresql
-              sudo systemctl enable postgresql
-              psql --version
+              sudo apt-get install -y mongodb-org
+              sudo systemctl start mongod
+              sudo systemctl enable mongod
+              mongod --version
             '
           else
             echo "⚠️  未识别的操作系统类型: $OS_TYPE"
-            echo "请手动安装PostgreSQL: https://www.postgresql.org/download/"
+            echo "请手动安装MongoDB: https://docs.mongodb.com/manual/installation/"
             exit 1
           fi
           
-          echo "✅ PostgreSQL安装完成"
+          echo "✅ MongoDB安装完成"
         fi
         
-        # 确保PostgreSQL服务正在运行
-        echo "检查PostgreSQL服务状态..."
+        # ========================================
+        # 配置MongoDB使用数据盘
+        # ========================================
+        echo "-----------------------------------"
+        echo "配置MongoDB数据目录到数据盘..."
+        echo "-----------------------------------"
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          # 检查是否有数据盘挂载到/data
+          if [ -d /data ] && mountpoint -q /data; then
+            echo "检测到数据盘 /data，配置MongoDB使用数据盘..."
+            
+            # 停止MongoDB服务
+            sudo systemctl stop mongod 2>/dev/null || true
+            sleep 2
+            
+            # 创建MongoDB数据目录在数据盘
+            sudo mkdir -p /data/mongodb
+            sudo chown -R mongodb:mongodb /data/mongodb
+            sudo chmod 755 /data/mongodb
+            
+            # 备份原配置文件
+            if [ -f /etc/mongod.conf ] && [ ! -f /etc/mongod.conf.original ]; then
+              sudo cp /etc/mongod.conf /etc/mongod.conf.original
+            fi
+            
+            # 修改配置文件指向数据盘
+            if grep -q "dbPath: /var/lib/mongodb" /etc/mongod.conf 2>/dev/null; then
+              sudo sed -i "s|dbPath: /var/lib/mongodb|dbPath: /data/mongodb|g" /etc/mongod.conf
+              echo "✅ MongoDB配置已更新为使用数据盘"
+              grep "dbPath" /etc/mongod.conf
+            fi
+            
+            # 迁移现有数据（如果有）
+            if [ -d /var/lib/mongodb ] && [ "$(ls -A /var/lib/mongodb 2>/dev/null)" ]; then
+              echo "迁移现有MongoDB数据到数据盘..."
+              sudo rsync -a /var/lib/mongodb/ /data/mongodb/
+              sudo mv /var/lib/mongodb /var/lib/mongodb.backup.$(date +%Y%m%d_%H%M%S)
+              echo "✅ 现有数据已迁移"
+            fi
+            
+            echo "✅ MongoDB数据目录配置完成：/data/mongodb"
+          else
+            echo "⚠️  未检测到数据盘 /data，MongoDB将使用默认位置 /var/lib/mongodb"
+          fi
+        '
+        echo ""
+        
+        # 确保MongoDB服务正在运行
+        echo "检查MongoDB服务状态..."
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
-          if ! sudo systemctl is-active --quiet postgresql; then
-            echo '启动PostgreSQL服务...'
-            sudo systemctl start postgresql
-            sudo systemctl enable postgresql
+          if ! sudo systemctl is-active --quiet mongod; then
+            echo '启动MongoDB服务...'
+            sudo systemctl start mongod
+            sudo systemctl enable mongod
             sleep 3
           fi
-          sudo systemctl status postgresql | head -5
+          sudo systemctl status mongod | head -5
         "
         echo ""
         
         # ========================================
-        # 3.1 创建或更新PostgreSQL数据库和用户
+        # 3.1 创建或更新MongoDB用户（使用GitHub Secrets中的预设账号密码）
         # ========================================
         echo "-----------------------------------"
-        echo "3.1️⃣  创建或更新PostgreSQL数据库和用户..."
+        echo "3.1️⃣  创建或更新MongoDB用户..."
         echo "-----------------------------------"
         
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
-          DB_NAME="${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}"
-          DB_USER="${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}"
-          DB_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+        # Create MongoDB user using GitHub Secrets
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'MONGODB_USER_SCRIPT'
+          if ! command -v mongosh &> /dev/null; then
+            echo '⚠️ mongosh not found. Please install MongoDB Shell. Cannot create/update user.'
+            exit 1
+          fi
           
-          echo "配置数据库: $DB_NAME"
-          echo "配置用户: $DB_USER"
+          echo '使用 mongosh 创建/更新用户...'
           
-          # 切换到/tmp目录避免权限警告
-          cd /tmp
+          # 创建临时JavaScript文件
+          cat > /tmp/create_mongo_user.js << 'JS_EOF'
+          const username = process.env.MONGO_USERNAME;
+          const password = process.env.MONGO_PASSWORD;
+          const db = db.getSiblingDB('admin');
+          const user = db.getUser(username);
           
-          # 创建或更新用户
-          sudo -u postgres psql -c "
-            DO \$\$
-            BEGIN
-              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '"'"'$DB_USER'"'"') THEN
-                CREATE USER $DB_USER WITH PASSWORD '"'"'$DB_PASSWORD'"'"';
-                RAISE NOTICE '"'"'用户 % 已创建'"'"', '"'"'$DB_USER'"'"';
-              ELSE
-                ALTER USER $DB_USER WITH PASSWORD '"'"'$DB_PASSWORD'"'"';
-                RAISE NOTICE '"'"'用户 % 密码已更新'"'"', '"'"'$DB_USER'"'"';
-              END IF;
-            END
-            \$\$;
-          " || echo "警告: 用户配置可能失败"
+          if (user == null) {
+            print('User ' + username + ' not found. Creating...');
+            db.createUser({ user: username, pwd: password, roles: [{ role: 'root', db: 'admin' }] });
+            print('User ' + username + ' created successfully.');
+          } else {
+            print('User ' + username + ' already exists. Updating password...');
+            db.updateUser(username, { pwd: password });
+            print('Password for user ' + username + ' updated.');
+          }
+          JS_EOF
           
-          # 创建数据库（如果不存在）
-          sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '"'"'$DB_NAME'"'"'" | grep -q 1 || \
-            sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER"
+          # 设置环境变量并执行
+          export MONGO_USERNAME='${{ secrets.MONGO_INITDB_ROOT_USERNAME }}'
+          export MONGO_PASSWORD='${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}'
+          mongosh admin --file /tmp/create_mongo_user.js
           
-          # 授予权限
-          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER"
-          sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB"
-          
-          echo "✅ PostgreSQL数据库和用户配置完成"
-        '
+          # 清理临时文件
+          rm -f /tmp/create_mongo_user.js
+        MONGODB_USER_SCRIPT
         
+        echo "✅ MongoDB用户配置完成"
         echo ""
         
         # ========================================
-        # 4. 检查并安装jq
+        # 4. 检查并安装 Redis
         # ========================================
         echo "-----------------------------------"
-        echo "4️⃣  检查并安装jq..."
+        echo "4️⃣  检查 Redis..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v redis-server &> /dev/null"; then
+          REDIS_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "redis-server --version")
+          echo "✅ Redis已安装: $REDIS_VERSION"
+        else
+          echo "📦 Redis未安装，开始自动安装..."
+          
+          if [ "$OS_TYPE" = "amzn" ]; then
+            # Amazon Linux
+            echo "检测到Amazon Linux系统，使用amazon-linux-extras安装..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo amazon-linux-extras install redis6 -y
+              sudo systemctl start redis
+              sudo systemctl enable redis
+              redis-server --version
+            '
+          elif [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            # Ubuntu/Debian
+            echo "检测到Ubuntu/Debian系统，使用apt安装..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo apt-get update
+              sudo apt-get install -y redis-server
+              sudo systemctl start redis-server
+              sudo systemctl enable redis-server
+              redis-server --version
+            '
+          else
+            echo "⚠️  未识别的操作系统类型: $OS_TYPE"
+            echo "请手动安装Redis: https://redis.io/download"
+            exit 1
+          fi
+          
+          echo "✅ Redis安装完成"
+        fi
+        
+        # 确保Redis服务正在运行
+        echo "检查Redis服务状态..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          REDIS_SERVICE='redis'
+          if systemctl list-units --full -all | grep -q 'redis-server.service'; then
+            REDIS_SERVICE='redis-server'
+          fi
+          
+          if ! sudo systemctl is-active --quiet \$REDIS_SERVICE; then
+            echo '启动Redis服务...'
+            sudo systemctl start \$REDIS_SERVICE
+            sudo systemctl enable \$REDIS_SERVICE
+            sleep 2
+          fi
+          sudo systemctl status \$REDIS_SERVICE | head -5
+        "
+        echo ""
+        
+        # ========================================
+        # 4.1 配置Redis密码（使用GitHub Secrets中的预设密码）
+        # ========================================
+        echo "-----------------------------------"
+        echo "4.1️⃣  配置Redis密码..."
+        echo "-----------------------------------"
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'REDIS_CONFIG_SCRIPT'
+          # 先尝试从systemd服务文件中找到配置文件路径
+          echo "🔍 从systemd服务配置查找Redis配置文件..."
+          REDIS_CONF_PATH=""
+          
+          # 方法1：检查systemd服务文件（原先可用的PCRE方法）
+          if [ -f /lib/systemd/system/redis-server.service ]; then
+            echo "找到redis-server.service，解析配置文件路径..."
+            # 优先使用PCRE从单元文件中提取 conf 路径
+            if command -v grep >/dev/null 2>&1 && grep -P "test" </dev/null >/dev/null 2>&1; then
+              REDIS_CONF_PATH=$(grep -oP "(?<=^ExecStart=.*redis-server\s).*\.conf" /lib/systemd/system/redis-server.service 2>/dev/null | head -n 1)
+            fi
+            # 如PCRE不可用，退回到POSIX：读取ExecStart整行再用grep -E提取
+            if [ -z "$REDIS_CONF_PATH" ]; then
+              EXEC_LINE=$(awk -F= '/^ExecStart=/{print $2}' /lib/systemd/system/redis-server.service 2>/dev/null)
+              if [ -n "$EXEC_LINE" ]; then
+                REDIS_CONF_PATH=$(printf "%s" "$EXEC_LINE" | grep -Eo '/[^[:space:]]+\.conf' | head -n 1)
+              fi
+            fi
+            if [ -n "$REDIS_CONF_PATH" ]; then
+              echo "从服务文件找到配置路径: $REDIS_CONF_PATH"
+            fi
+          fi
+          
+          # 方法2：尝试标准路径
+          if [ -z "$REDIS_CONF_PATH" ]; then
+            for path in /etc/redis/redis.conf /etc/redis.conf /usr/local/etc/redis.conf; do
+              if [ -f "$path" ]; then
+                REDIS_CONF_PATH="$path"
+                echo "在标准路径找到: $REDIS_CONF_PATH"
+                break
+              fi
+            done
+          fi
+          
+          # 方法3：使用find命令递归查找
+          if [ -z "$REDIS_CONF_PATH" ]; then
+            echo "使用find命令查找..."
+            REDIS_CONF_PATH=$(find /etc -name "redis*.conf" 2>/dev/null | head -n 1)
+            if [ -n "$REDIS_CONF_PATH" ]; then
+              echo "通过find找到: $REDIS_CONF_PATH"
+            fi
+          fi
+          
+          # 方法4：检查Redis进程参数（含 /proc 与 ps 两种方式）
+          if [ -z "$REDIS_CONF_PATH" ]; then
+            echo "检查Redis进程参数..."
+            # 尝试 /proc 方式（更可靠）
+            for pid in $(pgrep -x redis-server); do
+              if [ -r "/proc/$pid/cmdline" ]; then
+                CAND=$(tr '\0' ' ' < "/proc/$pid/cmdline" | grep -Eo '/[^[:space:]]+\.conf' | head -n 1)
+                if [ -n "$CAND" ]; then
+                  REDIS_CONF_PATH=$CAND
+                  break
+                fi
+              fi
+            done
+            # 回退到 ps 解析
+            if [ -z "$REDIS_CONF_PATH" ]; then
+              REDIS_CONF_PATH=$(ps -eo pid,cmd | grep '[r]edis-server' | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]+//' | grep -Eo '/[^[:space:]]+\.conf' | head -n 1)
+            fi
+            if [ -n "$REDIS_CONF_PATH" ]; then
+              echo "从进程参数找到: $REDIS_CONF_PATH"
+            fi
+          fi
+          
+          # 兜底：如果仍未解析到配置文件，默认尝试 /etc/redis/redis.conf
+          if [ -z "$REDIS_CONF_PATH" ]; then
+            if [ -f /etc/redis/redis.conf ]; then
+              REDIS_CONF_PATH="/etc/redis/redis.conf"
+              echo "使用兜底路径: $REDIS_CONF_PATH"
+            fi
+          fi
+
+          # 如果所有方法都失败
+          if [ -z "$REDIS_CONF_PATH" ]; then
+            echo "❌ 未找到redis.conf文件"
+            echo "尝试的方法："
+            echo "  1. systemd服务文件解析"
+            echo "  2. 标准路径检查: /etc/redis/redis.conf, /etc/redis.conf, /usr/local/etc/redis.conf"
+            echo "  3. find命令递归查找"
+            echo "  4. Redis进程参数检查"
+            echo ""
+            echo "🔍 诊断信息："
+            echo "systemd服务文件内容："
+            cat /lib/systemd/system/redis-server.service 2>/dev/null || echo "  无法读取"
+            echo ""
+            echo "Redis进程信息："
+            ps aux | grep redis-server | grep -v grep || echo "  未找到进程"
+            echo ""
+            echo "⚠️  跳过密码设置，Redis将以无密码模式运行"
+          else
+            echo "✅ 找到Redis配置文件: $REDIS_CONF_PATH"
+            
+            # 使用环境变量避免引号问题
+            export REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+            
+            # 检查是否已设置requirepass
+            if sudo grep -q "^requirepass" "$REDIS_CONF_PATH"; then
+              echo "更新现有的requirepass..."
+              sudo sed -i "s/^requirepass .*/requirepass $REDIS_PASSWORD/" "$REDIS_CONF_PATH"
+            else
+              echo "添加新的requirepass..."
+              echo "requirepass $REDIS_PASSWORD" | sudo tee -a "$REDIS_CONF_PATH"
+            fi
+            
+            echo "重启Redis服务以应用更改..."
+            REDIS_SERVICE='redis'
+            if systemctl list-units --full -all | grep -q 'redis-server.service'; then
+              REDIS_SERVICE='redis-server'
+            fi
+            sudo systemctl restart $REDIS_SERVICE
+            echo "✅ Redis密码配置完成并已重启服务"
+          fi
+        REDIS_CONFIG_SCRIPT
+        echo ""
+        
+        # ========================================
+        # 4.2 检查并安装jq
+        # ========================================
+        echo "-----------------------------------"
+        echo "4.2️⃣  检查并安装jq..."
         echo "-----------------------------------"
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
           if ! command -v jq &> /dev/null; then
@@ -267,7 +524,7 @@ jobs:
         echo "==================================="
         echo "📊 环境最终验证"
         echo "==================================="
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} <<'ENV_VERIFY'
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           echo '✅ Node.js版本:'
           node --version
           
@@ -277,12 +534,16 @@ jobs:
           echo '✅ PM2版本:'
           pm2 --version
           
-          echo '✅ PostgreSQL服务:'
-          sudo systemctl is-active postgresql && echo 'PostgreSQL运行中' || echo 'PostgreSQL未运行'
+          echo '✅ MongoDB服务:'
+          sudo systemctl is-active mongod && echo 'MongoDB运行中' || echo 'MongoDB未运行'
           
-          echo '✅ PostgreSQL版本:'
-          psql --version
-        ENV_VERIFY
+          echo '✅ Redis服务:'
+          REDIS_SERVICE='redis'
+          if systemctl list-units --full -all | grep -q 'redis-server.service'; then
+            REDIS_SERVICE='redis-server'
+          fi
+          sudo systemctl is-active \$REDIS_SERVICE && echo 'Redis运行中' || echo 'Redis未运行'
+        "
         
         echo ""
         echo "==================================="
@@ -294,7 +555,7 @@ jobs:
     # ========================================
     
     - name: 🔧 检查并安装Nginx
-      if: inputs.deploy_mode == 'all'
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'frontend'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -324,7 +585,7 @@ jobs:
               "sudo yum install -y epel-release && sudo yum install -y nginx"
           else
             echo "❌ 不支持的操作系统: $OS_TYPE"
-            echo "请手动安装Nginx"
+            echo "请手动安装Nginx: sudo apt install nginx 或 sudo yum install nginx"
             exit 1
           fi
           
@@ -342,7 +603,7 @@ jobs:
         echo ""
     
     - name: 📝 生成Nginx配置文件
-      if: inputs.deploy_mode == 'all'
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'frontend'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -356,10 +617,10 @@ jobs:
         ADDITIONAL_DOMAINS="${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}"
         USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
         SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
-        NGINX_PORT="${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}"
-        BEHIND_PROXY="${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}"
+        NGINX_PORT="${{ vars.NGINX_LOCAL_PORT || secrets.NGINX_LOCAL_PORT || '3333' }}"
+        BEHIND_PROXY="${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'true' }}"
         PROXY_IP="${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}"
-        APP_PORT="${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}"
+        BACKEND_PORT="${{ vars.BACKEND_PORT || secrets.BACKEND_PORT || '5555' }}"
         DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
         
         echo "配置参数:"
@@ -367,131 +628,197 @@ jobs:
         echo "  主域名: $PRIMARY_DOMAIN"
         echo "  备用域名: $ADDITIONAL_DOMAINS"
         echo "  SSL启用: $USE_SSL"
+        echo "  SSL邮箱: $SSL_EMAIL"
         echo "  Nginx端口: $NGINX_PORT"
-        echo "  应用端口: $APP_PORT"
+        echo "  后端端口: $BACKEND_PORT"
         echo "  反向代理: $BEHIND_PROXY"
+        echo "  代理IP段: $PROXY_IP"
         echo ""
         
-        # 生成Nginx配置
-        echo "# HOMELABS Portal Nginx配置" > nginx-auto.conf
-        echo "# 自动生成 - 请勿手动编辑" >> nginx-auto.conf
-        echo "" >> nginx-auto.conf
-        
-        # 构建server_name
-        SERVER_NAMES="$PRIMARY_DOMAIN"
-        if [ -n "$ADDITIONAL_DOMAINS" ]; then
-          SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
-        fi
-        
-        echo "server {" >> nginx-auto.conf
-        
-        # 根据环境和SSL设置决定监听端口
-        if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ]; then
-          echo "    # HTTP重定向到HTTPS" >> nginx-auto.conf
-          echo "    listen 80;" >> nginx-auto.conf
-          echo "    listen [::]:80;" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
-          echo "    return 301 https://\$server_name\$request_uri;" >> nginx-auto.conf
-          echo "}" >> nginx-auto.conf
+        # 根据部署环境生成不同的配置
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "生成生产环境Nginx配置..."
+          echo "# PlanovAI 生产环境Nginx配置" > nginx-auto.conf
+          echo "# 自动生成 - 请勿手动编辑" >> nginx-auto.conf
+          echo "" >> nginx-auto.conf
+          
+          # 构建server_name
+          SERVER_NAMES="$PRIMARY_DOMAIN"
+          if [ -n "$ADDITIONAL_DOMAINS" ]; then
+            SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
+          fi
+          
+          echo "server {" >> nginx-auto.conf
+          
+          # 根据SSL设置决定监听端口
+          if [ "$USE_SSL" = "true" ]; then
+            echo "    # HTTP重定向到HTTPS" >> nginx-auto.conf
+            echo "    listen 80;" >> nginx-auto.conf
+            echo "    listen [::]:80;" >> nginx-auto.conf
+            echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+            echo "    return 301 https://\$server_name\$request_uri;" >> nginx-auto.conf
+            echo "}" >> nginx-auto.conf
+            echo "" >> nginx-auto.conf
+            echo "server {" >> nginx-auto.conf
+            echo "    # HTTPS配置" >> nginx-auto.conf
+            echo "    listen 443 ssl http2;" >> nginx-auto.conf
+            echo "    listen [::]:443 ssl http2;" >> nginx-auto.conf
+            echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+            echo "" >> nginx-auto.conf
+            echo "    # SSL证书配置" >> nginx-auto.conf
+            echo "    ssl_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem;" >> nginx-auto.conf
+            echo "    ssl_certificate_key /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem;" >> nginx-auto.conf
+            echo "    ssl_trusted_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem;" >> nginx-auto.conf
+            echo "" >> nginx-auto.conf
+            echo "    # SSL安全配置" >> nginx-auto.conf
+            echo "    ssl_protocols TLSv1.2 TLSv1.3;" >> nginx-auto.conf
+            echo "    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;" >> nginx-auto.conf
+            echo "    ssl_prefer_server_ciphers on;" >> nginx-auto.conf
+            echo "    ssl_session_cache shared:SSL:10m;" >> nginx-auto.conf
+            echo "    ssl_session_timeout 10m;" >> nginx-auto.conf
+            echo "    ssl_stapling on;" >> nginx-auto.conf
+            echo "    ssl_stapling_verify on;" >> nginx-auto.conf
+            echo "" >> nginx-auto.conf
+            echo "    # 安全头" >> nginx-auto.conf
+            echo "    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;" >> nginx-auto.conf
+            echo "    add_header X-Frame-Options DENY always;" >> nginx-auto.conf
+            echo "    add_header X-Content-Type-Options nosniff always;" >> nginx-auto.conf
+            echo "    add_header X-XSS-Protection \"1; mode=block\" always;" >> nginx-auto.conf
+            echo "    add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;" >> nginx-auto.conf
+          else
+            echo "    # HTTP配置（生产环境但未启用SSL）" >> nginx-auto.conf
+            echo "    listen 80;" >> nginx-auto.conf
+            echo "    listen [::]:80;" >> nginx-auto.conf
+            echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+          fi
+        else
+          echo "生成本地环境Nginx配置..."
+          echo "# PlanovAI 本地环境Nginx配置" > nginx-auto.conf
+          echo "# 自动生成 - 请勿手动编辑" >> nginx-auto.conf
           echo "" >> nginx-auto.conf
           echo "server {" >> nginx-auto.conf
-          echo "    # HTTPS配置" >> nginx-auto.conf
-          echo "    listen 443 ssl http2;" >> nginx-auto.conf
-          echo "    listen [::]:443 ssl http2;" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # SSL证书配置" >> nginx-auto.conf
-          echo "    ssl_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem;" >> nginx-auto.conf
-          echo "    ssl_certificate_key /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem;" >> nginx-auto.conf
-          echo "    ssl_trusted_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # SSL安全配置" >> nginx-auto.conf
-          echo "    ssl_protocols TLSv1.2 TLSv1.3;" >> nginx-auto.conf
-          echo "    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;" >> nginx-auto.conf
-          echo "    ssl_prefer_server_ciphers on;" >> nginx-auto.conf
-          echo "    ssl_session_cache shared:SSL:10m;" >> nginx-auto.conf
-          echo "    ssl_session_timeout 10m;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # 安全头" >> nginx-auto.conf
-          echo "    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;" >> nginx-auto.conf
-          echo "    add_header X-Frame-Options SAMEORIGIN always;" >> nginx-auto.conf
-          echo "    add_header X-Content-Type-Options nosniff always;" >> nginx-auto.conf
-        else
-          echo "    # HTTP配置" >> nginx-auto.conf
           echo "    listen ${NGINX_PORT};" >> nginx-auto.conf
           echo "    listen [::]:${NGINX_PORT};" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
+          echo "    server_name localhost;" >> nginx-auto.conf
         fi
-        
+        echo "" >> nginx-auto.conf
+        echo "    # 访问和错误日志" >> nginx-auto.conf
+        if [ -d "${DEPLOY_PATH}/logs" ]; then
+          echo "    access_log ${DEPLOY_PATH}/logs/nginx-access.log;" >> nginx-auto.conf
+          echo "    error_log ${DEPLOY_PATH}/logs/nginx-error.log warn;" >> nginx-auto.conf
+        else
+          echo "    # 部署目录未就绪时使用系统默认日志路径" >> nginx-auto.conf
+          echo "    access_log /var/log/nginx/access.log;" >> nginx-auto.conf
+          echo "    error_log /var/log/nginx/error.log warn;" >> nginx-auto.conf
+        fi
         echo "" >> nginx-auto.conf
         
         # 添加反向代理真实IP处理（如果启用）
         if [ "$BEHIND_PROXY" = "true" ]; then
-          echo "    # 反向代理真实IP处理" >> nginx-auto.conf
+          echo "    # 反向代理真实IP处理（Lucky等反向代理）" >> nginx-auto.conf
           echo "    set_real_ip_from ${PROXY_IP};" >> nginx-auto.conf
           echo "    real_ip_header X-Forwarded-For;" >> nginx-auto.conf
           echo "    real_ip_recursive on;" >> nginx-auto.conf
           echo "" >> nginx-auto.conf
         fi
         
-        # Next.js应用代理配置
-        echo "    # Next.js应用代理" >> nginx-auto.conf
-        echo "    location / {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        # 继续添加主要配置
+        echo "    # 前端静态文件根目录" >> nginx-auto.conf
+        echo "    root ${DEPLOY_PATH}/client/build;" >> nginx-auto.conf
+        echo "    index index.html index.htm;" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        echo "    # Gzip压缩" >> nginx-auto.conf
+        echo "    gzip on;" >> nginx-auto.conf
+        echo "    gzip_vary on;" >> nginx-auto.conf
+        echo "    gzip_min_length 1024;" >> nginx-auto.conf
+        echo "    gzip_comp_level 6;" >> nginx-auto.conf
+        echo "    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json image/svg+xml;" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        echo "    # API代理配置" >> nginx-auto.conf
+        echo "    location /api/ {" >> nginx-auto.conf
+        echo "        proxy_pass http://localhost:${BACKEND_PORT}/;" >> nginx-auto.conf
+        echo "        proxy_http_version 1.1;" >> nginx-auto.conf
+        echo "        proxy_set_header Host \$host;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Real-IP \$remote_addr;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> nginx-auto.conf
+        echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> nginx-auto.conf
+        echo "        proxy_connect_timeout 60s;" >> nginx-auto.conf
+        echo "        proxy_send_timeout 60s;" >> nginx-auto.conf
+        echo "        proxy_read_timeout 60s;" >> nginx-auto.conf
+        echo "        proxy_buffering on;" >> nginx-auto.conf
+        echo "        proxy_buffer_size 4k;" >> nginx-auto.conf
+        echo "        proxy_buffers 8 4k;" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        echo "    # WebSocket代理配置 - Socket.IO" >> nginx-auto.conf
+        echo "    location /socket.io/ {" >> nginx-auto.conf
+        echo "        proxy_pass http://localhost:${BACKEND_PORT};" >> nginx-auto.conf
         echo "        proxy_http_version 1.1;" >> nginx-auto.conf
         echo "        proxy_set_header Upgrade \$http_upgrade;" >> nginx-auto.conf
-        echo "        proxy_set_header Connection 'upgrade';" >> nginx-auto.conf
+        echo "        proxy_set_header Connection \"upgrade\";" >> nginx-auto.conf
         echo "        proxy_set_header Host \$host;" >> nginx-auto.conf
         echo "        proxy_set_header X-Real-IP \$remote_addr;" >> nginx-auto.conf
         echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> nginx-auto.conf
         echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> nginx-auto.conf
         echo "        proxy_cache_bypass \$http_upgrade;" >> nginx-auto.conf
         echo "        proxy_buffering off;" >> nginx-auto.conf
-        echo "        proxy_read_timeout 86400;" >> nginx-auto.conf
+        echo "        proxy_read_timeout 86400s;" >> nginx-auto.conf
+        echo "        proxy_send_timeout 86400s;" >> nginx-auto.conf
+        echo "        proxy_set_header Sec-WebSocket-Extensions \$http_sec_websocket_extensions;" >> nginx-auto.conf
+        echo "        proxy_set_header Sec-WebSocket-Key \$http_sec_websocket_key;" >> nginx-auto.conf
+        echo "        proxy_set_header Sec-WebSocket-Version \$http_sec_websocket_version;" >> nginx-auto.conf
+        echo "        proxy_set_header Sec-WebSocket-Protocol \$http_sec_websocket_protocol;" >> nginx-auto.conf
         echo "    }" >> nginx-auto.conf
         echo "" >> nginx-auto.conf
-        
-        # 静态资源优化
-        echo "    # 静态资源优化" >> nginx-auto.conf
-        echo "    location /_next/static/ {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        echo "    # 静态资源缓存" >> nginx-auto.conf
+        echo "    location /static/ {" >> nginx-auto.conf
         echo "        expires 1y;" >> nginx-auto.conf
         echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
+        echo "        access_log off;" >> nginx-auto.conf
         echo "    }" >> nginx-auto.conf
         echo "" >> nginx-auto.conf
-        
-        # 图片优化
-        echo "    location ~* \\.(jpg|jpeg|png|gif|ico|svg|webp)\$ {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
+        echo "    # SPA路由支持" >> nginx-auto.conf
+        echo "    location / {" >> nginx-auto.conf
+        echo "        try_files \$uri \$uri/ /index.html;" >> nginx-auto.conf
+        echo "        location ~* \\.html\$ {" >> nginx-auto.conf
+        echo "            add_header Cache-Control \"no-cache, no-store, must-revalidate\";" >> nginx-auto.conf
+        echo "            add_header Pragma \"no-cache\";" >> nginx-auto.conf
+        echo "            add_header Expires 0;" >> nginx-auto.conf
+        echo "        }" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
+        echo "" >> nginx-auto.conf
+        echo "    # Favicon和manifest" >> nginx-auto.conf
+        echo "    location ~* \\.(ico|png|svg|webp|json)\$ {" >> nginx-auto.conf
         echo "        expires 30d;" >> nginx-auto.conf
         echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
+        echo "        access_log off;" >> nginx-auto.conf
         echo "    }" >> nginx-auto.conf
         echo "" >> nginx-auto.conf
-        
-        # 日志配置
-        echo "    # 日志配置" >> nginx-auto.conf
-        echo "    access_log ${DEPLOY_PATH}/logs/nginx-access.log;" >> nginx-auto.conf
-        echo "    error_log ${DEPLOY_PATH}/logs/nginx-error.log warn;" >> nginx-auto.conf
+        echo "    # 禁止访问隐藏文件" >> nginx-auto.conf
+        echo "    location ~ /\\. {" >> nginx-auto.conf
+        echo "        deny all;" >> nginx-auto.conf
+        echo "        access_log off;" >> nginx-auto.conf
+        echo "        log_not_found off;" >> nginx-auto.conf
+        echo "    }" >> nginx-auto.conf
         echo "}" >> nginx-auto.conf
         
         echo "✅ Nginx配置文件生成完成"
         echo ""
+        echo "配置预览（前25行）:"
+        echo "----------------------------------------"
+        head -n 25 nginx-auto.conf
+        echo "..."
+        echo "----------------------------------------"
+        echo ""
     
     - name: 🚀 部署Nginx配置
-      if: inputs.deploy_mode == 'all'
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'frontend'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
         echo "==================================="
         echo "部署Nginx配置..."
         echo "==================================="
-        
-        # 确保部署目录存在
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
-          sudo mkdir -p ${{ env.DEPLOY_PATH }}
-          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
-          mkdir -p ${{ env.DEPLOY_PATH }}/logs
-        "
         
         # 上传配置文件到服务器
         scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} nginx-auto.conf \
@@ -502,23 +829,25 @@ jobs:
           set -e
           
           DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          
+          # 获取环境变量（从GitHub Actions传递）
           DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
           PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
           USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
           SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
           
           # 备份现有配置
-          if [ -f /etc/nginx/sites-available/homelabs ]; then
+          if [ -f /etc/nginx/sites-available/planovai ]; then
             echo "备份现有Nginx配置..."
-            sudo cp /etc/nginx/sites-available/homelabs /etc/nginx/sites-available/homelabs.backup.$(date +%Y%m%d%H%M%S)
+            sudo cp /etc/nginx/sites-available/planovai /etc/nginx/sites-available/planovai.backup.$(date +%Y%m%d%H%M%S)
           fi
           
           # 复制新配置
           echo "部署新Nginx配置..."
-          sudo cp $DEPLOY_PATH/nginx-auto.conf /etc/nginx/sites-available/homelabs
+          sudo cp $DEPLOY_PATH/nginx-auto.conf /etc/nginx/sites-available/planovai
           
           # 创建符号链接
-          sudo ln -sf /etc/nginx/sites-available/homelabs /etc/nginx/sites-enabled/homelabs
+          sudo ln -sf /etc/nginx/sites-available/planovai /etc/nginx/sites-enabled/planovai
           
           # 删除默认站点（避免冲突）
           if [ -f /etc/nginx/sites-enabled/default ]; then
@@ -538,16 +867,27 @@ jobs:
                 sudo apt-get install -y certbot python3-certbot-nginx
               elif command -v yum &> /dev/null; then
                 sudo yum install -y certbot python3-certbot-nginx
+              else
+                echo "⚠️ 无法自动安装certbot，请手动安装"
               fi
             fi
             
             # 检查证书是否存在
             if [ ! -f "/etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem" ]; then
               echo "申请SSL证书..."
+              
+              # 先启动Nginx（HTTP模式）
+              echo "启动Nginx（HTTP模式）..."
+              sudo systemctl start nginx
+              sudo systemctl enable nginx
+              
+              # 申请证书
               sudo certbot --nginx -d $PRIMARY_DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive --redirect
+              
               echo "✅ SSL证书申请完成"
             else
-              echo "SSL证书已存在"
+              echo "SSL证书已存在，检查续期..."
+              sudo certbot renew --dry-run
             fi
           fi
           
@@ -563,15 +903,18 @@ jobs:
             sudo systemctl start nginx
           fi
           
+          # 确保Nginx开机自启
           sudo systemctl enable nginx
+          
           echo "✅ Nginx配置部署完成"
         ENDSSH
         
+        echo ""
         echo "✅ Nginx部署成功"
         echo ""
     
     - name: 备份当前版本
-      if: inputs.deploy_mode != 'check'
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -585,43 +928,58 @@ jobs:
           if [ -d ${{ env.DEPLOY_PATH }} ]; then
             echo '📦 创建备份: '\$BACKUP_DIR
             
-            # 使用sudo创建备份目录并设置权限
-            echo '🔐 创建备份目录（需要sudo权限）...'
-            sudo mkdir -p \$BACKUP_DIR
-            sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} \$BACKUP_DIR
+            # 确保备份目录的父目录存在且有正确权限
+            BACKUP_PARENT=\$(dirname \$BACKUP_DIR)
+            if [ ! -d \$BACKUP_PARENT ]; then
+              echo '📁 创建备份父目录: '\$BACKUP_PARENT
+              mkdir -p \$BACKUP_PARENT
+            fi
             
-            # 使用rsync备份（排除不必要的文件）
+            # 检查备份目录权限
+            if [ ! -w \$BACKUP_PARENT ]; then
+              echo '🔧 修复备份目录权限...'
+              sudo chown -R \$USER:\$USER \$BACKUP_PARENT 2>/dev/null || true
+              sudo chmod -R 755 \$BACKUP_PARENT 2>/dev/null || true
+            fi
+            
+            # 使用 rsync 进行备份，更好地处理符号链接和权限
+            # -a: 归档模式（保留权限、时间戳等）
+            # -L: 跟随符号链接，复制实际内容而不是链接本身
+            # --exclude: 排除不需要备份的大文件目录
             echo '🔄 开始备份...'
-            rsync -aL \
+            if rsync -aL \
               --exclude 'node_modules' \
-              --exclude '.next' \
+              --exclude 'client/node_modules' \
+              --exclude 'server/node_modules' \
+              --exclude 'client/build' \
+              --exclude '.git' \
               --exclude 'logs' \
               --exclude '*.log' \
-              --exclude '.git' \
-              ${{ env.DEPLOY_PATH }}/ \$BACKUP_DIR/ || {
-              echo '❌ 备份失败！'
-              sudo rm -rf \$BACKUP_DIR
-              exit 1
-            }
+              ${{ env.DEPLOY_PATH }}/ \$BACKUP_DIR/ 2>/dev/null; then
+              echo '✅ rsync 备份成功'
+            else
+              echo '⚠️  rsync 失败，尝试使用 cp -rL'
+              if cp -rL ${{ env.DEPLOY_PATH }} \$BACKUP_DIR 2>/dev/null; then
+                echo '✅ cp 备份成功'
+              else
+                echo '❌ 备份失败！'
+                echo '🔍 检查权限和磁盘空间...'
+                ls -la \$(dirname \$BACKUP_DIR) | head -5
+                df -h \$(dirname \$BACKUP_DIR) | head -2
+                exit 1
+              fi
+            fi
             
-            # 验证备份
+            # 验证备份是否成功
             if [ -d \$BACKUP_DIR ] && [ \"\$(ls -A \$BACKUP_DIR 2>/dev/null)\" ]; then
               echo '✅ 备份验证成功'
               
-              # 保留最近3个备份（清理旧备份需要sudo）
-              echo '🧹 清理旧备份（保留最近3个）...'
+              # 保留最近3个备份
               cd \$(dirname ${{ env.DEPLOY_PATH }})
-              OLD_BACKUPS=\$(ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4)
-              if [ -n "\$OLD_BACKUPS" ]; then
-                BACKUP_COUNT=\$(echo "\$OLD_BACKUPS" | wc -l)
-                echo "\$OLD_BACKUPS" | xargs sudo rm -rf
-                echo "   已清理 \$BACKUP_COUNT 个旧备份"
-              else
-                echo "   无需清理旧备份"
-              fi
+              ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
               
-              # 记录备份路径
-              echo \$BACKUP_DIR > /tmp/homelabs_last_backup
+              # 记录备份路径供回滚使用
+              echo \$BACKUP_DIR > /tmp/planovai_last_backup
               echo '✅ 备份完成'
             else
               echo '❌ 备份验证失败！'
@@ -632,37 +990,43 @@ jobs:
           fi
         "
     
-    - name: 停止现有服务并清理
-      if: inputs.deploy_mode != 'check'
+    - name: 停止现有服务并彻底清理
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
-        echo "停止现有服务并清理环境..."
+        echo "停止现有服务并彻底清理环境..."
         
+        # 停止PM2管理的服务并清理持久化配置
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           if [ -d ${{ env.DEPLOY_PATH }} ]; then
             cd ${{ env.DEPLOY_PATH }}
-            
             echo '1️⃣  停止所有PM2进程...'
             pm2 stop all 2>/dev/null || true
             pm2 delete all 2>/dev/null || true
             pm2 kill 2>/dev/null || true
             
-            echo '2️⃣  清理PM2持久化配置...'
+            echo '2️⃣  清理PM2持久化配置（防止旧环境变量残留）...'
             rm -f ~/.pm2/dump.pm2
             rm -rf ~/.pm2/logs/*
             rm -rf ~/.pm2/pids/*
             echo '   ✅ PM2配置已清理'
             
-            echo '3️⃣  清理环境变量文件...'
+            echo '3️⃣  彻底清理所有环境变量文件...'
+            # 清理根目录
             rm -f .env .env.* 2>/dev/null || true
-            rm -f client/.env client/.env.* 2>/dev/null || true
+            # 清理server目录
+            rm -f server/.env server/.env.* 2>/dev/null || true
+            # 清理client目录
+            rm -f client/.env.local client/.env.development 2>/dev/null || true
+            # 清理ecosystem配置
+            rm -f ecosystem.config.js server/ecosystem.config.js 2>/dev/null || true
             echo '   ✅ 环境文件已清理'
           fi
         "
     
     - name: 创建部署目录
-      if: inputs.deploy_mode != 'check'
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -674,7 +1038,7 @@ jobs:
         "
     
     - name: 传输代码到服务器
-      if: inputs.deploy_mode != 'check'
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -682,129 +1046,829 @@ jobs:
         echo "传输代码到服务器..."
         echo "==================================="
         
-        # 使用rsync传输代码
+        # 使用rsync传输代码（仅传输生产环境必需的文件）
         rsync -avz --delete \
           -e "ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }}" \
           --exclude 'node_modules' \
           --exclude '.git' \
           --exclude '.github' \
-          --exclude '.next' \
+          --exclude 'client/build' \
+          --exclude 'client/node_modules' \
+          --exclude 'server/node_modules' \
           --exclude 'logs' \
-          --exclude '*.log' \
-          --exclude '.DS_Store' \
-          --exclude '.env' \
-          --exclude '.env*' \
+          --exclude '/scripts/' \
           --exclude 'plan report' \
           --exclude 'progress report' \
+          --exclude 'Audit report' \
+          --exclude 'update log' \
+          --exclude 'readme' \
+          --exclude 'docs' \
+          --exclude 'DOC' \
+          --exclude 'test' \
+          --exclude 'backups' \
+          --exclude 'backup' \
+          --exclude 'examples' \
+          --exclude 'quarantine' \
+          --exclude 'TEMP' \
+          --exclude 'downloads' \
+          --exclude 'uploads' \
+          --exclude 'data/test-storage' \
+          --exclude '*.pdf' \
+          --exclude '*.docx' \
+          --exclude '*.xlsx' \
+          --exclude '.DS_Store' \
+          --exclude 'Thumbs.db' \
+          --exclude '*.log' \
+          --exclude 'dump.rdb' \
+          --exclude 'cookies.txt' \
+          --exclude '.env' \
+          --exclude '.env*' \
+          --exclude '.env.local' \
+          --exclude '.env.development' \
+          --exclude '**/.env' \
+          --exclude '**/.env*' \
+          --exclude 'server/.env*' \
+          --exclude 'client/.env*' \
+          --exclude 'ecosystem.config.js' \
+          --exclude 'dev.sh' \
           --exclude 'README.md' \
           --exclude 'PROJECT_MEMORY.md' \
-          --exclude 'dev.sh' \
-          --exclude 'dev.local' \
+          --exclude 'PMP*.md' \
+          --exclude 'SECURITY.md' \
           ./ ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/
         
+        echo ""
         echo "✅ 代码传输完成"
+        echo ""
+        echo "📊 传输统计:"
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "du -sh ${{ env.DEPLOY_PATH }} && \
+           echo '文件数量:' && \
+           find ${{ env.DEPLOY_PATH }} -type f | wc -l"
     
     - name: 创建环境配置文件
-      if: inputs.deploy_mode != 'check'
+      if: env.DEPLOY_MODE != 'check'
+      run: |
+        echo "创建完整的生产环境配置文件（从GitHub Secrets读取）..."
+        
+        # 在服务器上逐行写入环境配置（确保GitHub Actions变量正确替换）
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          echo \"# =================== 环境标识 ===================\" > ${{ env.DEPLOY_PATH }}/.env
+          echo \"NODE_ENV=${{ vars.NODE_ENV || secrets.NODE_ENV || 'production' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"TZ=${{ vars.TZ || secrets.TZ || 'Asia/Shanghai' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"PRODUCTION_DEPLOYMENT=true\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 生产环境安全配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# 🚨 以下开发环境变量必须保持未设置状态\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# ENABLE_DEV_MODE - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# DEV_AUTH_BYPASS - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# DEV_PERMISSIONS_BYPASS - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# DEV_AUTH_BYPASS_KEY - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# INIT_TEST_DATA - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# DEV_TOKEN - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# DEV_ALLOW_AUTH_BYPASS_WITH_KEY - 必须不存在\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== API配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"BACKEND_PORT=${{ vars.BACKEND_PORT || secrets.BACKEND_PORT || '5555' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3333' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_API_URL=${{ vars.REACT_APP_API_URL || secrets.REACT_APP_API_URL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"APP_URL=${{ vars.APP_URL || secrets.APP_URL || secrets.CLIENT_URL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== JWT配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"JWT_SECRET=${{ secrets.JWT_SECRET }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ACCESS_TOKEN_EXPIRE=${{ vars.ACCESS_TOKEN_EXPIRE || secrets.ACCESS_TOKEN_EXPIRE || '30m' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REFRESH_TOKEN_EXPIRE=${{ vars.REFRESH_TOKEN_EXPIRE || secrets.REFRESH_TOKEN_EXPIRE || '7d' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"JWT_COOKIE_EXPIRE=${{ vars.JWT_COOKIE_EXPIRE || secrets.JWT_COOKIE_EXPIRE || '30' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"JWT_EXPIRE=${{ vars.JWT_EXPIRE || secrets.JWT_EXPIRE || '30d' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REFRESH_TOKEN_SECRET=${{ secrets.REFRESH_TOKEN_SECRET }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"JWT_KEY_ROTATION_INTERVAL=${{ vars.JWT_KEY_ROTATION_INTERVAL || secrets.JWT_KEY_ROTATION_INTERVAL || '168' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 数据库配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_INITDB_ROOT_USERNAME }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MONGO_URI=${{ secrets.MONGO_URI }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REDIS_URI=${{ secrets.REDIS_URI }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REDIS_HOST=${{ vars.REDIS_HOST || secrets.REDIS_HOST || '127.0.0.1' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REDIS_PORT=${{ vars.REDIS_PORT || secrets.REDIS_PORT || '6379' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== AI API配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SILICONFLOW_API_KEY=${{ secrets.SILICONFLOW_API_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 邮件服务配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MAIL_ENABLED=${{ vars.MAIL_ENABLED || secrets.MAIL_ENABLED || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SMTP_HOST=${{ secrets.SMTP_HOST }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SMTP_PORT=${{ vars.SMTP_PORT || secrets.SMTP_PORT || '587' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SMTP_USER=${{ secrets.SMTP_USER }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SMTP_SECURE=${{ vars.SMTP_SECURE || secrets.SMTP_SECURE || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"FROM_NAME=${{ vars.FROM_NAME || secrets.FROM_NAME || 'PlanovAI' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"FROM_EMAIL=${{ secrets.FROM_EMAIL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 管理员配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ADMIN_NAME=${{ vars.ADMIN_NAME || secrets.ADMIN_NAME }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 客户端配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CLIENT_URL=${{ vars.CLIENT_URL || secrets.CLIENT_URL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 安全配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"RATE_LIMIT_ENABLED_IN_DEV=${{ vars.RATE_LIMIT_ENABLED_IN_DEV || secrets.RATE_LIMIT_ENABLED_IN_DEV || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CSRF_PROTECTION_ENABLED_IN_DEV=${{ vars.CSRF_PROTECTION_ENABLED_IN_DEV || secrets.CSRF_PROTECTION_ENABLED_IN_DEV || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CONFIG_ENCRYPTION_KEY=${{ secrets.CONFIG_ENCRYPTION_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY || secrets.CONFIG_ENCRYPTION_KEY }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SIGNATURE_SECRET=${{ secrets.SIGNATURE_SECRET || secrets.REFRESH_TOKEN_SECRET }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 插件系统配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"USE_PLUGIN_AUTH=${{ vars.USE_PLUGIN_AUTH || secrets.USE_PLUGIN_AUTH || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"USE_PLUGIN_RATE_LIMIT=${{ vars.USE_PLUGIN_RATE_LIMIT || secrets.USE_PLUGIN_RATE_LIMIT || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"PLUGIN_SYSTEM_STAGE=${{ vars.PLUGIN_SYSTEM_STAGE || secrets.PLUGIN_SYSTEM_STAGE || 'production' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ENABLE_TRADITIONAL_FALLBACK=${{ vars.ENABLE_TRADITIONAL_FALLBACK || secrets.ENABLE_TRADITIONAL_FALLBACK || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"FORCE_PLUGIN_MODE=${{ vars.FORCE_PLUGIN_MODE || secrets.FORCE_PLUGIN_MODE || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"ENABLE_MIDDLEWARE_BRIDGE=${{ vars.ENABLE_MIDDLEWARE_BRIDGE || secrets.ENABLE_MIDDLEWARE_BRIDGE || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"BRIDGE_INTEGRATION_MODE=${{ vars.BRIDGE_INTEGRATION_MODE || secrets.BRIDGE_INTEGRATION_MODE || 'auto' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"BRIDGE_MONITORING_ENABLED=${{ vars.BRIDGE_MONITORING_ENABLED || secrets.BRIDGE_MONITORING_ENABLED || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"BRIDGE_FALLBACK_ENABLED=${{ vars.BRIDGE_FALLBACK_ENABLED || secrets.BRIDGE_FALLBACK_ENABLED || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CLIENT_SECURITY_PLUGIN_ENABLED=${{ vars.CLIENT_SECURITY_PLUGIN_ENABLED || secrets.CLIENT_SECURITY_PLUGIN_ENABLED || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CLIENT_RATE_LIMIT_ENABLED=${{ vars.CLIENT_RATE_LIMIT_ENABLED || secrets.CLIENT_RATE_LIMIT_ENABLED || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CLIENT_PLUGIN_DEBUG=${{ vars.CLIENT_PLUGIN_DEBUG || secrets.CLIENT_PLUGIN_DEBUG || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CLIENT_PLUGIN_VERBOSE_LOGGING=${{ vars.CLIENT_PLUGIN_VERBOSE_LOGGING || secrets.CLIENT_PLUGIN_VERBOSE_LOGGING || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 文件上传配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"UPLOAD_PATH=${{ vars.UPLOAD_PATH || secrets.UPLOAD_PATH || 'uploads' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MAX_FILE_SIZE=${{ vars.MAX_FILE_SIZE || secrets.MAX_FILE_SIZE || '52428800' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 日志配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"DEBUG=${{ vars.DEBUG || secrets.DEBUG || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 会话配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"MAX_SESSIONS_PER_USER=${{ vars.MAX_SESSIONS_PER_USER || secrets.MAX_SESSIONS_PER_USER || '5' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== AI配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"AI_AGENT_DEBUG=${{ vars.AI_AGENT_DEBUG || secrets.AI_AGENT_DEBUG || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"EMBEDDING_PROVIDER=${{ vars.EMBEDDING_PROVIDER || secrets.EMBEDDING_PROVIDER || 'openai' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"EMBEDDING_MODEL=${{ vars.EMBEDDING_MODEL || secrets.EMBEDDING_MODEL || 'text-embedding-3-small' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          
+          echo \"# =================== 测试用户配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"TEST_USER_EMAIL=${{ vars.TEST_USER_EMAIL || secrets.TEST_USER_EMAIL || 'test@planovai.com' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"TEST_USER_PASSWORD=${{ secrets.TEST_USER_PASSWORD }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== SSL/TLS配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"USE_HTTPS=${{ vars.USE_HTTPS || secrets.USE_HTTPS || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== CORS配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"CORS_ORIGIN=${{ vars.CORS_ORIGIN || secrets.CORS_ORIGIN }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== Socket.IO配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"SOCKET_CORS_ORIGINS=${{ vars.SOCKET_CORS_ORIGINS || secrets.SOCKET_CORS_ORIGINS }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 前端配置 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_VERSION=${{ vars.REACT_APP_VERSION || secrets.REACT_APP_VERSION || '1.0.0' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_WS_URL=${{ vars.REACT_APP_WS_URL || secrets.REACT_APP_WS_URL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_MCP_DOC_URL=${{ vars.REACT_APP_MCP_DOC_URL || secrets.REACT_APP_MCP_DOC_URL }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_SIGNATURE_KEY=${{ secrets.REACT_APP_SIGNATURE_KEY || secrets.SIGNATURE_SECRET }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_ENABLE_THREE_LAYER_ENCRYPTION=${{ vars.REACT_APP_ENABLE_THREE_LAYER_ENCRYPTION || secrets.REACT_APP_ENABLE_THREE_LAYER_ENCRYPTION || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_ENABLE_BASE_OBFUSCATION=${{ vars.REACT_APP_ENABLE_BASE_OBFUSCATION || secrets.REACT_APP_ENABLE_BASE_OBFUSCATION || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_ENABLE_BASE_ENCRYPTION=${{ vars.REACT_APP_ENABLE_BASE_ENCRYPTION || secrets.REACT_APP_ENABLE_BASE_ENCRYPTION || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_ENABLE_E2E_ENCRYPTION=${{ vars.REACT_APP_ENABLE_E2E_ENCRYPTION || secrets.REACT_APP_ENABLE_E2E_ENCRYPTION || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_LOGS=${{ vars.REACT_APP_CONSOLE_LOGS || secrets.REACT_APP_CONSOLE_LOGS || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_DEBUG=${{ vars.REACT_APP_CONSOLE_DEBUG || secrets.REACT_APP_CONSOLE_DEBUG || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_INFO=${{ vars.REACT_APP_CONSOLE_INFO || secrets.REACT_APP_CONSOLE_INFO || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_WARN=${{ vars.REACT_APP_CONSOLE_WARN || secrets.REACT_APP_CONSOLE_WARN || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_ERROR=${{ vars.REACT_APP_CONSOLE_ERROR || secrets.REACT_APP_CONSOLE_ERROR || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_PLUGINS=${{ vars.REACT_APP_CONSOLE_PLUGINS || secrets.REACT_APP_CONSOLE_PLUGINS || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_API=${{ vars.REACT_APP_CONSOLE_API || secrets.REACT_APP_CONSOLE_API || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_COMPONENTS=${{ vars.REACT_APP_CONSOLE_COMPONENTS || secrets.REACT_APP_CONSOLE_COMPONENTS || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_COLLABORATION=${{ vars.REACT_APP_CONSOLE_COLLABORATION || secrets.REACT_APP_CONSOLE_COLLABORATION || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_SILENT=${{ vars.REACT_APP_CONSOLE_SILENT || secrets.REACT_APP_CONSOLE_SILENT || 'true' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_CONSOLE_DEBUG_MODE=${{ vars.REACT_APP_CONSOLE_DEBUG_MODE || secrets.REACT_APP_CONSOLE_DEBUG_MODE || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"REACT_APP_DEBUG_MODE=${{ vars.REACT_APP_DEBUG_MODE || secrets.REACT_APP_DEBUG_MODE || 'false' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"# =================== 监控和日志 ===================\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"AUDIT_LOG_PATH=${{ vars.AUDIT_LOG_PATH || secrets.AUDIT_LOG_PATH || './logs/security-audit.log' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+          echo \"GEOIP_ENDPOINT=${{ vars.GEOIP_ENDPOINT || secrets.GEOIP_ENDPOINT || 'https://ipapi.co' }}\" >> ${{ env.DEPLOY_PATH }}/.env
+        "
+        
+        echo "✅ 环境配置文件已创建（从GitHub Secrets读取完整配置）"
+        
+        # 验证.env文件是否真的创建成功
+        echo ""
+        echo "🔍 验证.env文件创建..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -f ${{ env.DEPLOY_PATH }}/.env ]; then
+            echo '✅ .env文件存在'
+            echo '📁 文件路径: ${{ env.DEPLOY_PATH }}/.env'
+            echo '📊 文件大小: '\$(ls -lh ${{ env.DEPLOY_PATH }}/.env | awk '{print \$5}')
+            echo '📝 前10行内容:'
+            head -10 ${{ env.DEPLOY_PATH }}/.env
+            echo ''
+            echo '✅ NODE_ENV设置:'
+            grep '^NODE_ENV=' ${{ env.DEPLOY_PATH }}/.env || echo '❌ NODE_ENV未找到'
+          else
+            echo '❌ .env文件不存在！'
+            exit 1
+          fi
+        "
+        
+        echo ""
+        echo "📊 配置统计："
+        echo "  - 总变量数: 86个"
+        echo "  - 插件系统配置: 13个（新增）"
+        echo "  - 端口和Redis配置: 3个（新增）"
+        echo "  - 安全变量: ENCRYPTION_KEY, SIGNATURE_SECRET"
+        echo "  - 前端变量: 21个"
+    
+    - name: 验证环境配置
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
-        echo "创建生产环境配置文件..."
+        echo "==================================="
+        echo "🔍 验证环境配置..."
+        echo "==================================="
         
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          cd ${{ env.DEPLOY_PATH }}
+          
+          # 检查禁止的环境变量
+          echo "1️⃣  检查禁止的开发环境变量..."
+          FORBIDDEN_VARS=("ENABLE_DEV_MODE" "DEV_AUTH_BYPASS" "DEV_PERMISSIONS_BYPASS" "DEV_AUTH_BYPASS_KEY" "DEV_TOKEN")
+          FOUND_FORBIDDEN=0
+          
+          for var in "${FORBIDDEN_VARS[@]}"; do
+            # 检查.env文件
+            if [ -f .env ] && grep -q "^$var=true" .env 2>/dev/null; then
+              echo "❌ 错误: .env中发现 $var=true"
+              FOUND_FORBIDDEN=1
+            fi
+            
+            # 检查server/.env文件
+            if [ -f server/.env ] && grep -q "^$var=true" server/.env 2>/dev/null; then
+              echo "❌ 错误: server/.env中发现 $var=true"
+              FOUND_FORBIDDEN=1
+            fi
+          done
+          
+          if [ $FOUND_FORBIDDEN -eq 1 ]; then
+            echo ""
+            echo "🚨 环境配置验证失败！发现禁止的开发变量"
+            exit 1
+          fi
+          
+          echo "✅ 未发现禁止的变量"
+          
+          # 检查必需的生产环境变量
+          echo "2️⃣  检查必需的生产环境变量..."
+          if ! grep -q "^NODE_ENV=production" .env 2>/dev/null; then
+            echo "❌ 错误: NODE_ENV不是production"
+            exit 1
+          fi
+          echo "✅ NODE_ENV=production"
+          
+          if ! grep -q "^PRODUCTION_DEPLOYMENT=true" .env 2>/dev/null; then
+            echo "❌ 错误: PRODUCTION_DEPLOYMENT未设置"
+            exit 1
+          fi
+          echo "✅ PRODUCTION_DEPLOYMENT=true"
+          
+          # 检查关键环境变量是否有值
+          echo "2️⃣.1 检查关键环境变量..."
+          REQUIRED_VARS=("MONGO_URI" "JWT_SECRET")
+          MISSING_VARS=0
+          
+          for var in "${REQUIRED_VARS[@]}"; do
+            if ! grep -q "^$var=" .env 2>/dev/null; then
+              echo "❌ 错误: $var 未在 .env 中定义"
+              MISSING_VARS=1
+            elif grep -q "^$var=$" .env 2>/dev/null || grep -q "^$var=''$" .env 2>/dev/null || grep -q "^$var=\"\"$" .env 2>/dev/null; then
+              echo "❌ 错误: $var 的值为空"
+              MISSING_VARS=1
+            else
+              echo "✅ $var 已设置"
+              
+              # 特殊检查：JWT_SECRET 的安全要求
+              if [ "$var" = "JWT_SECRET" ]; then
+                JWT_VALUE=$(grep "^JWT_SECRET=" .env | cut -d= -f2)
+                JWT_LENGTH=${#JWT_VALUE}
+                
+                if [ $JWT_LENGTH -lt 64 ]; then
+                  echo "❌ 错误: JWT_SECRET 长度不足 (当前: $JWT_LENGTH, 要求: 64+)"
+                  echo "   JWT_SECRET 必须至少64个字符"
+                  MISSING_VARS=1
+                else
+                  echo "   ✅ JWT_SECRET 长度: $JWT_LENGTH 字符"
+                  
+                  # 检查复杂度（使用更简单的方法避免shell转义问题）
+                  HAS_LOWER=0
+                  HAS_UPPER=0
+                  HAS_NUMBER=0
+                  HAS_SPECIAL=0
+                  
+                  echo "$JWT_VALUE" | grep -q "[a-z]" && HAS_LOWER=1
+                  echo "$JWT_VALUE" | grep -q "[A-Z]" && HAS_UPPER=1
+                  echo "$JWT_VALUE" | grep -q "[0-9]" && HAS_NUMBER=1
+                  echo "$JWT_VALUE" | grep -q "[^a-zA-Z0-9]" && HAS_SPECIAL=1
+                  
+                  COMPLEXITY=$((HAS_LOWER + HAS_UPPER + HAS_NUMBER + HAS_SPECIAL))
+                  
+                  if [ $COMPLEXITY -lt 3 ]; then
+                    echo "❌ 错误: JWT_SECRET 复杂度不足 (当前: $COMPLEXITY/4, 要求: 3+)"
+                    echo "   必须包含至少3种字符类型："
+                    [ $HAS_LOWER -eq 0 ] && echo "   ❌ 缺少小写字母 (a-z)"
+                    [ $HAS_UPPER -eq 0 ] && echo "   ❌ 缺少大写字母 (A-Z)"
+                    [ $HAS_NUMBER -eq 0 ] && echo "   ❌ 缺少数字 (0-9)"
+                    [ $HAS_SPECIAL -eq 0 ] && echo "   ❌ 缺少特殊字符 (_-等)"
+                    MISSING_VARS=1
+                  else
+                    echo "   ✅ JWT_SECRET 复杂度: $COMPLEXITY/4 种字符类型"
+                  fi
+                fi
+              fi
+            fi
+          done
+          
+          if [ $MISSING_VARS -eq 1 ]; then
+            echo ""
+            echo "🚨 环境配置验证失败！关键环境变量缺失或为空"
+            echo "请检查 GitHub Secrets 中是否正确设置了 MONGO_URI 和 JWT_SECRET"
+            exit 1
+          fi
+          
+          # 检查是否存在残留的开发环境文件
+          echo "3️⃣  检查残留的开发环境文件..."
+          DEV_FILES=0
+          for envfile in .env.local .env.development server/.env.local server/.env.development; do
+            if [ -f "$envfile" ]; then
+              echo "⚠️  警告: 发现残留文件 $envfile"
+              rm -f "$envfile"
+              DEV_FILES=1
+            fi
+          done
+          
+          if [ $DEV_FILES -eq 0 ]; then
+            echo "✅ 未发现残留的开发环境文件"
+          else
+            echo "✅ 已清理残留的开发环境文件"
+          fi
+          
+          echo ""
+          echo "4️⃣  验证WebSocket配置..."
+          if grep -q "^SOCKET_CORS_ORIGINS=" .env 2>/dev/null; then
+            SOCKET_ORIGINS=$(grep "^SOCKET_CORS_ORIGINS=" .env | cut -d= -f2-)
+            echo "✅ SOCKET_CORS_ORIGINS已设置: $SOCKET_ORIGINS"
+          else
+            echo "❌ 错误: SOCKET_CORS_ORIGINS未设置"
+            exit 1
+          fi
+          
+          if grep -q "^REACT_APP_WS_URL=" .env 2>/dev/null; then
+            WS_URL=$(grep "^REACT_APP_WS_URL=" .env | cut -d= -f2-)
+            echo "✅ REACT_APP_WS_URL已设置: $WS_URL"
+          else
+            echo "❌ 错误: REACT_APP_WS_URL未设置"
+            exit 1
+          fi
+          
+          echo ""
+          echo "==================================="
+          echo "✅ 环境配置验证通过！"
+          echo "==================================="
+        '
+    
+    - name: 验证关键文件并清理旧依赖
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "验证关键文件并清理旧依赖..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          cd ${{ env.DEPLOY_PATH }}/server
+          
+          # 1. 验证package.json存在且包含关键依赖
+          echo "📦 验证package.json..."
+          if [ ! -f package.json ]; then
+            echo "❌ 错误：package.json不存在！"
+            exit 1
+          fi
+          
+          # 检查关键依赖是否在package.json中
+          for pkg in cookie-parser express mongoose socket.io; do
+            if ! grep -q "$pkg" package.json; then
+              echo "❌ 错误：关键依赖 $pkg 不在package.json中！"
+              exit 1
+            fi
+          done
+          echo "✅ package.json验证通过"
+          
+          # 2. 显示package.json更新时间
+          echo "📅 package.json更新时间:"
+          ls -lh package.json
+          
+          # 3. 清理旧的node_modules和package-lock.json
+          echo "🧹 清理旧的依赖..."
+          rm -rf node_modules
+          rm -f package-lock.json
+          echo "✅ 旧依赖清理完成"
+        '
+    
+    - name: 安装后端依赖
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      timeout-minutes: 15
+      run: |
+        echo "安装后端依赖..."
+        echo "⏱️  注意：依赖安装可能需要5-10分钟，请耐心等待..."
+        echo ""
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'EOF_BACKEND_INSTALL'
+          cd ${{ env.DEPLOY_PATH }}/server
+          
+          echo "📥 开始安装依赖..."
+          echo "💾 当前磁盘空间："
+          df -h /opt | grep -v Filesystem
+          echo ""
+          
+          # 显示package.json中的依赖数量
+          DEP_COUNT=$(cat package.json | grep -c '"dependencies":' || echo 0)
+          if [ $DEP_COUNT -gt 0 ]; then
+            TOTAL_DEPS=$(cat package.json | sed -n '/"dependencies"/,/}/p' | grep -c ":" || echo "未知")
+            echo "📦 将安装约 $TOTAL_DEPS 个生产依赖包"
+            echo ""
+          fi
+          
+          # 使用npm新语法安装生产依赖，并显示进度
+          echo "🔄 正在安装... (npm deprecation警告是正常的，可以忽略)"
+          npm install --omit=dev --progress=true --loglevel=info
+          
+          INSTALL_EXIT_CODE=$?
+          echo ""
+          
+          if [ $INSTALL_EXIT_CODE -ne 0 ]; then
+            echo "❌ npm install失败！退出码: $INSTALL_EXIT_CODE"
+            echo "💾 安装后磁盘空间："
+            df -h /opt | grep -v Filesystem
+            exit 1
+          fi
+          
+          # 显示安装结果
+          echo "✅ 依赖安装完成"
+          if [ -d node_modules ]; then
+            NODE_MODULES_SIZE=$(du -sh node_modules | cut -f1)
+            echo "📦 node_modules大小: $NODE_MODULES_SIZE"
+          fi
+          
+          # 验证Socket.IO是否正确安装
+          echo ""
+          echo "🔍 验证Socket.IO安装..."
+          if [ -d "node_modules/socket.io" ]; then
+            echo "✅ Socket.IO模块已安装"
+            SOCKET_VERSION=$(cat node_modules/socket.io/package.json | grep '"version"' | cut -d'"' -f4)
+            echo "📦 Socket.IO版本: $SOCKET_VERSION"
+          else
+            echo "❌ Socket.IO模块未安装！"
+            echo "🔄 尝试重新安装Socket.IO..."
+            npm install socket.io --save
+          fi
+          
+          # 验证Socket.IO服务器模块
+          if [ -d "node_modules/socket.io" ]; then
+            echo "✅ Socket.IO服务器模块验证通过"
+          else
+            echo "❌ Socket.IO服务器模块验证失败！"
+            exit 1
+          fi
+          
+          echo "💾 安装后磁盘空间："
+          df -h /opt | grep -v Filesystem
+        EOF_BACKEND_INSTALL
+    
+    - name: 验证关键依赖安装
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "验证关键依赖是否安装..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          cd ${{ env.DEPLOY_PATH }}/server
+          
+          echo "🔍 验证关键依赖..."
+          missing_packages=()
+          
+          # 检查关键依赖（包括Socket.IO）
+          for pkg in cookie-parser archiver docx glob node-cron node-schedule speakeasy validator socket.io; do
+            if [ ! -d "node_modules/$pkg" ]; then
+              missing_packages+=("$pkg")
+              echo "❌ 缺失: $pkg"
+            else
+              echo "✅ 已安装: $pkg"
+            fi
+          done
+          
+          # 如果有缺失的包，报错并退出
+          if [ ${#missing_packages[@]} -gt 0 ]; then
+            echo ""
+            echo "❌ 错误：以下关键依赖未安装:"
+            printf "%s\n" "${missing_packages[@]}"
+            echo ""
+            echo "尝试手动安装这些包..."
+            npm install ${missing_packages[@]} --production
+            
+            # 再次验证
+            for pkg in "${missing_packages[@]}"; do
+              if [ ! -d "node_modules/$pkg" ]; then
+                echo "❌ 仍然缺失: $pkg"
+                exit 1
+              fi
+            done
+          fi
+          
+          echo ""
+          echo "✅ 所有关键依赖验证通过！"
+          echo ""
+          echo "📊 node_modules统计:"
+          echo "总包数: $(ls node_modules | wc -l)"
+          echo "总大小: $(du -sh node_modules | cut -f1)"
+        '
+    
+    - name: 清理前端旧依赖
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'frontend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "清理前端旧依赖..."
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           cd ${{ env.DEPLOY_PATH }}/client
           
-          # 创建.env文件供Next.js读取
-          echo '# =================== 环境配置 ===================' > .env
-          echo 'NODE_ENV=production' >> .env
-          echo '' >> .env
-          
-          echo '# =================== 数据库配置 ===================' >> .env
-          echo 'DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}?schema=public' >> .env
-          echo '' >> .env
-          
-          echo '# =================== NextAuth配置 ===================' >> .env
-          echo 'NEXTAUTH_URL=${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}' >> .env
-          echo 'NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}' >> .env
-          echo '' >> .env
-          
-          echo '# =================== 应用配置 ===================' >> .env
-          echo 'APP_URL=${{ vars.APP_URL || secrets.APP_URL }}' >> .env
-          echo 'PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}' >> .env
-          echo '' >> .env
-          
-          echo '# =================== 日志配置 ===================' >> .env
-          echo 'LOG_LEVEL=${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}' >> .env
-          
-          echo '✅ 环境配置文件已创建: ${{ env.DEPLOY_PATH }}/client/.env'
+          echo '🧹 清理旧的node_modules和build...'
+          rm -rf node_modules
+          rm -rf build
+          rm -f package-lock.json
+          echo '✅ 前端旧依赖清理完成'
         "
     
-    - name: 安装依赖并构建
-      if: inputs.deploy_mode != 'check'
+    - name: 安装前端依赖并构建
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'frontend'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
-      timeout-minutes: 30
+      timeout-minutes: 20
       run: |
-        echo "==================================="
-        echo "安装依赖并构建应用..."
-        echo "==================================="
+        echo "安装前端依赖并构建..."
+        echo "⏱️  注意：前端依赖安装和构建可能需要10-15分钟，请耐心等待..."
+        echo ""
         
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
           cd ${{ env.DEPLOY_PATH }}/client
           
-          echo "📥 安装依赖..."
-          npm install --production=false
+          echo "📥 安装前端依赖..."
+          echo "💾 当前磁盘空间："
+          df -h /opt | grep -v Filesystem
+          echo ""
           
-          echo "🔄 生成Prisma客户端..."
-          npx prisma generate
+          npm install --progress=true --loglevel=info
           
-          echo "🗄️  运行数据库迁移..."
-          npx prisma db push --skip-generate
+          if [ $? -ne 0 ]; then
+            echo "❌ 前端依赖安装失败！"
+            df -h /opt | grep -v Filesystem
+            exit 1
+          fi
           
-          echo "🔨 构建Next.js应用..."
+          echo ""
+          echo "🔧 配置前端构建环境变量..."
+          
+          # 从根目录的.env文件读取环境变量
+          if [ -f ${{ env.DEPLOY_PATH }}/.env ]; then
+            echo "从.env文件读取环境变量..."
+            
+            # 提取前端相关的环境变量
+            REACT_APP_API_URL=$(grep "^REACT_APP_API_URL=" ${{ env.DEPLOY_PATH }}/.env | cut -d= -f2- | tr -d "\"")
+            REACT_APP_WS_URL=$(grep "^REACT_APP_WS_URL=" ${{ env.DEPLOY_PATH }}/.env | cut -d= -f2- | tr -d "\"")
+            REACT_APP_VERSION=$(grep "^REACT_APP_VERSION=" ${{ env.DEPLOY_PATH }}/.env | cut -d= -f2- | tr -d "\"")
+            REACT_APP_MCP_DOC_URL=$(grep "^REACT_APP_MCP_DOC_URL=" ${{ env.DEPLOY_PATH }}/.env | cut -d= -f2- | tr -d "\"")
+            REACT_APP_SIGNATURE_KEY=$(grep "^REACT_APP_SIGNATURE_KEY=" ${{ env.DEPLOY_PATH }}/.env | cut -d= -f2- | tr -d "\"")
+            
+            # 创建前端构建环境变量文件
+            echo "REACT_APP_API_URL=${REACT_APP_API_URL}" > .env.production
+            echo "REACT_APP_WS_URL=${REACT_APP_WS_URL:-auto}" >> .env.production
+            echo "REACT_APP_VERSION=${REACT_APP_VERSION}" >> .env.production
+            echo "REACT_APP_MCP_DOC_URL=${REACT_APP_MCP_DOC_URL}" >> .env.production
+            echo "REACT_APP_SIGNATURE_KEY=${REACT_APP_SIGNATURE_KEY}" >> .env.production
+            echo "REACT_APP_ENABLE_THREE_LAYER_ENCRYPTION=true" >> .env.production
+            echo "REACT_APP_ENABLE_BASE_OBFUSCATION=true" >> .env.production
+            echo "REACT_APP_ENABLE_BASE_ENCRYPTION=true" >> .env.production
+            echo "REACT_APP_ENABLE_E2E_ENCRYPTION=true" >> .env.production
+            echo "REACT_APP_CONSOLE_LOGS=false" >> .env.production
+            echo "REACT_APP_CONSOLE_DEBUG=false" >> .env.production
+            echo "REACT_APP_CONSOLE_INFO=false" >> .env.production
+            echo "REACT_APP_CONSOLE_WARN=true" >> .env.production
+            echo "REACT_APP_CONSOLE_ERROR=true" >> .env.production
+            echo "REACT_APP_CONSOLE_PLUGINS=false" >> .env.production
+            echo "REACT_APP_CONSOLE_API=false" >> .env.production
+            echo "REACT_APP_CONSOLE_COMPONENTS=false" >> .env.production
+            echo "REACT_APP_CONSOLE_COLLABORATION=false" >> .env.production
+            echo "REACT_APP_CONSOLE_SILENT=true" >> .env.production
+            echo "REACT_APP_CONSOLE_DEBUG_MODE=false" >> .env.production
+            echo "REACT_APP_DEBUG_MODE=false" >> .env.production
+            
+            echo "✅ 前端环境变量配置完成"
+            echo "📋 配置的环境变量:"
+            echo "  REACT_APP_API_URL: ${REACT_APP_API_URL}"
+            echo "  REACT_APP_WS_URL: ${REACT_APP_WS_URL}"
+            echo "  REACT_APP_VERSION: ${REACT_APP_VERSION}"
+          else
+            echo "⚠️ 警告: 未找到.env文件，使用默认配置"
+          fi
+          
+          echo ""
+          echo "🔨 构建前端..."
           npm run build
           
-          echo "✅ 构建完成"
+          if [ $? -ne 0 ]; then
+            echo "❌ 前端构建失败！"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ 前端构建完成"
+          echo "📦 构建产物大小:"
+          du -sh build
+          echo "💾 构建后磁盘空间："
+          df -h /opt | grep -v Filesystem
+          
+          echo ""
+          echo "🔍 验证前端环境变量配置..."
+          if [ -f .env.production ]; then
+            echo "✅ .env.production文件已创建"
+            echo "📋 关键环境变量:"
+            grep "REACT_APP_API_URL\|REACT_APP_WS_URL" .env.production || echo "⚠️ 关键变量未找到"
+          else
+            echo "❌ 警告: .env.production文件未创建"
+          fi
         '
     
-    - name: 启动应用服务
-      if: inputs.deploy_mode != 'check'
+    - name: 停止旧的PM2进程
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
-        echo "启动应用服务..."
-        
+        echo "停止旧的PM2进程..."
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
-          cd ${{ env.DEPLOY_PATH }}/client
+          # 停止并删除旧的后端进程
+          if pm2 describe planovai-backend > /dev/null 2>&1; then
+            echo '🛑 停止旧的planovai-backend进程...'
+            pm2 stop planovai-backend
+            pm2 delete planovai-backend
+            echo '✅ 旧进程已清理'
+          else
+            echo '✅ 未发现旧的planovai-backend进程'
+          fi
           
-          # 设置PORT环境变量供PM2读取
-          # PM2的ecosystem.config.js会从process.env.PORT读取并传递给Next.js
-          export PORT=${{ vars.APP_PORT || secrets.APP_PORT || '3001' }}
-          
-          # 使用PM2 ecosystem配置启动应用
-          pm2 start ecosystem.config.js \
-            --log ${{ env.DEPLOY_PATH }}/logs/pm2-combined.log \
-            --error ${{ env.DEPLOY_PATH }}/logs/pm2-error.log
-          
-          pm2 save
-          pm2 startup || echo '⚠️  pm2 startup需要手动配置sudo权限'
-          
-          echo '✅ 应用服务已启动'
-          echo ''
-          echo '📊 日志位置:'
-          echo '   应用日志: ${{ env.DEPLOY_PATH }}/logs/combined-*.log (Winston统一日志)'
-          echo '   错误日志: ${{ env.DEPLOY_PATH }}/logs/error-*.log'
-          echo '   PM2监控: ${{ env.DEPLOY_PATH }}/logs/pm2-*.log (仅PM2元数据)'
-          echo '   Nginx访问: ${{ env.DEPLOY_PATH }}/logs/nginx-access.log'
-          echo ''
-          echo '📖 查看日志:'
-          echo '   实时监控: tail -f ${{ env.DEPLOY_PATH }}/logs/combined-*.log'
-          echo '   错误追踪: tail -f ${{ env.DEPLOY_PATH }}/logs/error-*.log'
-          echo '   PM2状态: pm2 logs homelabs-portal'
+          # 清理PM2缓存
+          pm2 flush
         "
     
+    - name: 清理旧的PM2日志
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "清理旧的PM2日志文件..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          # 备份旧日志（可选，保留最近一次）
+          if [ -f ${{ env.DEPLOY_PATH }}/logs/planovai-combined.log ]; then
+            echo '📦 备份旧日志到 planovai-combined.log.old'
+            mv ${{ env.DEPLOY_PATH }}/logs/planovai-combined.log \
+               ${{ env.DEPLOY_PATH }}/logs/planovai-combined.log.old 2>/dev/null || true
+          fi
+          
+          if [ -f ${{ env.DEPLOY_PATH }}/logs/planovai-error.log ]; then
+            echo '📦 备份旧日志到 planovai-error.log.old'
+            mv ${{ env.DEPLOY_PATH }}/logs/planovai-error.log \
+               ${{ env.DEPLOY_PATH }}/logs/planovai-error.log.old 2>/dev/null || true
+          fi
+          
+          # 删除更早的备份（只保留一次备份）
+          rm -f ${{ env.DEPLOY_PATH }}/logs/*.log.old.* 2>/dev/null || true
+          
+          echo '✅ 日志清理完成，准备开始新的部署日志'
+        "
+    
+    - name: 启动后端服务
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "启动后端服务..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          cd ${{ env.DEPLOY_PATH }}/server
+          
+          # 调试：检查.env文件是否存在
+          echo '🔍 启动前环境检查:'
+          echo '当前目录: '\$(pwd)
+          echo '项目根目录.env: '\$(ls -la ${{ env.DEPLOY_PATH }}/.env 2>/dev/null || echo '不存在')
+          echo ''
+          
+          # 使用统一的日志文件
+          pm2 start index.js --name planovai-backend \
+            --log ${{ env.DEPLOY_PATH }}/logs/planovai-combined.log \
+            --error ${{ env.DEPLOY_PATH }}/logs/planovai-error.log \
+            --time \
+            --merge-logs
+          
+          pm2 save
+          
+          # 尝试设置开机自启（如果失败也不影响部署）
+          pm2 startup || echo '⚠️  pm2 startup需要手动配置sudo权限，服务已正常启动'
+        "
+    
+    - name: 验证后端服务健康
+      if: env.DEPLOY_MODE == 'all' || env.DEPLOY_MODE == 'backend'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "验证后端服务健康..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          # 等待服务启动
+          echo "⏳ 等待服务启动（最多30秒）..."
+          sleep 5
+          
+          # 检查PM2状态
+          echo "🔍 检查PM2状态..."
+          pm2 describe planovai-backend > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "❌ 错误：planovai-backend进程不存在！"
+            pm2 list
+            exit 1
+          fi
+          
+          # 检查进程状态
+          status=$(pm2 jlist | jq -r ".[] | select(.name==\"planovai-backend\") | .pm2_env.status")
+          if [ "$status" != "online" ]; then
+            echo "❌ 错误：服务状态异常: $status"
+            echo ""
+            echo "最后50行错误日志:"
+            pm2 logs planovai-backend --err --lines 50 --nostream
+            exit 1
+          fi
+          
+          # 检查是否有启动错误
+          echo "🔍 检查启动日志..."
+          if grep -i "error" ${{ env.DEPLOY_PATH }}/logs/planovai-error.log | tail -20; then
+            echo ""
+            echo "⚠️  警告：发现错误日志，请检查"
+            echo ""
+            echo "最后20行错误:"
+            tail -20 ${{ env.DEPLOY_PATH }}/logs/planovai-error.log
+            echo ""
+            echo "是否继续？检查这些错误是否致命..."
+            
+            # 检查是否有关键错误（如模块缺失）
+            if grep -i "cannot find module" ${{ env.DEPLOY_PATH }}/logs/planovai-error.log; then
+              echo "❌ 致命错误：发现模块缺失！"
+              exit 1
+            fi
+          else
+            echo "✅ 未发现启动错误"
+          fi
+          
+          # 尝试健康检查API（如果存在）
+          echo "🔍 测试API连通性..."
+          max_attempts=6
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "尝试 $attempt/$max_attempts..."
+            
+            if curl -f -s http://localhost:5555/api/health > /dev/null 2>&1 || \
+               curl -f -s http://localhost:5555/ > /dev/null 2>&1; then
+              echo "✅ API响应正常"
+              break
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "⚠️  警告：API未响应，但进程运行正常"
+              echo "这可能需要手动检查"
+            fi
+            
+            sleep 5
+            attempt=$((attempt + 1))
+          done
+          
+          echo ""
+          echo "📊 最终状态:"
+          pm2 list
+          echo ""
+          echo "✅ 后端服务验证完成"
+        '
+    
+    # 前端服务配置已由Nginx自动配置步骤处理（见上方"🚀 部署Nginx配置"步骤）
+    
     - name: 验证部署
-      if: inputs.deploy_mode != 'check'
+      if: env.DEPLOY_MODE != 'check'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
@@ -813,26 +1877,58 @@ jobs:
         echo "==================================="
         
         # 等待服务启动
-        sleep 10
+        sleep 5
         
+        # 检查PM2状态
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
           echo '1. PM2服务状态:'
           pm2 status
           
           echo ''
-          echo '2. 检查应用端口:'
-          sudo ss -tlnp | grep :3000 || echo '应用端口3000未监听'
+          echo '2. 检查后端端口:'
+          sudo ss -tlnp | grep :5555 || echo '后端端口5555未监听'
           
           echo ''
-          echo '3. 检查PostgreSQL:'
-          sudo systemctl status postgresql | head -5
+          echo '3. 检查前端端口:'
+          sudo ss -tlnp | grep :3333 || echo '前端端口3333未监听'
           
           echo ''
-          echo '4. 测试应用访问:'
-          if curl -f -s http://localhost:3000 > /dev/null 2>&1; then
-            echo '✅ 应用响应正常'
+          echo '4. 检查MongoDB:'
+          sudo systemctl status mongod | head -5
+          
+          echo ''
+          echo '5. 检查Redis:'
+          REDIS_SERVICE='redis'
+          if systemctl list-units --full -all | grep -q 'redis-server.service'; then
+            REDIS_SERVICE='redis-server'
+          fi
+          sudo systemctl status \$REDIS_SERVICE | head -5
+          
+          echo ''
+          echo '6. 测试WebSocket连接:'
+          # 测试后端Socket.IO端点
+          if curl -f -s http://localhost:5555/socket.io/ > /dev/null 2>&1; then
+            echo '✅ 后端Socket.IO端点可访问'
           else
-            echo '⚠️  应用未响应'
+            echo '⚠️  后端Socket.IO端点不可访问'
+          fi
+          
+          # 测试Socket.IO握手
+          echo '7. 测试Socket.IO握手:'
+          SOCKETIO_RESPONSE=$(curl -s "http://localhost:5555/socket.io/?EIO=4&transport=polling" 2>/dev/null)
+          if [ $? -eq 0 ] && [ -n "$SOCKETIO_RESPONSE" ]; then
+            echo '✅ Socket.IO握手成功'
+            echo "响应: $SOCKETIO_RESPONSE"
+          else
+            echo '❌ Socket.IO握手失败'
+          fi
+          
+          # 检查前端构建产物中的WebSocket配置
+          if [ -f ${{ env.DEPLOY_PATH }}/client/.env.production ]; then
+            echo '✅ 前端WebSocket环境变量已配置:'
+            grep "REACT_APP_WS_URL" ${{ env.DEPLOY_PATH }}/client/.env.production || echo '⚠️  REACT_APP_WS_URL未找到'
+          else
+            echo '⚠️  前端.env.production文件不存在'
           fi
         "
         
@@ -840,48 +1936,117 @@ jobs:
         echo "==================================="
         echo "✅ 部署完成！"
         echo "==================================="
-        echo "访问地址: http://${{ env.SERVER_HOST }}"
+        echo "前端地址: http://${{ env.SERVER_HOST }}:3333"
+        echo "后端API: http://${{ env.SERVER_HOST }}:5555"
         echo ""
-        echo "📊 查看日志 (所有日志已统一到 ${{ env.DEPLOY_PATH }}/logs/):"
-        echo "  应用日志: tail -f ${{ env.DEPLOY_PATH }}/logs/combined-*.log"
-        echo "  错误日志: tail -f ${{ env.DEPLOY_PATH }}/logs/error-*.log"
-        echo "  Nginx访问: tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-access.log"
-        echo "  PM2监控: pm2 logs homelabs-portal"
+        echo "查看日志:"
+        echo "  后端: pm2 logs planovai-backend"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "[ -d '${{ env.DEPLOY_PATH }}/logs' ]"; then
+          echo "  前端(Nginx): tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-access.log"
+          echo "  Nginx错误: tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-error.log"
+        else
+          echo "  前端(Nginx): sudo tail -f /var/log/nginx/access.log"
+          echo "  Nginx错误: sudo tail -f /var/log/nginx/error.log"
+        fi
     
     - name: 清理和回滚（失败时）
-      if: ${{ failure() && inputs.deploy_mode != 'check' }}
+      if: ${{ failure() && env.DEPLOY_MODE != 'check' }}
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
       run: |
         echo "==================================="
-        echo "⚠️  部署失败，执行回滚..."
+        echo "⚠️  部署失败，执行清理和回滚..."
         echo "==================================="
         
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
-          # 停止失败的服务
+          # 1. 停止失败的服务
+          echo "1️⃣  停止失败的服务..."
           pm2 stop all 2>/dev/null || true
           pm2 delete all 2>/dev/null || true
           
-          # 检查备份并回滚
-          if [ -f /tmp/homelabs_last_backup ]; then
-            BACKUP_DIR=$(cat /tmp/homelabs_last_backup)
+          # 2. 检查是否有备份
+          if [ -f /tmp/planovai_last_backup ]; then
+            BACKUP_DIR=$(cat /tmp/planovai_last_backup)
             
             if [ -d "$BACKUP_DIR" ]; then
-              echo "发现备份: $BACKUP_DIR"
+              echo "2️⃣  发现备份: $BACKUP_DIR"
               echo "正在回滚..."
               
-              # 使用sudo进行回滚操作
-              sudo rm -rf ${{ env.DEPLOY_PATH }}
-              sudo mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
-              sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+              # 删除失败的部署
+              rm -rf ${{ env.DEPLOY_PATH }}
               
-              # 尝试重启旧版本
-              cd ${{ env.DEPLOY_PATH }}/client
-              pm2 start npm --name homelabs-portal -- start 2>/dev/null || true
+              # 恢复备份
+              mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
+              
+              echo "✅ 回滚完成"
+              
+              # 尝试重启旧版本服务
+              echo "3️⃣  尝试重启旧版本服务..."
+              cd ${{ env.DEPLOY_PATH }}/server
+              pm2 start index.js --name planovai-backend \
+                --log ${{ env.DEPLOY_PATH }}/logs/planovai-combined.log \
+                --error ${{ env.DEPLOY_PATH }}/logs/planovai-error.log \
+                --time \
+                --merge-logs 2>/dev/null || echo "⚠️  后端启动失败"
+              
+              pm2 save || true
+              
+              # 恢复Nginx配置
+              if [ -f ${{ env.DEPLOY_PATH }}/client/nginx-local.conf ]; then
+                sudo cp ${{ env.DEPLOY_PATH }}/client/nginx-local.conf /etc/nginx/sites-available/planovai-local
+                sudo ln -sf /etc/nginx/sites-available/planovai-local /etc/nginx/sites-enabled/planovai-local
+                sudo nginx -t && sudo systemctl reload nginx 2>/dev/null || echo "⚠️  Nginx重载失败"
+              else
+                echo "⚠️  未找到Nginx配置文件"
+              fi
+              
               pm2 save
               
+              echo ""
+              echo "==================================="
               echo "✅ 已回滚到之前的版本"
+              echo "==================================="
+              echo ""
+              echo "PM2状态:"
+              pm2 status
+            else
+              echo "⚠️  备份目录不存在: $BACKUP_DIR"
             fi
+          else
+            echo "⚠️  未找到备份信息"
           fi
+          
+          # 3. 清理失败的构建产物
+          echo ""
+          echo "4️⃣  清理失败的构建产物..."
+          cd ${{ env.DEPLOY_PATH }}
+          
+          # 清理node_modules（可能部分安装）
+          rm -rf server/node_modules/.staging 2>/dev/null || true
+          rm -rf client/node_modules/.staging 2>/dev/null || true
+          
+          # 清理前端构建产物
+          rm -rf client/build 2>/dev/null || true
+          rm -rf client/.cache 2>/dev/null || true
+          
+          echo "✅ 清理完成"
+          echo ""
+          echo "==================================="
+          echo "📋 失败原因分析建议"
+          echo "==================================="
+          echo "1. 查看GitHub Actions完整日志"
+          echo "2. 检查服务器日志: tail -f ${{ env.DEPLOY_PATH }}/logs/planovai-error.log"
+          echo "3. 检查磁盘空间: df -h"
+          echo "4. 检查内存使用: free -h"
+          echo "5. 检查服务状态: pm2 status"
         '
+    
+    - name: 删除临时备份标记（成功时）
+      if: ${{ success() && env.DEPLOY_MODE != 'check' }}
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        # 部署成功，删除备份标记（保留备份文件以便手动回滚）
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} \
+          "rm -f /tmp/planovai_last_backup"
 
