@@ -578,9 +578,10 @@ jobs:
           if [ -d ${{ env.DEPLOY_PATH }} ]; then
             echo '📦 创建备份: '\$BACKUP_DIR
             
-            # 确保备份目录的父目录存在
-            BACKUP_PARENT=\$(dirname \$BACKUP_DIR)
-            mkdir -p \$BACKUP_PARENT
+            # 使用sudo创建备份目录并设置权限
+            echo '🔐 创建备份目录（需要sudo权限）...'
+            sudo mkdir -p \$BACKUP_DIR
+            sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} \$BACKUP_DIR
             
             # 使用rsync备份（排除不必要的文件）
             echo '🔄 开始备份...'
@@ -592,6 +593,7 @@ jobs:
               --exclude '.git' \
               ${{ env.DEPLOY_PATH }}/ \$BACKUP_DIR/ || {
               echo '❌ 备份失败！'
+              sudo rm -rf \$BACKUP_DIR
               exit 1
             }
             
@@ -599,9 +601,16 @@ jobs:
             if [ -d \$BACKUP_DIR ] && [ \"\$(ls -A \$BACKUP_DIR 2>/dev/null)\" ]; then
               echo '✅ 备份验证成功'
               
-              # 保留最近3个备份
+              # 保留最近3个备份（清理旧备份需要sudo）
+              echo '🧹 清理旧备份（保留最近3个）...'
               cd \$(dirname ${{ env.DEPLOY_PATH }})
-              ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+              OLD_BACKUPS=\$(ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4)
+              if [ -n "\$OLD_BACKUPS" ]; then
+                echo "\$OLD_BACKUPS" | xargs sudo rm -rf
+                echo "   已清理 \$(echo \"\$OLD_BACKUPS\" | wc -l) 个旧备份"
+              else
+                echo "   无需清理旧备份"
+              fi
               
               # 记录备份路径
               echo \$BACKUP_DIR > /tmp/homelabs_last_backup
@@ -851,8 +860,10 @@ jobs:
               echo "发现备份: $BACKUP_DIR"
               echo "正在回滚..."
               
-              rm -rf ${{ env.DEPLOY_PATH }}
-              mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
+              # 使用sudo进行回滚操作
+              sudo rm -rf ${{ env.DEPLOY_PATH }}
+              sudo mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
+              sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
               
               # 尝试重启旧版本
               cd ${{ env.DEPLOY_PATH }}/client

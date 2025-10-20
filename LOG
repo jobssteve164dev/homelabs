@@ -1,9 +1,20 @@
 # 部署日志
 
-工作流部署失败问题已修复 (2025-10-20)
-- 问题: Nginx配置上传时目标目录不存在
-- 原因: 步骤执行顺序错误，目录创建在文件上传之后
-- 修复: 在上传Nginx配置前先确保部署目录存在
+## 2025-10-20 备份权限问题修复
+
+### 问题1: Nginx配置上传失败
+- ❌ 错误: `scp: dest open "/opt/homelabs/nginx-auto.conf": No such file or directory`
+- 🔧 原因: 目录创建在文件上传之后
+- ✅ 修复: 在上传前先创建部署目录
+
+### 问题2: 备份目录创建失败
+- ❌ 错误: `rsync: mkdir "/opt/homelabs_backup_20251020_033728" failed: Permission denied (13)`
+- 🔧 原因: `/opt/` 目录需要sudo权限才能创建子目录
+- ✅ 修复: 
+  * 使用 `sudo mkdir -p` 创建备份目录
+  * 使用 `sudo chown` 将目录所有权转给SSH用户
+  * 清理旧备份时也使用sudo
+  * 回滚操作也使用sudo
 
 ---
 
