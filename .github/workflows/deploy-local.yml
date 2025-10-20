@@ -759,9 +759,10 @@ jobs:
           cd ${{ env.DEPLOY_PATH }}/client
           
           # 使用PM2启动Next.js生产服务器
+          # 日志由Winston统一管理，PM2只负责进程管理和监控
           pm2 start npm --name homelabs-portal \
-            --log ${{ env.DEPLOY_PATH }}/logs/app-combined.log \
-            --error ${{ env.DEPLOY_PATH }}/logs/app-error.log \
+            --log ${{ env.DEPLOY_PATH }}/logs/pm2-combined.log \
+            --error ${{ env.DEPLOY_PATH }}/logs/pm2-error.log \
             --time \
             --merge-logs \
             -- start
@@ -770,6 +771,17 @@ jobs:
           pm2 startup || echo '⚠️  pm2 startup需要手动配置sudo权限'
           
           echo '✅ 应用服务已启动'
+          echo ''
+          echo '📊 日志位置:'
+          echo '   应用日志: ${{ env.DEPLOY_PATH }}/logs/combined-*.log (Winston统一日志)'
+          echo '   错误日志: ${{ env.DEPLOY_PATH }}/logs/error-*.log'
+          echo '   PM2监控: ${{ env.DEPLOY_PATH }}/logs/pm2-*.log (仅PM2元数据)'
+          echo '   Nginx访问: ${{ env.DEPLOY_PATH }}/logs/nginx-access.log'
+          echo ''
+          echo '📖 查看日志:'
+          echo '   实时监控: tail -f ${{ env.DEPLOY_PATH }}/logs/combined-*.log'
+          echo '   错误追踪: tail -f ${{ env.DEPLOY_PATH }}/logs/error-*.log'
+          echo '   PM2状态: pm2 logs homelabs-portal'
         "
     
     - name: 验证部署
@@ -811,9 +823,11 @@ jobs:
         echo "==================================="
         echo "访问地址: http://${{ env.SERVER_HOST }}"
         echo ""
-        echo "查看日志:"
-        echo "  应用: pm2 logs homelabs-portal"
-        echo "  Nginx: tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-access.log"
+        echo "📊 查看日志 (所有日志已统一到 ${{ env.DEPLOY_PATH }}/logs/):"
+        echo "  应用日志: tail -f ${{ env.DEPLOY_PATH }}/logs/combined-*.log"
+        echo "  错误日志: tail -f ${{ env.DEPLOY_PATH }}/logs/error-*.log"
+        echo "  Nginx访问: tail -f ${{ env.DEPLOY_PATH }}/logs/nginx-access.log"
+        echo "  PM2监控: pm2 logs homelabs-portal"
     
     - name: 清理和回滚（失败时）
       if: ${{ failure() && inputs.deploy_mode != 'check' }}
