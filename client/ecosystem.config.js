@@ -1,17 +1,20 @@
 /**
  * PM2 Ecosystem配置文件
  * 
- * 此配置确保PM2在启动Next.js应用时正确传递环境变量
- * 
  * 工作原理:
- * 1. GitHub Actions在SSH会话中export环境变量
- * 2. PM2读取当前shell的process.env
- * 3. 将这些变量传递给Next.js应用
+ * 1. GitHub Actions创建 .env 文件（持久化配置）
+ * 2. PM2使用此配置启动应用
+ * 3. Next.js在npm start时自动读取.env文件
  * 
  * 优势:
- * - 保持变量的灵活性（从GitHub Variables/Secrets动态加载）
- * - 无需硬编码任何配置值
- * - 符合PM2最佳实践
+ * - .env文件持久化存储配置
+ * - 服务器重启后PM2自动重启应用，配置不丢失
+ * - Next.js原生支持.env文件，无需额外配置
+ * - 符合Next.js和PM2的最佳实践
+ * 
+ * 注意:
+ * - 不在此处设置env，让Next.js从.env文件读取
+ * - PM2只负责进程管理，不处理环境变量
  */
 
 module.exports = {
@@ -21,24 +24,9 @@ module.exports = {
     args: 'start',
     cwd: process.cwd(),
     
-    // 环境变量配置
-    // PM2会从当前shell的process.env中读取这些变量
+    // 只设置NODE_ENV，其他变量由Next.js从.env文件读取
     env: {
-      NODE_ENV: 'production',
-      PORT: process.env.PORT || 3000,
-      
-      // 数据库配置
-      DATABASE_URL: process.env.DATABASE_URL,
-      
-      // NextAuth配置
-      NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-      
-      // 应用配置
-      APP_URL: process.env.APP_URL,
-      
-      // 日志配置
-      LOG_LEVEL: process.env.LOG_LEVEL || 'info'
+      NODE_ENV: 'production'
     },
     
     // 日志配置
