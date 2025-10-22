@@ -236,7 +236,7 @@ export function UniversePortal() {
         )}
       </AnimatePresence>
 
-      {/* 创建星球按钮 */}
+      {/* 创建星球按钮 - 已登录用户 */}
       {session && (
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
@@ -264,6 +264,7 @@ export function UniversePortal() {
           </svg>
         </motion.button>
       )}
+
     </div>
   );
 }

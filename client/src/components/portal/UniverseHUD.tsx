@@ -64,6 +64,53 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
   return (
     <>
+      {/* 未登录用户提示横幅 */}
+      {!session && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="absolute top-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto"
+        >
+          <div className="bg-sci-dark/60 backdrop-blur-sm border border-foreground/20 rounded-full px-6 py-3 shadow-lg">
+            <div className="flex items-center gap-6">
+              {/* 左侧文字 */}
+              <div className="flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-foreground/80" />
+                <span className="text-foreground/80 text-sm font-medium">
+                  探索AI宇宙，创建您的星系
+                </span>
+              </div>
+              
+              {/* 分隔线 */}
+              <div className="w-px h-4 bg-foreground/20"></div>
+              
+              {/* 右侧按钮组 */}
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleNavigation('/auth/signin')}
+                  className="px-4 py-2 bg-foreground/10 border border-foreground/30 text-foreground/80 text-sm font-medium rounded-lg hover:bg-foreground/20 hover:border-foreground/40 transition-all duration-200 flex items-center gap-1.5"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  登录
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleNavigation('/auth/signup')}
+                  className="px-4 py-2 bg-transparent border border-foreground/30 text-foreground/80 text-sm font-medium rounded-lg hover:bg-foreground/10 hover:border-foreground/40 transition-all duration-200 flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  注册
+                </motion.button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* 左上角 Logo - 可点击弹出菜单 */}
       <motion.div
         ref={logoRef}
