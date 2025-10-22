@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -92,24 +92,7 @@ export default function AdminPage() {
     }
   }, [status, session, router]);
 
-  // 获取数据
-  useEffect(() => {
-    if (session?.user?.role === 'ADMIN') {
-      fetchData();
-    }
-  }, [session, projectTypeFilter, categoryFilter, projectSearchTerm, currentPage, userStatusFilter, userSearchTerm, userCurrentPage]);
-
-  // 项目筛选条件变化时重置到第一页
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [projectTypeFilter, categoryFilter, projectSearchTerm]);
-
-  // 用户筛选条件变化时重置到第一页
-  useEffect(() => {
-    setUserCurrentPage(1);
-  }, [userStatusFilter, userSearchTerm]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // 构建用户查询参数
       const usersUrl = new URL('/api/admin/users', window.location.origin);
@@ -168,7 +151,24 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userCurrentPage, userItemsPerPage, userSearchTerm, userStatusFilter, currentPage, itemsPerPage, projectTypeFilter, categoryFilter, projectSearchTerm]);
+
+  // 获取数据
+  useEffect(() => {
+    if (session?.user?.role === 'ADMIN') {
+      fetchData();
+    }
+  }, [session, fetchData]);
+
+  // 项目筛选条件变化时重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [projectTypeFilter, categoryFilter, projectSearchTerm]);
+
+  // 用户筛选条件变化时重置到第一页
+  useEffect(() => {
+    setUserCurrentPage(1);
+  }, [userStatusFilter, userSearchTerm]);
 
   // 切换项目状态
   const toggleProjectStatus = async (projectId: string, currentStatus: boolean) => {

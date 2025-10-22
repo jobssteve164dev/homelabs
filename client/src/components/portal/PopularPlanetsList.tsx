@@ -148,7 +148,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         const res = await fetch(`/api/planets/search?q=${encodeURIComponent(q)}&limit=20`);
         const data = await res.json();
         setRemoteResults((data.planets || []) as PopularPlanet[]);
-      } catch (e) {
+      } catch {
         setRemoteResults([]);
       } finally {
         setSearchLoading(false);
@@ -182,12 +182,12 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="absolute top-full right-0 mt-2 z-50"
+      className="absolute top-full right-0 mt-2 z-50 w-full max-w-[calc(100vw-1rem)] sm:w-auto sm:max-w-none"
     >
-      <div className="glass-card px-5 py-4 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs min-w-[420px] max-w-[520px]">
+      <div className="glass-card px-2 py-2 sm:px-5 sm:py-4 rounded-lg border border-neon-blue/30 backdrop-blur-md font-mono text-xs min-w-[200px] sm:min-w-[420px] max-w-[calc(100vw-1rem)] sm:max-w-[520px]">
         {/* 标题栏 */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-neon-blue font-bold">热门星球排行榜</div>
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <div className="text-neon-blue font-bold text-xs sm:text-sm">热门星球排行榜</div>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -199,12 +199,12 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         </div>
 
         {/* 搜索框（低对比度边框，更和谐） */}
-        <div className="mb-3">
+        <div className="mb-2 sm:mb-3">
           <input
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); updateActivity(); }}
-            className="w-full px-3 py-2 bg-sci-darker/60 border border-foreground/10 focus:border-neon-blue/30 outline-none rounded-full placeholder-foreground/40 text-foreground transition-colors"
-            placeholder="搜索全宇宙星球、作者、分类或标签（模糊匹配）"
+            className="w-full px-3 py-2 bg-sci-darker/60 border border-foreground/10 focus:border-neon-blue/30 outline-none rounded-full placeholder-foreground/40 text-foreground transition-colors text-xs"
+            placeholder="搜索星球、作者、分类"
           />
         </div>
 
@@ -214,7 +214,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         )}
 
         {/* 内容区域 */}
-        <div className="space-y-2 max-h-[450px] overflow-y-auto">
+        <div className="space-y-1 sm:space-y-2 max-h-[200px] sm:max-h-[450px] overflow-y-auto">
           {loading ? (
             <div className="text-center py-4">
               <div className="text-foreground/60">加载中...</div>
@@ -248,7 +248,7 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
                 >
                   {/* 主要信息行 */}
                   <div 
-                    className="flex items-center justify-between py-2 cursor-pointer hover:bg-foreground/5 rounded px-2 -mx-2"
+                    className="flex items-center justify-between py-1.5 sm:py-2 cursor-pointer hover:bg-foreground/5 rounded px-1 sm:px-2 -mx-1 sm:-mx-2"
                     onClick={() => toggleExpanded(planet.id)}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -364,8 +364,8 @@ export function PopularPlanetsList({ isOpen, onClose, onNavigateToPlanet }: Popu
         </div>
 
         {/* 底部提示 */}
-        <div className="mt-4 pt-3 border-t border-foreground/10">
-          <div className="text-foreground/40 text-xs text-center">
+        <div className="mt-2 sm:mt-4 pt-2 sm:pt-3 border-t border-foreground/10">
+          <div className="text-foreground/40 text-[10px] sm:text-xs text-center">
             点击展开查看详情 • 点击位置图标跳转
           </div>
         </div>

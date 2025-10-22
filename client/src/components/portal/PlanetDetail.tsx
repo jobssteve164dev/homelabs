@@ -72,7 +72,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-30 flex items-center justify-center p-6 sm:p-8 lg:p-12"
+      className="fixed inset-0 z-30 flex items-center justify-center p-2 sm:p-6 lg:p-8"
       onClick={onClose}
     >
       {/* 背景遮罩 - 增强模糊效果 */}
@@ -94,7 +94,7 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
           damping: 20 
         }}
         onClick={(e) => e.stopPropagation()}
-        className="relative glass-card rounded-3xl border-2 w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto max-h-[90vh] overflow-hidden"
+        className="relative glass-card rounded-3xl border-2 w-full max-w-sm sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
         style={{
           borderColor: planet.color + '80',
           boxShadow: `0 0 50px ${planet.color}40, 0 25px 50px -12px rgba(0, 0, 0, 0.5)`,

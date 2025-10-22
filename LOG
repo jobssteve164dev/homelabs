@@ -1,3 +1,31 @@
-StarForm.tsx:91 
- POST http://localhost:3000/api/projects/star 400 (Bad Request)
-handleSubmit	@	StarForm.tsx:91
+Build Error
+
+
+Parsing ecmascript source code failed
+
+./src/components/portal/UniverseHUD.tsx (114:7)
+
+Parsing ecmascript source code failed
+  112 |         </motion.div>
+  113 |
+> 114 |       {/* 左上角 Logo - 可点击弹出菜单 */}
+      |       ^
+  115 |       <motion.div
+  116 |         ref={logoRef}
+  117 |         initial={{ opacity: 0, x: -20 }}
+
+Expected '</', got '{'
+
+Import traces:
+  Client Component Browser:
+    ./src/components/portal/UniverseHUD.tsx [Client Component Browser]
+    ./src/components/portal/UniversePortal.tsx [Client Component Browser]
+    ./src/components/portal/UniversePortal.tsx [Server Component]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/portal/UniverseHUD.tsx [Client Component SSR]
+    ./src/components/portal/UniversePortal.tsx [Client Component SSR]
+    ./src/components/portal/UniversePortal.tsx [Server Component]
+    ./src/app/page.tsx [Server Component]
+1

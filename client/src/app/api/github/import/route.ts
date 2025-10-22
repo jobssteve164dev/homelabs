@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { importGitHubProjects } from '@/lib/github';
-import { calculatePlanetOrbit } from '@/lib/galaxy/layout';
 import { ProjectType } from '@prisma/client';
 import type { AuthSession } from '@/types/auth';
 

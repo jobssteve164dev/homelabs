@@ -64,45 +64,45 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
   return (
     <>
-      {/* 未登录用户提示横幅 */}
+      {/* 未登录用户登录注册按钮 - 右下角固定位置 */}
       {!session && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, x: 20, y: 20 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="absolute top-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 pointer-events-auto"
         >
-          <div className="bg-sci-dark/60 backdrop-blur-sm border border-foreground/20 rounded-full px-6 py-3 shadow-lg">
-            <div className="flex items-center gap-6">
-              {/* 左侧文字 */}
-              <div className="flex items-center gap-2">
+          <div className="glass-card px-3 py-1.5 rounded-full border border-neon-blue/30 backdrop-blur-sm shadow-lg">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+              {/* 左侧提示文字 - 仅桌面端显示 */}
+              <div className="hidden sm:flex items-center gap-2">
                 <Rocket className="w-4 h-4 text-foreground/80" />
                 <span className="text-foreground/80 text-sm font-medium">
-                  探索AI宇宙，创建您的星系
+                  探索AI宇宙
                 </span>
               </div>
               
-              {/* 分隔线 */}
-              <div className="w-px h-4 bg-foreground/20"></div>
+              {/* 分隔线 - 仅桌面端显示 */}
+              <div className="hidden sm:block w-px h-4 bg-foreground/20"></div>
               
-              {/* 右侧按钮组 */}
-              <div className="flex gap-2">
+              {/* 登录注册按钮组 - 手机端垂直排列 */}
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleNavigation('/auth/signin')}
-                  className="px-4 py-2 bg-foreground/10 border border-foreground/30 text-foreground/80 text-sm font-medium rounded-lg hover:bg-foreground/20 hover:border-foreground/40 transition-all duration-200 flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-2 py-1 sm:px-3 sm:py-1.5 bg-foreground/10 border border-foreground/30 text-foreground/80 text-xs font-medium rounded-lg hover:bg-foreground/20 hover:border-foreground/40 transition-all duration-200 flex items-center justify-center gap-1"
                 >
-                  <LogIn className="w-3.5 h-3.5" />
+                  <LogIn className="w-3 h-3" />
                   登录
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleNavigation('/auth/signup')}
-                  className="px-4 py-2 bg-transparent border border-foreground/30 text-foreground/80 text-sm font-medium rounded-lg hover:bg-foreground/10 hover:border-foreground/40 transition-all duration-200 flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border border-neon-blue/30 text-foreground/80 text-xs font-medium rounded-lg hover:from-neon-blue/30 hover:to-neon-purple/30 hover:border-neon-blue/50 transition-all duration-200 flex items-center justify-center gap-1"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
+                  <UserPlus className="w-3 h-3" />
                   注册
                 </motion.button>
               </div>
@@ -117,25 +117,31 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
-        className="absolute top-4 left-4 md:top-6 md:left-6 z-10"
+        className="absolute top-4 left-2 sm:left-4 md:top-6 md:left-6 z-10"
       >
         <div className="relative">
           <motion.div
             whileHover={{ scale: 1.02 }}
             onClick={handleClick}
-            className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 cursor-pointer"
+            className="glass-card px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-neon-blue/30 cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
-                <Rocket className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
+                <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="font-display text-lg font-bold text-neon-blue">
                   AI宇宙
                 </h1>
                 <p className="text-xs text-foreground/60">
                   My AI Universe
                 </p>
+              </div>
+              {/* 手机端只显示标题 */}
+              <div className="block sm:hidden">
+                <h1 className="font-display text-sm font-bold text-neon-blue">
+                  AI宇宙
+                </h1>
               </div>
             </div>
           </motion.div>
@@ -148,25 +154,25 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="absolute left-0 top-full mt-2 z-50"
+                className="absolute left-0 top-full mt-2 z-50 w-full max-w-[calc(100vw-1rem)] sm:w-auto sm:max-w-none"
               >
-            <div className="glass-card border border-neon-blue/40 rounded-xl p-2 min-w-[240px] shadow-2xl shadow-neon-blue/20">
+            <div className="glass-card border border-neon-blue/40 rounded-xl p-1.5 sm:p-2 min-w-[180px] sm:min-w-[240px] shadow-2xl shadow-neon-blue/20">
               {session ? (
                 // 已登录状态
                 <div className="space-y-1">
                   {/* 用户信息 */}
-                  <div className="px-3 py-2 mb-2 border-b border-neon-blue/20">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
-                        <span className="text-white text-sm font-bold">
+                  <div className="px-2 py-2 mb-2 border-b border-neon-blue/20 sm:px-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
+                        <span className="text-white text-xs sm:text-sm font-bold">
                           {session.user?.name?.charAt(0).toUpperCase() || 'U'}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
+                        <p className="text-xs sm:text-sm font-medium text-foreground truncate">
                           {session.user?.name || '用户'}
                         </p>
-                        <p className="text-xs text-foreground/60 truncate">
+                        <p className="text-[10px] sm:text-xs text-foreground/60 truncate">
                           {session.user?.email}
                         </p>
                       </div>
@@ -264,21 +270,21 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
-        className="absolute top-4 right-4 md:top-6 md:right-6 z-10"
+        className="absolute top-4 right-2 sm:right-4 md:top-6 md:right-6 z-10"
       >
         <div className="relative">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-row items-center gap-2 sm:gap-4">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowPopularPlanets(true)}
-            className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 hover:border-neon-blue/50 transition-all duration-200 cursor-pointer group"
+            className="glass-card px-2 py-1.5 sm:px-4 sm:py-2 rounded-full border border-neon-blue/30 hover:border-neon-blue/50 transition-all duration-200 cursor-pointer group"
             title="点击查看热门星球排行榜"
           >
-            <div className="flex items-center gap-3">
-              <Globe className="w-5 h-5 text-neon-blue group-hover:text-neon-purple transition-colors" />
-              <div className="text-sm">
-                <span className="text-foreground/60">星球总数: </span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-neon-blue group-hover:text-neon-purple transition-colors" />
+              <div className="text-xs">
+                <span className="text-foreground/60">总数: </span>
                 <span className="text-neon-blue font-bold group-hover:text-neon-purple transition-colors">{totalPlanets}</span>
               </div>
             </div>
@@ -286,11 +292,11 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="glass-card px-6 py-3 rounded-full border border-neon-green/30"
+            className="glass-card px-2 py-1.5 sm:px-4 sm:py-2 rounded-full border border-neon-green/30"
           >
-            <div className="flex items-center gap-3">
-              <Zap className="w-5 h-5 text-neon-green" />
-              <div className="text-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-neon-green" />
+              <div className="text-xs">
                 <span className="text-foreground/60">活跃: </span>
                 <span className="text-neon-green font-bold">{activePlanets}</span>
               </div>
@@ -307,28 +313,20 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         </div>
       </motion.div>
 
-      {/* 底部操作提示 - 独立定位 */}
+      {/* 底部操作提示 - 简化版本 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.5, duration: 0.6 }}
-        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10 glass-card px-5 py-2.5 rounded-full border border-neon-purple/20 backdrop-blur-sm pointer-events-none"
+        transition={{ delay: 2, duration: 0.6 }}
+        className="fixed bottom-2 left-2 z-10 glass-card px-2 py-1 rounded-full border border-foreground/10 backdrop-blur-sm pointer-events-none"
       >
-        <div className="flex items-center gap-6 text-xs text-foreground/60">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-neon-blue/60" />
-            <span>拖拽旋转</span>
-          </div>
-          <div className="w-px h-3 bg-foreground/10" />
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-neon-purple/60" />
-            <span>滚轮缩放</span>
-          </div>
-          <div className="w-px h-3 bg-foreground/10" />
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-neon-green/60" />
-            <span>点击星球</span>
-          </div>
+        <div className="flex items-center gap-1 text-xs text-foreground/40">
+          <div className="w-1 h-1 rounded-full bg-neon-blue/40" />
+          <span>拖拽</span>
+          <div className="w-1 h-1 rounded-full bg-neon-purple/40" />
+          <span>缩放</span>
+          <div className="w-1 h-1 rounded-full bg-neon-green/40" />
+          <span>点击</span>
         </div>
       </motion.div>
 
@@ -478,7 +476,7 @@ function MenuItem({ icon, label, onClick, highlight, danger }: MenuItemProps) {
       `}>
         {icon}
       </div>
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-xs sm:text-sm font-medium">{label}</span>
     </motion.button>
   );
 }

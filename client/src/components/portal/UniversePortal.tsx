@@ -243,14 +243,14 @@ export function UniversePortal() {
           animate={{ opacity: 1, scale: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          className="fixed bottom-8 right-8 z-20 w-16 h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
+          className="fixed bottom-4 left-4 sm:bottom-8 sm:left-8 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
           onClick={() => {
             window.location.href = '/dashboard/create';
           }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-8 h-8 text-white"
+            className="w-6 h-6 sm:w-8 sm:h-8 text-white"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

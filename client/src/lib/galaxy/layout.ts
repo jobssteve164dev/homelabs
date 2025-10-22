@@ -92,7 +92,7 @@ export function calculatePlanetOrbit(
   const angle = totalAngle * (Math.PI / 180) // 转换为弧度
   
   // 智能公转速度：基于轨道半径和碰撞避免算法
-  const speed = calculateCollisionAvoidingSpeed(radius, planetIndex, existingOrbits)
+  const speed = calculateCollisionAvoidingSpeed(radius, planetIndex)
   
   return {
     radius,
@@ -112,8 +112,7 @@ export function calculatePlanetOrbit(
  */
 function calculateCollisionAvoidingSpeed(
   radius: number, 
-  planetIndex: number, 
-  _existingOrbits: number[]
+  planetIndex: number
 ): number {
   // 基础速度：遵循开普勒第三定律（内圈快，外圈慢）
   const baseSpeed = 0.2 / Math.sqrt(radius)
