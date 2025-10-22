@@ -440,13 +440,13 @@ export default function AdminPage() {
         </div>
 
         {/* 标签页导航 - 独立按钮卡片布局 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {/* 概览按钮 */}
           <motion.button
             onClick={() => setActiveTab('overview')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className={`relative overflow-hidden rounded-xl p-6 text-left transition-all ${
+            className={`relative overflow-hidden rounded-xl p-4 sm:p-6 text-left transition-all ${
               activeTab === 'overview'
                 ? 'bg-neon-blue/20 border-2 border-neon-blue shadow-lg shadow-neon-blue/20'
                 : 'bg-sci-dark/50 border border-foreground/10 hover:border-foreground/30'
@@ -630,24 +630,24 @@ export default function AdminPage() {
             className="space-y-8"
           >
             {/* 统计卡片 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-foreground/60 mb-1">总用户数</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.totalUsers}</p>
+                    <p className="text-xs sm:text-sm text-foreground/60 mb-1">总用户数</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{stats.totalUsers}</p>
                   </div>
-                  <Users className="w-8 h-8 text-neon-blue" />
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-neon-blue" />
                 </div>
               </div>
 
-              <div className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6">
+              <div className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-foreground/60 mb-1">总项目数</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.totalProjects}</p>
+                    <p className="text-xs sm:text-sm text-foreground/60 mb-1">总项目数</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{stats.totalProjects}</p>
                   </div>
-                  <FolderOpen className="w-8 h-8 text-neon-purple" />
+                  <FolderOpen className="w-6 h-6 sm:w-8 sm:h-8 text-neon-purple" />
                 </div>
               </div>
 
@@ -757,27 +757,27 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-foreground/10">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">用户</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">角色</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">状态</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">项目数</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">注册时间</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-foreground/60">操作</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">用户</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">角色</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">状态</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">项目数</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">注册时间</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-foreground/60">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id} className="border-b border-foreground/5">
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4">
                         <div>
-                          <p className="text-sm font-medium text-foreground">{user.name}</p>
+                          <p className="text-xs sm:text-sm font-medium text-foreground">{user.name}</p>
                           <p className="text-xs text-foreground/60">{user.email}</p>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4">
                         <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
                           user.role === 'ADMIN' 
                             ? 'bg-neon-purple/20 text-neon-purple' 
@@ -786,7 +786,7 @@ export default function AdminPage() {
                           {user.role === 'ADMIN' ? '管理员' : '用户'}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4">
                         <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
                           user.isActive 
                             ? 'bg-green-500/20 text-green-400' 
@@ -795,12 +795,12 @@ export default function AdminPage() {
                           {user.isActive ? '正常' : '已冻结'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm text-foreground">{user._count.projects}</td>
-                      <td className="py-3 px-4 text-sm text-foreground/60">
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-foreground">{user._count.projects}</td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-foreground/60">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <motion.button 
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -833,7 +833,7 @@ export default function AdminPage() {
 
             {/* 分页控件 */}
             {userTotalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-6 border-t border-foreground/10">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-foreground/10">
                 <div className="text-sm text-foreground/60">
                   第 {userCurrentPage} 页，共 {userTotalPages} 页
                 </div>

@@ -24,6 +24,9 @@ interface Planet {
   tags?: string[];
   status: string;
   color: string;
+  demoUrl?: string;
+  githubUrl?: string;
+  imageUrl?: string;
 }
 
 interface PlanetDetailProps {

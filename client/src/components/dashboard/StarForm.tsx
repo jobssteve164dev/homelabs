@@ -162,24 +162,24 @@ export function StarForm({ mode, initialData }: StarFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8">
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
       {/* 头部 */}
-      <div className="glass-card p-8 rounded-xl border border-foreground/10">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="glass-card p-4 sm:p-6 lg:p-8 rounded-xl border border-foreground/10">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4 sm:mb-6">
           <div 
-            className="w-16 h-16 rounded-xl flex items-center justify-center"
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{
               backgroundColor: '#FDB81320',
               boxShadow: '0 0 30px #FDB81340',
             }}
           >
-            <Star className="w-8 h-8 text-yellow-500 fill-current" />
+            <Star className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 fill-current" />
           </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-orange-500">
+          <div className="text-center sm:text-left">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-orange-500">
               {mode === 'create' ? '创建个人星系' : '编辑个人介绍'}
             </h1>
-            <p className="text-foreground/60 mt-1">
+            <p className="text-foreground/60 mt-1 text-sm sm:text-base">
               在AI宇宙中创建属于你的恒星
             </p>
           </div>
@@ -193,9 +193,9 @@ export function StarForm({ mode, initialData }: StarFormProps) {
       </div>
 
       {/* 基本信息 */}
-      <div className="glass-card p-8 rounded-xl border border-foreground/10 space-y-6">
-        <h2 className="text-xl font-semibold flex items-center gap-3">
-          <User className="w-5 h-5 text-neon-blue" />
+      <div className="glass-card p-4 sm:p-6 lg:p-8 rounded-xl border border-foreground/10 space-y-4 sm:space-y-6">
+        <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-3">
+          <User className="w-4 h-4 sm:w-5 sm:h-5 text-neon-blue" />
           基本信息
         </h2>
 
@@ -207,7 +207,7 @@ export function StarForm({ mode, initialData }: StarFormProps) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+            className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
             placeholder="例如：我的AI宇宙"
             required
           />
@@ -218,12 +218,12 @@ export function StarForm({ mode, initialData }: StarFormProps) {
             职位/头衔
           </label>
           <div className="relative">
-            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
+            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-foreground/40" />
             <input
               type="text"
               value={userTitle}
               onChange={(e) => setUserTitle(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+              className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
               placeholder="例如：全栈开发工程师"
             />
           </div>
@@ -236,8 +236,8 @@ export function StarForm({ mode, initialData }: StarFormProps) {
           <textarea
             value={userBio}
             onChange={(e) => setUserBio(e.target.value)}
-            rows={5}
-            className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors resize-none"
+            rows={4}
+            className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors resize-none text-sm sm:text-base"
             placeholder="介绍一下你自己，你的专长，你的经验..."
           />
           <p className="mt-2 text-xs text-foreground/50">
@@ -247,27 +247,27 @@ export function StarForm({ mode, initialData }: StarFormProps) {
       </div>
 
       {/* 技能标签 */}
-      <div className="glass-card p-8 rounded-xl border border-foreground/10 space-y-6">
-        <h2 className="text-xl font-semibold flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-neon-purple" />
+      <div className="glass-card p-4 sm:p-6 lg:p-8 rounded-xl border border-foreground/10 space-y-4 sm:space-y-6">
+        <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-3">
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-neon-purple" />
           技能专长
         </h2>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={currentSkill}
             onChange={(e) => setCurrentSkill(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-            className="flex-1 px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
             placeholder="输入技能，按回车添加"
           />
           <button
             type="button"
             onClick={handleAddSkill}
-            className="px-6 py-3 bg-neon-purple/20 border-2 border-neon-purple/40 text-neon-purple rounded-lg hover:bg-neon-purple/30 transition-all flex items-center gap-2"
+            className="px-4 sm:px-6 py-2 sm:py-3 bg-neon-purple/20 border-2 border-neon-purple/40 text-neon-purple rounded-lg hover:bg-neon-purple/30 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             添加
           </button>
         </div>
@@ -294,19 +294,19 @@ export function StarForm({ mode, initialData }: StarFormProps) {
       </div>
 
       {/* 社交链接 */}
-      <div className="glass-card p-8 rounded-xl border border-foreground/10 space-y-6">
-        <h2 className="text-xl font-semibold flex items-center gap-3">
-          <Globe className="w-5 h-5 text-neon-green" />
+      <div className="glass-card p-4 sm:p-6 lg:p-8 rounded-xl border border-foreground/10 space-y-4 sm:space-y-6">
+        <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-3">
+          <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-neon-green" />
           社交链接
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-foreground/70 mb-2 flex items-center gap-2">
               <Github className="w-4 h-4" />
               GitHub
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="url"
                 value={socialLinks.github}
@@ -314,14 +314,14 @@ export function StarForm({ mode, initialData }: StarFormProps) {
                   setSocialLinks({ ...socialLinks, github: e.target.value });
                   setImportResult(null); // 清除之前的导入结果
                 }}
-                className="flex-1 px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
                 placeholder="https://github.com/username"
               />
               <button
                 type="button"
                 onClick={handleImportGitHub}
                 disabled={importing || !socialLinks.github}
-                className="px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2 whitespace-nowrap"
+                className="px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center justify-center gap-2 text-sm sm:text-base"
                 title="自动导入GitHub上的AI相关开源项目"
               >
                 {importing ? (
@@ -374,7 +374,7 @@ export function StarForm({ mode, initialData }: StarFormProps) {
               type="url"
               value={socialLinks.linkedin}
               onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
-              className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
               placeholder="https://linkedin.com/in/username"
             />
           </div>
@@ -388,7 +388,7 @@ export function StarForm({ mode, initialData }: StarFormProps) {
               type="url"
               value={socialLinks.twitter}
               onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
-              className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
               placeholder="https://twitter.com/username"
             />
           </div>
@@ -402,12 +402,12 @@ export function StarForm({ mode, initialData }: StarFormProps) {
               type="url"
               value={socialLinks.website}
               onChange={(e) => setSocialLinks({ ...socialLinks, website: e.target.value })}
-              className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
               placeholder="https://yourwebsite.com"
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-foreground/70 mb-2 flex items-center gap-2">
               <Mail className="w-4 h-4" />
               邮箱
@@ -416,7 +416,7 @@ export function StarForm({ mode, initialData }: StarFormProps) {
               type="email"
               value={socialLinks.email}
               onChange={(e) => setSocialLinks({ ...socialLinks, email: e.target.value })}
-              className="w-full px-4 py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark/50 border border-foreground/20 rounded-lg focus:outline-none focus:border-neon-blue/60 transition-colors text-sm sm:text-base"
               placeholder="your@email.com"
             />
           </div>
@@ -424,27 +424,27 @@ export function StarForm({ mode, initialData }: StarFormProps) {
       </div>
 
       {/* 提交按钮 */}
-      <div className="flex gap-4 justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-end">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-8 py-3 glass-card border border-foreground/20 rounded-lg hover:border-foreground/40 transition-all font-semibold"
+          className="px-6 sm:px-8 py-2 sm:py-3 glass-card border border-foreground/20 rounded-lg hover:border-foreground/40 transition-all font-semibold text-sm sm:text-base"
         >
           取消
         </button>
         <button
           type="submit"
           disabled={loading || !title.trim()}
-          className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:shadow-glow-blue disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2"
+          className="px-6 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:shadow-glow-blue disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center justify-center gap-2 text-sm sm:text-base"
         >
           {loading ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               保存中...
             </>
           ) : (
             <>
-              <Save className="w-5 h-5" />
+              <Save className="w-4 h-4 sm:w-5 sm:h-5" />
               {mode === 'create' ? '创建星系' : '保存修改'}
             </>
           )}

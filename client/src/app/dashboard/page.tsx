@@ -164,8 +164,8 @@ export default function DashboardPage() {
 
         {/* 操作栏 - 仅在有项目时显示 */}
         {filteredProjects.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="flex-1 flex gap-4">
+          <div className="flex flex-col gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               {/* 搜索框 */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 w-4 h-4" />
@@ -174,7 +174,7 @@ export default function DashboardPage() {
                   placeholder="搜索项目..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                  className="w-full pl-10 pr-4 py-2 sm:py-3 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                 />
               </div>
 
@@ -182,7 +182,7 @@ export default function DashboardPage() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground"
+                className="px-3 sm:px-4 py-2 sm:py-3 bg-sci-dark border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground text-sm sm:text-base"
               >
                 <option value="">所有分类</option>
                 {categories.map(category => (
@@ -200,16 +200,16 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto"
           >
-            <div className="bg-sci-dark/50 backdrop-blur-sm border border-neon-blue/30 rounded-2xl p-12">
+            <div className="bg-sci-dark/50 backdrop-blur-sm border border-neon-blue/30 rounded-2xl p-6 sm:p-8 lg:p-12">
               {/* 空状态图标 */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-4 sm:mb-6">
                 <div className="relative">
                   {/* 外圈光晕效果 */}
                   <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 rounded-full blur-xl"></div>
                   {/* 主图标 */}
-                  <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-sci-dark to-sci-darker border-2 border-neon-blue/40 flex items-center justify-center">
+                  <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-sci-dark to-sci-darker border-2 border-neon-blue/40 flex items-center justify-center">
                     <svg 
-                      className="w-16 h-16 text-neon-blue" 
+                      className="w-12 h-12 sm:w-16 sm:h-16 text-neon-blue" 
                       fill="none" 
                       viewBox="0 0 24 24" 
                       stroke="currentColor"
@@ -226,31 +226,31 @@ export default function DashboardPage() {
               </div>
 
               {/* 文案区域 */}
-              <div className="text-center space-y-3 mb-8">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
+              <div className="text-center space-y-2 sm:space-y-3 mb-6 sm:mb-8">
+                <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
                   开启您的AI之旅
                 </h3>
-                <p className="text-foreground/70 text-lg">
+                <p className="text-foreground/70 text-base sm:text-lg">
                   在宇宙中还没有属于您的星球
                 </p>
-                <p className="text-foreground/50 text-sm max-w-md mx-auto">
+                <p className="text-foreground/50 text-xs sm:text-sm max-w-md mx-auto">
                   创建第一个AI项目，让它成为浩瀚星系中闪耀的新星✨
                 </p>
               </div>
 
               {/* 提示卡片 */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-4 text-center">
-                  <div className="text-neon-blue text-2xl mb-2">🌟</div>
-                  <div className="text-sm text-foreground/70">展示您的AI工具</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-3 sm:p-4 text-center">
+                  <div className="text-neon-blue text-xl sm:text-2xl mb-2">🌟</div>
+                  <div className="text-xs sm:text-sm text-foreground/70">展示您的AI工具</div>
                 </div>
-                <div className="bg-sci-darker/50 border border-neon-purple/20 rounded-lg p-4 text-center">
-                  <div className="text-neon-purple text-2xl mb-2">🚀</div>
-                  <div className="text-sm text-foreground/70">与社区分享创意</div>
+                <div className="bg-sci-darker/50 border border-neon-purple/20 rounded-lg p-3 sm:p-4 text-center">
+                  <div className="text-neon-purple text-xl sm:text-2xl mb-2">🚀</div>
+                  <div className="text-xs sm:text-sm text-foreground/70">与社区分享创意</div>
                 </div>
-                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-4 text-center">
-                  <div className="text-neon-blue text-2xl mb-2">💫</div>
-                  <div className="text-sm text-foreground/70">探索无限可能</div>
+                <div className="bg-sci-darker/50 border border-neon-blue/20 rounded-lg p-3 sm:p-4 text-center">
+                  <div className="text-neon-blue text-xl sm:text-2xl mb-2">💫</div>
+                  <div className="text-xs sm:text-sm text-foreground/70">探索无限可能</div>
                 </div>
               </div>
 
@@ -269,19 +269,19 @@ export default function DashboardPage() {
             </div>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredProjects.map((project, index) => (
               <motion.div
                 key={project.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6 hover:border-neon-blue/50 transition-all duration-300 group"
+                className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-4 sm:p-6 hover:border-neon-blue/50 transition-all duration-300 group"
               >
                 {/* 项目头部 */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground mb-1 group-hover:text-neon-blue transition-colors">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1 group-hover:text-neon-blue transition-colors truncate">
                       {project.title}
                     </h3>
                     <span className="inline-block px-2 py-1 text-xs font-medium bg-neon-blue/20 text-neon-blue rounded-full">
@@ -305,13 +305,13 @@ export default function DashboardPage() {
                 </div>
 
                 {/* 项目描述 */}
-                <p className="text-foreground/70 text-sm mb-4 line-clamp-3">
+                <p className="text-foreground/70 text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3">
                   {project.description}
                 </p>
 
                 {/* 标签 */}
                 {project.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-4">
+                  <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
                     {project.tags.slice(0, 3).map((tag, tagIndex) => (
                       <span
                         key={tagIndex}

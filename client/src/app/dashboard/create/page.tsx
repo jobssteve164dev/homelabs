@@ -152,17 +152,17 @@ export default function CreateProjectPage() {
           <p className="text-foreground/60">为您的AI工具创建一个新的星球</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* 表单 */}
-          <div className="lg:col-span-2">
+          <div className="xl:col-span-2">
             <motion.form
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               onSubmit={handleSubmit}
-              className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-8"
+              className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-4 sm:p-6 lg:p-8"
             >
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* 项目标题 */}
                 <div>
                   <label htmlFor="title" className="block text-sm font-medium text-foreground mb-2">
@@ -174,7 +174,7 @@ export default function CreateProjectPage() {
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                     placeholder="输入项目名称"
                     required
                   />
@@ -191,7 +191,7 @@ export default function CreateProjectPage() {
                     value={formData.description}
                     onChange={handleChange}
                     rows={4}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 resize-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 resize-none text-sm sm:text-base"
                     placeholder="详细描述您的AI工具功能和特点"
                     required
                   />
@@ -207,7 +207,7 @@ export default function CreateProjectPage() {
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground text-sm sm:text-base"
                     required
                   >
                     <option value="">选择分类</option>
@@ -228,7 +228,7 @@ export default function CreateProjectPage() {
                     name="tags"
                     value={formData.tags}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                     placeholder="用逗号分隔多个标签，如：AI, 文本生成, GPT"
                   />
                   <p className="text-xs text-foreground/50 mt-1">用逗号分隔多个标签</p>
@@ -245,7 +245,7 @@ export default function CreateProjectPage() {
                     name="demoUrl"
                     value={formData.demoUrl}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                     placeholder="https://demo.example.com"
                   />
                 </div>
@@ -261,7 +261,7 @@ export default function CreateProjectPage() {
                     name="githubUrl"
                     value={formData.githubUrl}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                     placeholder="https://github.com/username/repo"
                   />
                 </div>
@@ -277,19 +277,19 @@ export default function CreateProjectPage() {
                     name="imageUrl"
                     value={formData.imageUrl}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-sci-darker border border-neon-blue/30 rounded-lg focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50 transition-colors text-foreground placeholder-foreground/50 text-sm sm:text-base"
                     placeholder="https://example.com/image.jpg"
                   />
                 </div>
 
                 {/* 提交按钮 */}
-                <div className="flex space-x-4 pt-6">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
                   <motion.button
                     type="submit"
                     disabled={loading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex-1 flex items-center justify-center px-6 py-3 bg-gradient-to-r from-neon-blue to-neon-purple text-white font-medium rounded-lg hover:shadow-glow-blue transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-neon-blue to-neon-purple text-white font-medium rounded-lg hover:shadow-glow-blue transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     {loading ? '创建中...' : '创建项目'}
@@ -297,7 +297,7 @@ export default function CreateProjectPage() {
                   
                   <Link
                     href="/dashboard"
-                    className="px-6 py-3 bg-sci-darker border border-foreground/20 text-foreground rounded-lg hover:bg-foreground/5 transition-colors"
+                    className="px-4 sm:px-6 py-2 sm:py-3 bg-sci-darker border border-foreground/20 text-foreground rounded-lg hover:bg-foreground/5 transition-colors text-sm sm:text-base text-center"
                   >
                     取消
                   </Link>
@@ -307,29 +307,29 @@ export default function CreateProjectPage() {
           </div>
 
           {/* 预览面板 */}
-          <div className="lg:col-span-1">
+          <div className="xl:col-span-1">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-6 sticky top-8"
+              className="bg-sci-dark/80 backdrop-blur-sm border border-neon-blue/30 rounded-xl p-4 sm:p-6 sticky top-4 sm:top-8"
             >
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-3 sm:mb-4">
                 <Eye className="w-4 h-4 mr-2 text-neon-blue" />
-                <h3 className="text-lg font-semibold text-foreground">预览</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">预览</h3>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {formData.title ? (
                   <div>
-                    <h4 className="text-sm font-medium text-foreground mb-1">标题</h4>
-                    <p className="text-sm text-foreground/70">{formData.title}</p>
+                    <h4 className="text-xs sm:text-sm font-medium text-foreground mb-1">标题</h4>
+                    <p className="text-xs sm:text-sm text-foreground/70">{formData.title}</p>
                   </div>
                 ) : null}
 
                 {formData.category ? (
                   <div>
-                    <h4 className="text-sm font-medium text-foreground mb-1">分类</h4>
+                    <h4 className="text-xs sm:text-sm font-medium text-foreground mb-1">分类</h4>
                     <span className="inline-block px-2 py-1 text-xs font-medium bg-neon-blue/20 text-neon-blue rounded-full">
                       {formData.category}
                     </span>
@@ -338,14 +338,14 @@ export default function CreateProjectPage() {
 
                 {formData.description ? (
                   <div>
-                    <h4 className="text-sm font-medium text-foreground mb-1">描述</h4>
-                    <p className="text-sm text-foreground/70 line-clamp-3">{formData.description}</p>
+                    <h4 className="text-xs sm:text-sm font-medium text-foreground mb-1">描述</h4>
+                    <p className="text-xs sm:text-sm text-foreground/70 line-clamp-3">{formData.description}</p>
                   </div>
                 ) : null}
 
                 {formData.tags ? (
                   <div>
-                    <h4 className="text-sm font-medium text-foreground mb-1">标签</h4>
+                    <h4 className="text-xs sm:text-sm font-medium text-foreground mb-1">标签</h4>
                     <div className="flex flex-wrap gap-1">
                       {formData.tags.split(',').map((tag, index) => (
                         <span
@@ -360,7 +360,7 @@ export default function CreateProjectPage() {
                 ) : null}
 
                 {!formData.title && !formData.category && !formData.description && !formData.tags && (
-                  <p className="text-sm text-foreground/50 text-center py-8">
+                  <p className="text-xs sm:text-sm text-foreground/50 text-center py-6 sm:py-8">
                     填写表单内容以查看预览
                   </p>
                 )}
