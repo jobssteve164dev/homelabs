@@ -75,17 +75,33 @@ export function Galaxy({
     closestApproach: number;
   }>({ hasRisk: false, riskLevel: 'low', closestApproach: Infinity });
 
-  // 根据分类生成行星颜色
-  const categoryColors: { [key: string]: string } = useMemo(() => ({
-    '文本处理': '#00ffff',
-    '图像处理': '#ff00ff',
-    '语音处理': '#00ff00',
-    '开发工具': '#ff8c00',
-    '数据分析': '#1e90ff',
-    '对话系统': '#ff1493',
-    '机器学习': '#9d4edd',
-    '其他': '#f72585',
-  }), []);
+  // 生成随机行星颜色
+  const generateRandomColor = useMemo(() => {
+    const colorPalette = [
+      '#00ffff', // 霓虹蓝
+      '#ff00ff', // 霓虹紫
+      '#00ff00', // 霓虹绿
+      '#ff8c00', // 霓虹橙
+      '#ff1493', // 霓虹粉
+      '#9d4edd', // 霓虹紫蓝
+      '#1e90ff', // 霓虹蓝
+      '#ff3366', // 霓虹红
+      '#00ff88', // 霓虹青绿
+      '#ffaa00', // 霓虹黄
+      '#a855f7', // 紫色
+      '#06b6d4', // 青色
+    ];
+    
+    return (planetId: string) => {
+      // 使用planetId作为种子生成确定性随机颜色
+      const seed = planetId.split('').reduce((acc, char, index) => {
+        return acc + char.charCodeAt(0) * (index + 1);
+      }, 0);
+      
+      const randomIndex = seed % colorPalette.length;
+      return colorPalette[randomIndex];
+    };
+  }, []);
 
   // 初始化时预测碰撞风险
   useEffect(() => {
@@ -168,7 +184,7 @@ export function Galaxy({
 
       {/* 行星和轨道 - 根据LOD等级决定渲染 */}
       {lodLevel === 'near' && adjustedPlanets.map((planet) => {
-        const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
+        const planetColor = planet.color || generateRandomColor(planet.id);
         
         return (
           <group key={planet.id}>
@@ -207,7 +223,7 @@ export function Galaxy({
 
       {/* 中距离：仅显示行星，不显示轨道 */}
       {lodLevel === 'medium' && adjustedPlanets.map((planet) => {
-        const planetColor = planet.color || categoryColors[planet.category] || '#f72585';
+        const planetColor = planet.color || generateRandomColor(planet.id);
         
         return (
           <OrbitingPlanet

@@ -337,6 +337,13 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  if (planet.demoUrl) {
+                    window.open(planet.demoUrl, '_blank', 'noopener,noreferrer');
+                  } else if (planet.githubUrl) {
+                    window.open(planet.githubUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
                 className="flex-1 relative group overflow-hidden rounded-xl py-4 px-6 font-semibold transition-all"
                 style={{
                   background: `linear-gradient(135deg, ${planet.color}40, ${planet.color}20)`,
@@ -359,6 +366,11 @@ export function PlanetDetail({ planet, onClose }: PlanetDetailProps) {
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  if (planet.githubUrl) {
+                    window.open(planet.githubUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
                 className="flex-1 glass-card border-2 border-foreground/20 hover:border-neon-blue/60 px-6 py-4 rounded-xl transition-all flex items-center justify-center gap-2.5 font-semibold group"
               >
                 <Github className="w-5 h-5 group-hover:text-neon-blue transition-colors" />

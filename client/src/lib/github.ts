@@ -39,6 +39,8 @@ export interface ImportResult {
     demoUrl?: string;
     tags: string[];
     category: string;
+    githubCreatedAt: string;
+    githubUpdatedAt: string;
   }[];
 }
 
@@ -142,6 +144,9 @@ export function filterAndTransformRepos(repos: GitHubRepo[]): ImportResult['proj
     demoUrl: repo.homepage || undefined,
     tags: repo.topics || [],
     category: mapLanguageToCategory(repo.language),
+    // 添加GitHub时间戳
+    githubCreatedAt: repo.created_at,
+    githubUpdatedAt: repo.updated_at,
   }));
 }
 

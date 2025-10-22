@@ -106,6 +106,8 @@ export async function POST(request: NextRequest) {
       orbitAngle: number;
       orbitSpeed: number;
       authorId: string;
+      githubCreatedAt: string;
+      githubUpdatedAt: string;
     }> = [];
     const skippedProjects: Array<{ title: string; reason: string }> = [];
     
@@ -152,6 +154,9 @@ export async function POST(request: NextRequest) {
         orbitAngle: angle,
         orbitSpeed: speed,
         authorId: session.user.id,
+        // 保存GitHub时间戳用于后续创建
+        githubCreatedAt: project.githubCreatedAt,
+        githubUpdatedAt: project.githubUpdatedAt,
       });
 
       // 为下一个行星准备轨道
@@ -161,11 +166,20 @@ export async function POST(request: NextRequest) {
     // 7. 批量创建项目
     let createdCount = 0;
     if (projectsToCreate.length > 0) {
-      const result = await prisma.project.createMany({
-        data: projectsToCreate,
-        skipDuplicates: true, // 跳过重复项
-      });
-      createdCount = result.count;
+      // 由于Prisma的createMany不支持自定义时间戳，我们需要逐个创建
+      const createdProjects = [];
+      for (const projectData of projectsToCreate) {
+        const { githubCreatedAt, githubUpdatedAt, ...restData } = projectData;
+        const project = await prisma.project.create({
+          data: {
+            ...restData,
+            createdAt: new Date(githubCreatedAt),
+            updatedAt: new Date(githubUpdatedAt),
+          },
+        });
+        createdProjects.push(project);
+      }
+      createdCount = createdProjects.length;
     }
 
     // 8. 返回结果
