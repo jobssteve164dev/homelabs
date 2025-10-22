@@ -36,9 +36,9 @@ export function Header() {
             </motion.div>
             <div>
               <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
-                HOMELABS
+                AI工具门户
               </h1>
-              <p className="text-xs text-foreground/60">AI宇宙门户</p>
+              <p className="text-xs text-foreground/60">探索AI工具宇宙</p>
             </div>
           </Link>
 

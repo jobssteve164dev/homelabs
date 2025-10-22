@@ -1,7 +1,7 @@
 {
   "name": "homelabs-portal",
   "version": "1.0.0",
-  "description": "科幻未来风私域AI工具门户网站",
+  "description": "私域AI工具门户网站",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

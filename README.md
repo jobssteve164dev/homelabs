@@ -1,4 +1,4 @@
-# HOMELABS Portal - 科幻未来风私域AI工具门户
+# AI工具门户
 
 <div align="center">
 

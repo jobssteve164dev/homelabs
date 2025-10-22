@@ -3,13 +3,13 @@ import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 
 export const metadata: Metadata = {
-  title: "HOMELABS Portal - 科幻未来风AI工具门户",
-  description: "面向私域流量的科幻未来风AI工具展示门户，提供沉浸式的AI工具浏览和管理体验",
+  title: "AI工具门户",
+  description: "面向私域流量的AI工具展示门户，提供沉浸式的AI工具浏览和管理体验",
   keywords: ["AI工具", "门户网站", "科幻", "未来感", "私域流量"],
   authors: [{ name: "HOMELABS Team" }],
   openGraph: {
-    title: "HOMELABS Portal - 科幻未来风AI工具门户",
-    description: "面向私域流量的科幻未来风AI工具展示门户",
+    title: "AI工具门户",
+    description: "面向私域流量的AI工具展示门户",
     type: "website",
     locale: "zh_CN",
   },
