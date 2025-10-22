@@ -44,11 +44,10 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
     };
   }, [showMenu]);
 
-  // 处理右键点击
-  const handleContextMenu = (e: React.MouseEvent) => {
+  // 处理点击事件
+  const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // 右键菜单功能暂时保留但不使用menuPosition
-    setShowMenu(true);
+    setShowMenu(!showMenu);
   };
 
   // 处理导航
@@ -65,7 +64,7 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
   return (
     <>
-      {/* 左上角 Logo - 可右键弹出菜单 */}
+      {/* 左上角 Logo - 可点击弹出菜单 */}
       <motion.div
         ref={logoRef}
         initial={{ opacity: 0, x: -20 }}
@@ -76,7 +75,7 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         <div className="relative">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            onContextMenu={handleContextMenu}
+            onClick={handleClick}
             className="glass-card px-6 py-3 rounded-full border border-neon-blue/30 cursor-pointer"
           >
             <div className="flex items-center gap-3">
@@ -94,7 +93,7 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
             </div>
           </motion.div>
 
-          {/* 右键菜单 */}
+          {/* 点击菜单 */}
           <AnimatePresence>
             {showMenu && (
               <motion.div
