@@ -1,31 +1,18 @@
-Build Error
-
-
-Parsing ecmascript source code failed
-
-./src/components/portal/UniverseHUD.tsx (114:7)
-
-Parsing ecmascript source code failed
-  112 |         </motion.div>
-  113 |
-> 114 |       {/* 左上角 Logo - 可点击弹出菜单 */}
-      |       ^
-  115 |       <motion.div
-  116 |         ref={logoRef}
-  117 |         initial={{ opacity: 0, x: -20 }}
-
-Expected '</', got '{'
-
-Import traces:
-  Client Component Browser:
-    ./src/components/portal/UniverseHUD.tsx [Client Component Browser]
-    ./src/components/portal/UniversePortal.tsx [Client Component Browser]
-    ./src/components/portal/UniversePortal.tsx [Server Component]
-    ./src/app/page.tsx [Server Component]
-
-  Client Component SSR:
-    ./src/components/portal/UniverseHUD.tsx [Client Component SSR]
-    ./src/components/portal/UniversePortal.tsx [Client Component SSR]
-    ./src/components/portal/UniversePortal.tsx [Server Component]
-    ./src/app/page.tsx [Server Component]
-1
+Run echo "启动应用服务..."
+启动应用服务...
+[PM2] Spawning PM2 daemon with pm2_home=/home/***/.pm2
+[PM2] PM2 Successfully daemonized
+[PM2][WARN] Applications homelabs-portal not running, starting...
+[PM2] App [homelabs-portal] launched (1 instances)
+┌────┬────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ homelabs-portal    │ default     │ N/A     │ fork    │ 204891   │ 0s     │ 0    │ online    │ 0%       │ 33.1mb   │ ***     │ disabled │
+└────┴────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /home/***/.pm2/dump.pm2
+[PM2] Init System found: systemd
+[PM2] To setup the Startup Script, copy/paste the following command:
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u *** --hp /home/***
+⚠️  pm2 startup需要手动配置sudo权限
+✅ 应用服务已启动

@@ -64,7 +64,7 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
 
   return (
     <>
-      {/* 未登录用户登录注册按钮 - 右下角固定位置 */}
+      {/* 未登录用户登录注册按钮 - 右下角固定位置，仅在未登录时显示 */}
       {!session && (
         <motion.div
           initial={{ opacity: 0, x: 20, y: 20 }}
@@ -313,12 +313,12 @@ export function UniverseHUD({ totalPlanets, activePlanets, onNavigateToPlanet }:
         </div>
       </motion.div>
 
-      {/* 底部操作提示 - 简化版本 */}
+      {/* 左下角操作提示 - 与左上角右上角对齐 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 2, duration: 0.6 }}
-        className="fixed bottom-2 left-2 z-10 glass-card px-2 py-1 rounded-full border border-foreground/10 backdrop-blur-sm pointer-events-none"
+        className="fixed bottom-4 left-2 sm:bottom-6 sm:left-4 md:bottom-6 md:left-6 z-10 glass-card px-2 py-1 rounded-full border border-foreground/10 backdrop-blur-sm pointer-events-none"
       >
         <div className="flex items-center gap-1 text-xs text-foreground/40">
           <div className="w-1 h-1 rounded-full bg-neon-blue/40" />

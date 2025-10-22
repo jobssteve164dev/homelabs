@@ -236,17 +236,18 @@ export function UniversePortal() {
         )}
       </AnimatePresence>
 
-      {/* 创建星球按钮 - 已登录用户 */}
+      {/* 创建星球按钮 - 已登录用户，右下角 */}
       {session && (
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          className="fixed bottom-4 left-4 sm:bottom-8 sm:left-8 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
+          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center shadow-glow-blue hover:shadow-glow-purple transition-all duration-300"
           onClick={() => {
             window.location.href = '/dashboard/create';
           }}
+          title="创建新项目"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
