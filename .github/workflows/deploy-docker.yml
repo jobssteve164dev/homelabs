@@ -57,22 +57,19 @@ jobs:
           SSH_PORT="${{ vars.SSH_PORT_PROD || secrets.SSH_PORT_PROD || vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
           SSH_USER="${{ vars.SSH_USER_PROD || secrets.SSH_USER_PROD || vars.SSH_USER || secrets.SSH_USER }}"
           DEPLOY_PATH="${{ vars.DEPLOY_PATH_PROD || secrets.DEPLOY_PATH_PROD || vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
-          SSH_KEY="${{ secrets.SERVER_SSH_KEY_PROD || secrets.SERVER_SSH_KEY }}"
         else
           echo "🏠 使用测试服务器配置（Homelab）"
           SERVER_HOST="${{ vars.SERVER_HOST || secrets.SERVER_HOST }}"
           SSH_PORT="${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
           SSH_USER="${{ vars.SSH_USER || secrets.SSH_USER }}"
           DEPLOY_PATH="${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
-          SSH_KEY="${{ secrets.SERVER_SSH_KEY }}"
         fi
         
-        # 设置环境变量
+        # 设置环境变量（单行变量）
         echo "SERVER_HOST=$SERVER_HOST" >> $GITHUB_ENV
         echo "SSH_PORT=$SSH_PORT" >> $GITHUB_ENV
         echo "SSH_USER=$SSH_USER" >> $GITHUB_ENV
         echo "DEPLOY_PATH=$DEPLOY_PATH" >> $GITHUB_ENV
-        echo "SSH_KEY=$SSH_KEY" >> $GITHUB_ENV
         
         echo ""
         echo "📋 服务器配置:"
@@ -83,9 +80,27 @@ jobs:
         echo "  路径: $DEPLOY_PATH"
     
     - name: 设置SSH密钥
+      id: set_ssh_key
+      run: |
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "使用生产服务器SSH密钥"
+          SSH_KEY_CONTENT="${{ secrets.SERVER_SSH_KEY_PROD || secrets.SERVER_SSH_KEY }}"
+        else
+          echo "使用测试服务器SSH密钥"
+          SSH_KEY_CONTENT="${{ secrets.SERVER_SSH_KEY }}"
+        fi
+        # 使用多行格式设置环境变量
+        {
+          echo "SSH_KEY_CONTENT<<EOF"
+          echo "$SSH_KEY_CONTENT"
+          echo "EOF"
+        } >> $GITHUB_ENV
+    
+    - name: 配置SSH Agent
       uses: webfactory/ssh-agent@v0.8.0
       with:
-        ssh-private-key: ${{ env.SSH_KEY }}
+        ssh-private-key: ${{ env.SSH_KEY_CONTENT }}
         ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
     
     - name: 检查并安装Docker环境
