@@ -1,0 +1,637 @@
+
+name: Docker环境部署
+
+on:
+  # 监控 changelog.md 文件变更，自动触发部署
+  push:
+    branches:
+      - main
+    paths:
+      - 'changelog.md'
+  
+  # 保留手动触发方式
+  workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: '部署模式'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all          # 全部部署
+          - app-only     # 仅应用
+          - check        # 仅检查环境
+
+jobs:
+  deploy-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 设置默认部署模式
+      id: set_deploy_mode
+      run: |
+        # 当通过push事件（changelog变更）触发时，使用all模式
+        # 当手动触发时，使用用户选择的模式
+        if [ -z "${{ inputs.deploy_mode }}" ]; then
+          echo "DEPLOY_MODE=all" >> $GITHUB_ENV
+          echo "📝 自动触发部署，使用默认模式: all"
+        else
+          echo "DEPLOY_MODE=${{ inputs.deploy_mode }}" >> $GITHUB_ENV
+          echo "📝 手动触发部署，使用选择模式: ${{ inputs.deploy_mode }}"
+        fi
+    
+    - name: 检出代码
+      uses: actions/checkout@v3
+    
+    - name: 设置服务器配置
+      id: server_config
+      run: |
+        # 获取部署环境
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        echo "DEPLOY_ENVIRONMENT=$DEPLOY_ENVIRONMENT" >> $GITHUB_ENV
+        
+        # 根据环境选择服务器配置
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "🏭 使用生产服务器配置"
+          SERVER_HOST="${{ vars.SERVER_HOST_PROD || secrets.SERVER_HOST_PROD || vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT_PROD || secrets.SSH_PORT_PROD || vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER_PROD || secrets.SSH_USER_PROD || vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH_PROD || secrets.DEPLOY_PATH_PROD || vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+          SSH_KEY="${{ secrets.SERVER_SSH_KEY_PROD || secrets.SERVER_SSH_KEY }}"
+        else
+          echo "🏠 使用测试服务器配置（Homelab）"
+          SERVER_HOST="${{ vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+          SSH_KEY="${{ secrets.SERVER_SSH_KEY }}"
+        fi
+        
+        # 设置环境变量
+        echo "SERVER_HOST=$SERVER_HOST" >> $GITHUB_ENV
+        echo "SSH_PORT=$SSH_PORT" >> $GITHUB_ENV
+        echo "SSH_USER=$SSH_USER" >> $GITHUB_ENV
+        echo "DEPLOY_PATH=$DEPLOY_PATH" >> $GITHUB_ENV
+        echo "SSH_KEY=$SSH_KEY" >> $GITHUB_ENV
+        
+        echo ""
+        echo "📋 服务器配置:"
+        echo "  环境: $DEPLOY_ENVIRONMENT"
+        echo "  主机: $SERVER_HOST"
+        echo "  端口: $SSH_PORT"
+        echo "  用户: $SSH_USER"
+        echo "  路径: $DEPLOY_PATH"
+    
+    - name: 设置SSH密钥
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ env.SSH_KEY }}
+        ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
+    
+    - name: 检查并安装Docker环境
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "检查并准备Docker环境..."
+        echo "==================================="
+        echo ""
+        
+        # 检测操作系统类型
+        echo "检测操作系统类型..."
+        OS_TYPE=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            echo \$ID
+          elif [ -f /etc/redhat-release ]; then
+            echo 'rhel'
+          else
+            echo 'unknown'
+          fi
+        ")
+        echo "📋 检测到操作系统: $OS_TYPE"
+        echo ""
+        
+        # ========================================
+        # 1. 检查并安装 Docker
+        # ========================================
+        echo "-----------------------------------"
+        echo "1️⃣  检查 Docker..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v docker &> /dev/null"; then
+          DOCKER_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "docker --version" 2>/dev/null || echo "unknown")
+          echo "✅ Docker已安装: $DOCKER_VERSION"
+        else
+          echo "📦 Docker未安装，开始自动安装..."
+          
+          if [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            echo "使用apt安装Docker..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo apt-get update
+              sudo apt-get install -y ca-certificates curl gnupg lsb-release
+              sudo mkdir -p /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              sudo apt-get update
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              sudo usermod -aG docker $USER
+              docker --version
+            '
+          elif [ "$OS_TYPE" = "centos" ] || [ "$OS_TYPE" = "rhel" ] || [ "$OS_TYPE" = "amzn" ]; then
+            echo "使用yum安装Docker..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo yum install -y yum-utils
+              sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+              sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+              docker --version
+            '
+          else
+            echo "❌ 不支持的操作系统: $OS_TYPE"
+            echo "请手动安装Docker: https://docs.docker.com/get-docker/"
+            exit 1
+          fi
+          
+          echo "✅ Docker安装完成"
+        fi
+        
+        # 确保Docker服务正在运行
+        echo "检查Docker服务状态..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if ! sudo systemctl is-active --quiet docker; then
+            echo '启动Docker服务...'
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sleep 3
+          fi
+          sudo systemctl status docker | head -5
+        "
+        echo ""
+        
+        # ========================================
+        # 2. 检查并安装 Docker Compose
+        # ========================================
+        echo "-----------------------------------"
+        echo "2️⃣  检查 Docker Compose..."
+        echo "-----------------------------------"
+        if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "command -v docker-compose &> /dev/null || docker compose version &> /dev/null"; then
+          if ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "docker compose version &> /dev/null"; then
+            COMPOSE_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "docker compose version" 2>/dev/null || echo "unknown")
+            echo "✅ Docker Compose已安装: $COMPOSE_VERSION"
+          else
+            COMPOSE_VERSION=$(ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "docker-compose --version" 2>/dev/null || echo "unknown")
+            echo "✅ Docker Compose已安装: $COMPOSE_VERSION"
+          fi
+        else
+          echo "📦 Docker Compose未安装，开始自动安装..."
+          
+          if [ "$OS_TYPE" = "ubuntu" ] || [ "$OS_TYPE" = "debian" ]; then
+            echo "Docker Compose通常已包含在docker-compose-plugin中..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo apt-get update
+              sudo apt-get install -y docker-compose-plugin
+              docker compose version
+            '
+          elif [ "$OS_TYPE" = "centos" ] || [ "$OS_TYPE" = "rhel" ] || [ "$OS_TYPE" = "amzn" ]; then
+            echo "Docker Compose通常已包含在docker-compose-plugin中..."
+            ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+              sudo yum install -y docker-compose-plugin
+              docker compose version
+            '
+          else
+            echo "⚠️  请手动安装Docker Compose"
+            exit 1
+          fi
+          
+          echo "✅ Docker Compose安装完成"
+        fi
+        echo ""
+        
+        # ========================================
+        # 3. 检查并安装jq
+        # ========================================
+        echo "-----------------------------------"
+        echo "3️⃣  检查并安装jq..."
+        echo "-----------------------------------"
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          if ! command -v jq &> /dev/null; then
+            echo "📦 jq未安装，开始自动安装..."
+            if command -v apt-get &> /dev/null; then
+              sudo apt-get update -y && sudo apt-get install -y jq
+            elif command -v yum &> /dev/null; then
+              sudo yum install -y jq
+            else
+              echo "⚠️ 无法自动安装jq，请手动安装"
+              exit 1
+            fi
+            echo "✅ jq安装完成"
+          else
+            echo "✅ jq已安装"
+          fi
+        '
+        echo ""
+        
+        # ========================================
+        # 4. 最终验证
+        # ========================================
+        echo "==================================="
+        echo "📊 Docker环境最终验证"
+        echo "==================================="
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} <<'ENV_VERIFY'
+          echo '✅ Docker版本:'
+          docker --version
+          
+          echo '✅ Docker Compose版本:'
+          docker compose version 2>/dev/null || docker-compose --version
+          
+          echo '✅ Docker服务:'
+          sudo systemctl is-active docker && echo 'Docker运行中' || echo 'Docker未运行'
+          
+          echo '✅ Docker用户组:'
+          groups | grep -q docker && echo '当前用户在docker组中' || echo '⚠️ 当前用户不在docker组中，可能需要重新登录'
+        ENV_VERIFY
+        
+        echo ""
+        echo "==================================="
+        echo "✅ Docker环境准备完成！"
+        echo "==================================="
+    
+    # ========================================
+    # Nginx自动配置步骤（Docker模式）
+    # ========================================
+    
+    - name: 📝 生成Docker Compose配置文件
+      if: env.DEPLOY_MODE == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+        DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}
+        PRIMARY_DOMAIN: ${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}
+        ADDITIONAL_DOMAINS: ${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}
+        USE_SSL: ${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}
+        NGINX_PORT: ${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}
+        BEHIND_PROXY: ${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}
+        PROXY_REAL_IP_FROM: ${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}
+        APP_PORT: ${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}
+        POSTGRES_DB: ${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}
+        POSTGRES_USER: ${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        NEXTAUTH_URL: ${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}
+        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+        LOG_LEVEL: ${{ vars.LOG_LEVEL || secrets.LOG_LEVEL || 'info' }}
+      run: |
+        # 确保脚本可执行
+        chmod +x .github/scripts/generate-docker-config.sh
+        
+        # 运行脚本生成配置文件
+        ./.github/scripts/generate-docker-config.sh .
+    
+    - name: 🚀 部署Docker配置
+      if: env.DEPLOY_MODE == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "部署Docker配置..."
+        echo "==================================="
+        
+        # 确保部署目录存在
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          sudo mkdir -p ${{ env.DEPLOY_PATH }}
+          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+          mkdir -p ${{ env.DEPLOY_PATH }}/docker
+          mkdir -p ${{ env.DEPLOY_PATH }}/logs
+        "
+        
+        # 上传配置文件到服务器
+        scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker-compose-auto.yml \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker-compose.yml
+        
+        scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker/nginx-auto.conf \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker/nginx.conf
+        
+        # 部署配置
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+          PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
+          USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
+          SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
+          
+          cd $DEPLOY_PATH
+          
+          # 生产环境SSL证书处理
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ] && [ -n "$SSL_EMAIL" ]; then
+            echo "处理生产环境SSL证书..."
+            
+            # 创建SSL目录
+            mkdir -p docker/ssl/$PRIMARY_DOMAIN
+            
+            # 检查certbot是否已安装（在主机上）
+            if ! command -v certbot &> /dev/null; then
+              echo "安装certbot..."
+              if command -v apt-get &> /dev/null; then
+                sudo apt-get update
+                sudo apt-get install -y certbot
+              elif command -v yum &> /dev/null; then
+                sudo yum install -y certbot
+              fi
+            fi
+            
+            # 检查证书是否存在
+            if [ ! -f "docker/ssl/$PRIMARY_DOMAIN/fullchain.pem" ]; then
+              echo "申请SSL证书..."
+              # 注意：需要先启动临时nginx容器或使用standalone模式
+              sudo certbot certonly --standalone -d $PRIMARY_DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive
+              
+              # 复制证书到docker/ssl目录
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo chown -R $USER:$USER docker/ssl/
+              echo "✅ SSL证书申请完成"
+            else
+              echo "SSL证书已存在"
+            fi
+          fi
+          
+          echo "✅ Docker配置部署完成"
+        ENDSSH
+        
+        echo "✅ Docker配置部署成功"
+        echo ""
+    
+    - name: 备份当前版本
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "备份当前版本..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          BACKUP_DIR=${{ env.DEPLOY_PATH }}_backup_\$(date +%Y%m%d_%H%M%S)
+          
+          if [ -d ${{ env.DEPLOY_PATH }} ]; then
+            echo '📦 创建备份: '\$BACKUP_DIR
+            
+            # 使用sudo创建备份目录并设置权限
+            echo '🔐 创建备份目录（需要sudo权限）...'
+            sudo mkdir -p \$BACKUP_DIR
+            sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} \$BACKUP_DIR
+            
+            # 使用rsync备份（排除不必要的文件）
+            echo '🔄 开始备份...'
+            rsync -aL \
+              --exclude 'node_modules' \
+              --exclude '.next' \
+              --exclude 'logs' \
+              --exclude '*.log' \
+              --exclude '.git' \
+              --exclude 'docker/ssl' \
+              ${{ env.DEPLOY_PATH }}/ \$BACKUP_DIR/ || {
+              echo '❌ 备份失败！'
+              sudo rm -rf \$BACKUP_DIR
+              exit 1
+            }
+            
+            # 验证备份
+            if [ -d \$BACKUP_DIR ] && [ \"\$(ls -A \$BACKUP_DIR 2>/dev/null)\" ]; then
+              echo '✅ 备份验证成功'
+              
+              # 保留最近3个备份（清理旧备份需要sudo）
+              echo '🧹 清理旧备份（保留最近3个）...'
+              cd \$(dirname ${{ env.DEPLOY_PATH }})
+              OLD_BACKUPS=\$(ls -dt ${{ env.DEPLOY_PATH }}_backup_* 2>/dev/null | tail -n +4)
+              if [ -n "\$OLD_BACKUPS" ]; then
+                BACKUP_COUNT=\$(echo "\$OLD_BACKUPS" | wc -l)
+                echo "\$OLD_BACKUPS" | xargs sudo rm -rf
+                echo "   已清理 \$BACKUP_COUNT 个旧备份"
+              else
+                echo "   无需清理旧备份"
+              fi
+              
+              # 记录备份路径
+              echo \$BACKUP_DIR > /tmp/homelabs_last_backup
+              echo '✅ 备份完成'
+            else
+              echo '❌ 备份验证失败！'
+              exit 1
+            fi
+          else
+            echo '⚠️  首次部署，无需备份'
+          fi
+        "
+    
+    - name: 停止现有服务并清理
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "停止现有Docker服务并清理环境..."
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -d ${{ env.DEPLOY_PATH }} ]; then
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo '1️⃣  停止所有Docker容器...'
+            docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+            
+            echo '2️⃣  清理未使用的Docker资源...'
+            docker system prune -f --volumes 2>/dev/null || true
+            echo '   ✅ Docker资源已清理'
+            
+            echo '3️⃣  清理环境变量文件...'
+            rm -f .env .env.* 2>/dev/null || true
+            rm -f docker/.env docker/.env.* 2>/dev/null || true
+            echo '   ✅ 环境文件已清理'
+          fi
+        "
+    
+    - name: 创建部署目录
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "创建部署目录..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          sudo mkdir -p ${{ env.DEPLOY_PATH }}
+          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+          mkdir -p ${{ env.DEPLOY_PATH }}/docker
+          mkdir -p ${{ env.DEPLOY_PATH }}/logs
+        "
+    
+    - name: 传输代码到服务器
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "传输代码到服务器..."
+        echo "==================================="
+        
+        # 使用rsync传输代码
+        rsync -avz --delete \
+          -e "ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }}" \
+          --exclude 'node_modules' \
+          --exclude '.git' \
+          --exclude '.github' \
+          --exclude 'client/.next' \
+          --exclude '.playWright-mcp' \
+          --exclude 'client/node_modules' \
+          --exclude 'client/build' \
+          --exclude '.next' \
+          --exclude 'logs' \
+          --exclude '*.log' \
+          --exclude '.DS_Store' \
+          --exclude '.env' \
+          --exclude '.env*' \
+          --exclude 'plan report' \
+          --exclude 'progress report' \
+          --exclude 'README.md' \
+          --exclude 'PROJECT_MEMORY.md' \
+          --exclude 'dev.sh' \
+          --exclude 'dev.local' \
+          ./ ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/
+        
+        echo "✅ 代码传输完成"
+    
+    - name: 构建并启动Docker服务
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      timeout-minutes: 30
+      run: |
+        echo "==================================="
+        echo "构建并启动Docker服务..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          cd ${{ env.DEPLOY_PATH }}
+          
+          echo "🔨 构建Docker镜像..."
+          docker compose build --no-cache
+          
+          echo "🚀 启动Docker服务..."
+          docker compose up -d
+          
+          echo "⏳ 等待服务启动..."
+          sleep 10
+          
+          echo "📊 查看服务状态..."
+          docker compose ps
+          
+          echo "✅ Docker服务启动完成"
+        '
+    
+    - name: 验证部署
+      if: env.DEPLOY_MODE != 'check'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "验证部署..."
+        echo "==================================="
+        
+        # 等待服务启动
+        sleep 15
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          echo '1. Docker容器状态:'
+          docker compose ps
+          
+          echo ''
+          echo '2. 检查容器健康状态:'
+          docker compose ps --format json | jq -r '.[] | \"\(.Name): \(.Health)\"' || echo '健康检查信息不可用'
+          
+          echo ''
+          echo '3. 检查应用端口:'
+          sudo ss -tlnp | grep :${{ vars.APP_PORT || secrets.APP_PORT || '3000' }} || echo '应用端口未监听'
+          
+          echo ''
+          echo '4. 检查Nginx端口:'
+          sudo ss -tlnp | grep :${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }} || echo 'Nginx端口未监听'
+          
+          echo ''
+          echo '5. 测试应用访问:'
+          if curl -f -s http://localhost:${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}/api/health > /dev/null 2>&1; then
+            echo '✅ 应用响应正常'
+          else
+            echo '⚠️  应用未响应'
+          fi
+          
+          echo ''
+          echo '6. 测试Nginx访问:'
+          if curl -f -s http://localhost:${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}/health > /dev/null 2>&1; then
+            echo '✅ Nginx响应正常'
+          else
+            echo '⚠️  Nginx未响应'
+          fi
+          
+          echo ''
+          echo '7. 查看容器日志（最近10行）:'
+          echo '--- App日志 ---'
+          docker compose logs --tail=10 app || true
+          echo '--- Nginx日志 ---'
+          docker compose logs --tail=10 nginx || true
+        "
+        
+        echo ""
+        echo "==================================="
+        echo "✅ 部署完成！"
+        echo "==================================="
+        echo "访问地址: http://${{ env.SERVER_HOST }}"
+        echo ""
+        echo "📊 查看日志:"
+        echo "  应用日志: docker compose logs -f app"
+        echo "  Nginx日志: docker compose logs -f nginx"
+        echo "  数据库日志: docker compose logs -f postgres"
+        echo "  所有日志: docker compose logs -f"
+        echo ""
+        echo "📖 常用命令:"
+        echo "  查看状态: docker compose ps"
+        echo "  停止服务: docker compose down"
+        echo "  重启服务: docker compose restart"
+        echo "  查看日志: docker compose logs -f [service]"
+    
+    - name: 清理和回滚（失败时）
+      if: ${{ failure() && env.DEPLOY_MODE != 'check' }}
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "⚠️  部署失败，执行回滚..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          # 停止失败的服务
+          cd ${{ env.DEPLOY_PATH }}
+          docker compose down 2>/dev/null || true
+          
+          # 检查备份并回滚
+          if [ -f /tmp/homelabs_last_backup ]; then
+            BACKUP_DIR=$(cat /tmp/homelabs_last_backup)
+            
+            if [ -d "$BACKUP_DIR" ]; then
+              echo "发现备份: $BACKUP_DIR"
+              echo "正在回滚..."
+              
+              # 使用sudo进行回滚操作
+              sudo rm -rf ${{ env.DEPLOY_PATH }}
+              sudo mv $BACKUP_DIR ${{ env.DEPLOY_PATH }}
+              sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
+              
+              # 尝试重启旧版本
+              cd ${{ env.DEPLOY_PATH }}
+              docker compose up -d 2>/dev/null || true
+              
+              echo "✅ 已回滚到之前的版本"
+            fi
+          fi
+        '
+

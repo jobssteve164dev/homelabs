@@ -38,7 +38,8 @@
 
 | Secret 名称 | 说明 | 示例值 |
 |------------|------|--------|
-| `SERVER_SSH_KEY` | 服务器 SSH 私钥 | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
+| `SERVER_SSH_KEY` | 测试服务器 SSH 私钥 | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
+| `SERVER_SSH_KEY_PROD` | 生产服务器 SSH 私钥（可选，未配置时使用 `SERVER_SSH_KEY`） | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
 | `POSTGRES_PASSWORD` | PostgreSQL 数据库密码 | `strong_password_here` |
 | `NEXTAUTH_SECRET` | NextAuth.js 密钥 | 至少 32 字符的随机字符串 |
 | `SSL_EMAIL` | Let's Encrypt 证书邮箱（可选） | `admin@example.com` |
@@ -47,11 +48,24 @@
 
 在 GitHub 仓库的 `Settings > Secrets and variables > Actions > Variables` 标签页中配置：
 
+**测试服务器配置（Homelab）：**
+
 | Variable 名称 | 说明 | 示例值 |
 |--------------|------|--------|
-| `SERVER_HOST` | 服务器 IP 或域名 | `192.168.1.100` |
+| `SERVER_HOST` | 测试服务器 IP 或域名 | `192.168.1.100` |
 | `SSH_USER` | SSH 登录用户名 | `ubuntu` |
 | `NEXTAUTH_URL` | NextAuth 认证 URL（应用访问地址） | `http://192.168.1.100` |
+
+**生产服务器配置（可选）：**
+
+当 `DEPLOY_ENVIRONMENT=production` 时，工作流会自动使用生产服务器配置。如果未配置生产服务器变量，将回退到测试服务器配置。
+
+| Variable 名称 | 说明 | 示例值 |
+|--------------|------|--------|
+| `SERVER_HOST_PROD` | 生产服务器 IP 或域名 | `prod.example.com` |
+| `SSH_USER_PROD` | 生产服务器 SSH 登录用户名 | `ubuntu` |
+| `SSH_PORT_PROD` | 生产服务器 SSH 端口 | `22` |
+| `DEPLOY_PATH_PROD` | 生产服务器部署目录 | `/opt/homelabs` |
 
 #### 可选的 Variables
 
@@ -72,11 +86,16 @@
 
 | Variable/Secret 名称 | 说明 | 默认值 |
 |---------------------|------|--------|
-| `DEPLOY_ENVIRONMENT` | 设置为 `production` | `local` |
+| `DEPLOY_ENVIRONMENT` | 设置为 `production` 时使用生产服务器配置，否则使用测试服务器配置 | `local` |
 | `PRIMARY_DOMAIN` | 主域名 | `localhost` |
 | `ADDITIONAL_DOMAINS` | 额外的域名（空格分隔） | 空 |
 | `USE_SSL` | 设置为 `true` 启用 HTTPS | `false` |
 | `SSL_EMAIL` | Let's Encrypt 证书申请邮箱 | 空 |
+
+> 💡 **服务器配置选择逻辑：**
+> - 当 `DEPLOY_ENVIRONMENT=production` 时，工作流会优先使用 `*_PROD` 变量（如 `SERVER_HOST_PROD`）
+> - 如果生产变量未配置，会自动回退到测试服务器变量（如 `SERVER_HOST`）
+> - 这样可以在测试时使用 Homelab 服务器，生产时使用云服务器，无需手动切换配置
 
 #### 反向代理配置（可选）
 

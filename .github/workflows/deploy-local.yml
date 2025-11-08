@@ -43,21 +43,50 @@ jobs:
     - name: 检出代码
       uses: actions/checkout@v3
     
+    - name: 设置服务器配置
+      id: server_config
+      run: |
+        # 获取部署环境
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        echo "DEPLOY_ENVIRONMENT=$DEPLOY_ENVIRONMENT" >> $GITHUB_ENV
+        
+        # 根据环境选择服务器配置
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "🏭 使用生产服务器配置"
+          SERVER_HOST="${{ vars.SERVER_HOST_PROD || secrets.SERVER_HOST_PROD || vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT_PROD || secrets.SSH_PORT_PROD || vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER_PROD || secrets.SSH_USER_PROD || vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH_PROD || secrets.DEPLOY_PATH_PROD || vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+          SSH_KEY="${{ secrets.SERVER_SSH_KEY_PROD || secrets.SERVER_SSH_KEY }}"
+        else
+          echo "🏠 使用测试服务器配置（Homelab）"
+          SERVER_HOST="${{ vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+          SSH_KEY="${{ secrets.SERVER_SSH_KEY }}"
+        fi
+        
+        # 设置环境变量
+        echo "SERVER_HOST=$SERVER_HOST" >> $GITHUB_ENV
+        echo "SSH_PORT=$SSH_PORT" >> $GITHUB_ENV
+        echo "SSH_USER=$SSH_USER" >> $GITHUB_ENV
+        echo "DEPLOY_PATH=$DEPLOY_PATH" >> $GITHUB_ENV
+        echo "SSH_KEY=$SSH_KEY" >> $GITHUB_ENV
+        
+        echo ""
+        echo "📋 服务器配置:"
+        echo "  环境: $DEPLOY_ENVIRONMENT"
+        echo "  主机: $SERVER_HOST"
+        echo "  端口: $SSH_PORT"
+        echo "  用户: $SSH_USER"
+        echo "  路径: $DEPLOY_PATH"
+    
     - name: 设置SSH密钥
       uses: webfactory/ssh-agent@v0.8.0
       with:
-        ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+        ssh-private-key: ${{ env.SSH_KEY }}
         ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
-    
-    - name: 设置服务器配置
-      id: server_config
-      env:
-        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
-      run: |
-        echo "SERVER_HOST=${{ vars.SERVER_HOST || secrets.SERVER_HOST }}" >> $GITHUB_ENV
-        echo "SSH_PORT=${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}" >> $GITHUB_ENV
-        echo "SSH_USER=${{ vars.SSH_USER || secrets.SSH_USER }}" >> $GITHUB_ENV
-        echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}" >> $GITHUB_ENV
     
     - name: 检查并安装服务器环境
       env:
@@ -367,137 +396,21 @@ jobs:
       if: env.DEPLOY_MODE == 'all'
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+        DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}
+        PRIMARY_DOMAIN: ${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}
+        ADDITIONAL_DOMAINS: ${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}
+        USE_SSL: ${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}
+        NGINX_PORT: ${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}
+        BEHIND_PROXY: ${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}
+        PROXY_REAL_IP_FROM: ${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}
+        APP_PORT: ${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}
+        DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
       run: |
-        echo "==================================="
-        echo "生成Nginx配置文件..."
-        echo "==================================="
+        # 确保脚本可执行
+        chmod +x .github/scripts/generate-nginx-config.sh
         
-        # 获取部署环境配置
-        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
-        PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
-        ADDITIONAL_DOMAINS="${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}"
-        USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
-        SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
-        NGINX_PORT="${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}"
-        BEHIND_PROXY="${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}"
-        PROXY_IP="${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}"
-        APP_PORT="${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}"
-        DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
-        
-        echo "配置参数:"
-        echo "  部署环境: $DEPLOY_ENVIRONMENT"
-        echo "  主域名: $PRIMARY_DOMAIN"
-        echo "  备用域名: $ADDITIONAL_DOMAINS"
-        echo "  SSL启用: $USE_SSL"
-        echo "  Nginx端口: $NGINX_PORT"
-        echo "  应用端口: $APP_PORT"
-        echo "  反向代理: $BEHIND_PROXY"
-        echo ""
-        
-        # 生成Nginx配置
-        echo "# HOMELABS Portal Nginx配置" > nginx-auto.conf
-        echo "# 自动生成 - 请勿手动编辑" >> nginx-auto.conf
-        echo "" >> nginx-auto.conf
-        
-        # 构建server_name
-        SERVER_NAMES="$PRIMARY_DOMAIN"
-        if [ -n "$ADDITIONAL_DOMAINS" ]; then
-          SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
-        fi
-        
-        echo "server {" >> nginx-auto.conf
-        
-        # 根据环境和SSL设置决定监听端口
-        if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ]; then
-          echo "    # HTTP重定向到HTTPS" >> nginx-auto.conf
-          echo "    listen 80;" >> nginx-auto.conf
-          echo "    listen [::]:80;" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
-          echo "    return 301 https://\$server_name\$request_uri;" >> nginx-auto.conf
-          echo "}" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "server {" >> nginx-auto.conf
-          echo "    # HTTPS配置" >> nginx-auto.conf
-          echo "    listen 443 ssl http2;" >> nginx-auto.conf
-          echo "    listen [::]:443 ssl http2;" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # SSL证书配置" >> nginx-auto.conf
-          echo "    ssl_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem;" >> nginx-auto.conf
-          echo "    ssl_certificate_key /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem;" >> nginx-auto.conf
-          echo "    ssl_trusted_certificate /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # SSL安全配置" >> nginx-auto.conf
-          echo "    ssl_protocols TLSv1.2 TLSv1.3;" >> nginx-auto.conf
-          echo "    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;" >> nginx-auto.conf
-          echo "    ssl_prefer_server_ciphers on;" >> nginx-auto.conf
-          echo "    ssl_session_cache shared:SSL:10m;" >> nginx-auto.conf
-          echo "    ssl_session_timeout 10m;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-          echo "    # 安全头" >> nginx-auto.conf
-          echo "    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;" >> nginx-auto.conf
-          echo "    add_header X-Frame-Options SAMEORIGIN always;" >> nginx-auto.conf
-          echo "    add_header X-Content-Type-Options nosniff always;" >> nginx-auto.conf
-        else
-          echo "    # HTTP配置" >> nginx-auto.conf
-          echo "    listen ${NGINX_PORT};" >> nginx-auto.conf
-          echo "    listen [::]:${NGINX_PORT};" >> nginx-auto.conf
-          echo "    server_name $SERVER_NAMES;" >> nginx-auto.conf
-        fi
-        
-        echo "" >> nginx-auto.conf
-        
-        # 添加反向代理真实IP处理（如果启用）
-        if [ "$BEHIND_PROXY" = "true" ]; then
-          echo "    # 反向代理真实IP处理" >> nginx-auto.conf
-          echo "    set_real_ip_from ${PROXY_IP};" >> nginx-auto.conf
-          echo "    real_ip_header X-Forwarded-For;" >> nginx-auto.conf
-          echo "    real_ip_recursive on;" >> nginx-auto.conf
-          echo "" >> nginx-auto.conf
-        fi
-        
-        # Next.js应用代理配置
-        echo "    # Next.js应用代理" >> nginx-auto.conf
-        echo "    location / {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
-        echo "        proxy_http_version 1.1;" >> nginx-auto.conf
-        echo "        proxy_set_header Upgrade \$http_upgrade;" >> nginx-auto.conf
-        echo "        proxy_set_header Connection 'upgrade';" >> nginx-auto.conf
-        echo "        proxy_set_header Host \$host;" >> nginx-auto.conf
-        echo "        proxy_set_header X-Real-IP \$remote_addr;" >> nginx-auto.conf
-        echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> nginx-auto.conf
-        echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> nginx-auto.conf
-        echo "        proxy_cache_bypass \$http_upgrade;" >> nginx-auto.conf
-        echo "        proxy_buffering off;" >> nginx-auto.conf
-        echo "        proxy_read_timeout 86400;" >> nginx-auto.conf
-        echo "    }" >> nginx-auto.conf
-        echo "" >> nginx-auto.conf
-        
-        # 静态资源优化
-        echo "    # 静态资源优化" >> nginx-auto.conf
-        echo "    location /_next/static/ {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
-        echo "        expires 1y;" >> nginx-auto.conf
-        echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
-        echo "    }" >> nginx-auto.conf
-        echo "" >> nginx-auto.conf
-        
-        # 图片优化
-        echo "    location ~* \\.(jpg|jpeg|png|gif|ico|svg|webp)\$ {" >> nginx-auto.conf
-        echo "        proxy_pass http://localhost:${APP_PORT};" >> nginx-auto.conf
-        echo "        expires 30d;" >> nginx-auto.conf
-        echo "        add_header Cache-Control \"public, immutable\";" >> nginx-auto.conf
-        echo "    }" >> nginx-auto.conf
-        echo "" >> nginx-auto.conf
-        
-        # 日志配置
-        echo "    # 日志配置" >> nginx-auto.conf
-        echo "    access_log ${DEPLOY_PATH}/logs/nginx-access.log;" >> nginx-auto.conf
-        echo "    error_log ${DEPLOY_PATH}/logs/nginx-error.log warn;" >> nginx-auto.conf
-        echo "}" >> nginx-auto.conf
-        
-        echo "✅ Nginx配置文件生成完成"
-        echo ""
+        # 运行脚本生成配置文件
+        ./.github/scripts/generate-nginx-config.sh nginx-auto.conf
     
     - name: 🚀 部署Nginx配置
       if: env.DEPLOY_MODE == 'all'
