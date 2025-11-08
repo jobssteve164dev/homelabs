@@ -454,17 +454,45 @@ jobs:
           if [ -d ${{ env.DEPLOY_PATH }} ]; then
             cd ${{ env.DEPLOY_PATH }}
             
-            echo '1️⃣  停止所有Docker容器...'
-            docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+            echo '1️⃣  停止当前项目的Docker容器...'
+            # 只停止当前项目的容器（如果docker-compose.yml存在）
+            if [ -f docker-compose.yml ]; then
+              # 使用项目名称来精确停止，避免影响其他服务
+              # docker-compose 默认使用目录名作为项目名称
+              docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+              echo '   ✅ 当前项目容器已停止'
+            else
+              echo '   ℹ️  未找到docker-compose.yml，跳过容器停止'
+            fi
             
-            echo '2️⃣  清理未使用的Docker资源...'
-            docker system prune -f --volumes 2>/dev/null || true
-            echo '   ✅ Docker资源已清理'
+            echo '2️⃣  清理当前项目的未使用资源...'
+            # 只清理当前项目的镜像，不影响其他服务
+            if [ -f docker-compose.yml ]; then
+              # 只删除明确属于当前项目的旧镜像（通过镜像名称匹配）
+              # 查找 homelabs 相关的镜像（通过名称过滤，避免影响其他服务）
+              HOMELABS_IMAGES=\$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep -E 'homelabs|localhost.*homelabs' | awk '{print \$2}' | sort -u 2>/dev/null || true)
+              if [ -n \"\$HOMELABS_IMAGES\" ]; then
+                # 只删除未被任何容器使用的镜像
+                for img_id in \$HOMELABS_IMAGES; do
+                  # 检查镜像是否被任何容器使用
+                  if ! docker ps -a --filter \"ancestor=\$img_id\" --format '{{.ID}}' | grep -q .; then
+                    docker rmi \$img_id 2>/dev/null || true
+                  fi
+                done
+                echo '   ✅ 当前项目未使用的镜像已清理'
+              else
+                echo '   ℹ️  未找到 homelabs 相关镜像'
+              fi
+            else
+              echo '   ℹ️  未找到docker-compose.yml，跳过镜像清理'
+            fi
             
             echo '3️⃣  清理环境变量文件...'
             rm -f .env .env.* 2>/dev/null || true
             rm -f docker/.env docker/.env.* 2>/dev/null || true
             echo '   ✅ 环境文件已清理'
+          else
+            echo '   ℹ️  部署目录不存在，跳过清理'
           fi
         "
     
