@@ -671,24 +671,18 @@ jobs:
           docker compose ps
           
           # 验证服务是否正常运行
-          COMPOSE_PS_OUTPUT=$(docker compose ps --format json 2>/dev/null || echo "[]")
+          # 使用docker compose ps直接统计，避免jq语法问题
+          RUNNING_COUNT=$(docker compose ps --filter "status=running" --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+          TOTAL_COUNT=$(docker compose ps --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
           
-          if [ "$COMPOSE_PS_OUTPUT" = "[]" ] || [ -z "$COMPOSE_PS_OUTPUT" ]; then
+          if [ "$TOTAL_COUNT" -eq "0" ]; then
             echo "❌ 错误: 没有找到任何容器！"
             echo "查看 docker-compose.yml 配置:"
             cat docker-compose.yml | head -20
             exit 1
           fi
           
-          RUNNING_COUNT=$(echo "$COMPOSE_PS_OUTPUT" | jq -r '[.[] | select(.State == "running")] | length' 2>/dev/null || echo "0")
-          TOTAL_COUNT=$(echo "$COMPOSE_PS_OUTPUT" | jq -r '. | length' 2>/dev/null || echo "0")
-          
           echo "容器状态: 运行中 $RUNNING_COUNT / 总计 $TOTAL_COUNT"
-          
-          if [ "$TOTAL_COUNT" -eq "0" ]; then
-            echo "❌ 错误: 没有定义任何服务！"
-            exit 1
-          fi
           
           if [ "$RUNNING_COUNT" -eq "0" ]; then
             echo "❌ 错误: 所有容器都未运行！"
@@ -731,7 +725,7 @@ jobs:
           
           echo ''
           echo '2. 检查容器健康状态:'
-          docker compose ps --format json | jq -r '.[] | \"\(.Name): \(.Health)\"' || echo '健康检查信息不可用'
+          docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Health}}" || echo '健康检查信息不可用'
           
           echo ''
           echo '3. 检查应用端口:'
