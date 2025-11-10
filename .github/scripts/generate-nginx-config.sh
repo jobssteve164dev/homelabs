@@ -135,6 +135,17 @@ cat >> "$OUTPUT_FILE" <<NGINX_MAIN
 }
 NGINX_MAIN
 
+# 替换所有变量（确保变量被正确替换）
+sed -i.bak "s|\${DEPLOY_PATH}|${DEPLOY_PATH}|g" "$OUTPUT_FILE"
+sed -i.bak "s|\${APP_PORT}|${APP_PORT}|g" "$OUTPUT_FILE"
+sed -i.bak "s|\${NGINX_PORT}|${NGINX_PORT}|g" "$OUTPUT_FILE"
+sed -i.bak "s|\${SERVER_NAMES}|${SERVER_NAMES}|g" "$OUTPUT_FILE"
+sed -i.bak "s|\${PRIMARY_DOMAIN}|${PRIMARY_DOMAIN}|g" "$OUTPUT_FILE"
+sed -i.bak "s|\${PROXY_IP}|${PROXY_IP}|g" "$OUTPUT_FILE"
+rm -f "${OUTPUT_FILE}.bak"
+
 echo "✅ Nginx配置文件生成完成: $OUTPUT_FILE"
+echo "验证配置中的路径:"
+grep -E "(access_log|error_log)" "$OUTPUT_FILE" || true
 echo ""
 

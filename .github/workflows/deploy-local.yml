@@ -501,9 +501,27 @@ jobs:
             fi
           fi
           
+          # 确保日志目录存在且Nginx有权限
+          echo "创建日志目录..."
+          sudo mkdir -p $DEPLOY_PATH/logs
+          sudo chown -R www-data:www-data $DEPLOY_PATH/logs 2>/dev/null || sudo chown -R nginx:nginx $DEPLOY_PATH/logs 2>/dev/null || true
+          sudo chmod 755 $DEPLOY_PATH/logs
+          
+          # 验证配置文件中的日志路径
+          echo "验证配置文件中的日志路径..."
+          grep -E "(access_log|error_log)" /etc/nginx/sites-available/homelabs || true
+          
           # 测试配置
           echo "测试Nginx配置..."
-          sudo nginx -t
+          if ! sudo nginx -t; then
+            echo "❌ Nginx配置测试失败！"
+            echo "查看配置错误:"
+            sudo nginx -t 2>&1
+            echo ""
+            echo "查看配置文件内容:"
+            cat /etc/nginx/sites-available/homelabs | tail -20
+            exit 1
+          fi
           
           # 重载Nginx
           echo "重载Nginx服务..."

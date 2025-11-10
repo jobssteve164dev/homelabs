@@ -1,12 +1,31 @@
 Run echo "==================================="
+  
 ===================================
-构建并启动Docker服务...
+部署Nginx配置...
 ===================================
-🔨 构建Docker镜像...
-no configuration file provided: not found
-🚀 启动Docker服务...
-no configuration file provided: not found
-⏳ 等待服务启动...
-📊 查看服务状态...
-no configuration file provided: not found
-✅ Docker服务启动完成
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+Welcome to Ubuntu 24.04 LTS (GNU/Linux 6.8.0-49-generic x86_64)
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+ System information as of Mon Nov 10 06:12:06 PM CST 2025
+  System load:           0.77
+  Usage of /:            21.2% of 39.26GB
+  Memory usage:          52%
+  Swap usage:            30%
+  Processes:             246
+  Users logged in:       0
+  IPv4 address for eth0: 10.0.4.16
+  IPv6 address for eth0: 2402:4e00:c032:7500:36c8:134e:1c4a:0
+Expanded Security Maintenance for Applications is not enabled.
+327 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+部署新Nginx配置...
+删除默认Nginx站点...
+测试Nginx配置...
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+2025/11/10 18:12:21 [emerg] 3949672#3949672: open() "/usr/share/nginx/opt/homelabs/logs/nginx-access.log" failed (2: No such file or directory)
+nginx: configuration file /etc/nginx/nginx.conf test failed
+Error: Process completed with exit code 1.
