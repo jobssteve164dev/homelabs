@@ -652,28 +652,97 @@ jobs:
           echo "文件前10行内容:"
           head -10 docker-compose.yml
           
+          # 检查Docker权限并确保用户有权限
+          echo "检查Docker权限..."
+          DOCKER_CMD=""
+          
+          if ! docker ps &>/dev/null; then
+            echo "⚠️  当前用户无法访问Docker，尝试修复权限..."
+            # 确保用户在docker组中
+            sudo usermod -aG docker $USER 2>/dev/null || true
+            
+            # 尝试使用sg临时切换到docker组
+            if command -v sg &>/dev/null && sg docker -c "docker ps" &>/dev/null; then
+              echo "使用sg切换到docker组执行命令..."
+              DOCKER_CMD="sg docker -c"
+            else
+              # 如果sg不可用或无效，使用sudo
+              echo "使用sudo执行Docker命令..."
+              DOCKER_CMD="sudo"
+            fi
+          else
+            echo "✅ Docker权限正常"
+          fi
+          
           echo "🔨 构建Docker镜像..."
-          if ! docker compose build --no-cache; then
-            echo "❌ Docker镜像构建失败！"
-            exit 1
+          if [ -n "$DOCKER_CMD" ]; then
+            if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+              if ! sg docker -c "docker compose build --no-cache"; then
+                echo "❌ Docker镜像构建失败！"
+                exit 1
+              fi
+            else
+              if ! sudo docker compose build --no-cache; then
+                echo "❌ Docker镜像构建失败！"
+                exit 1
+              fi
+            fi
+          else
+            if ! docker compose build --no-cache; then
+              echo "❌ Docker镜像构建失败！"
+              exit 1
+            fi
           fi
           
           echo "🚀 启动Docker服务..."
-          if ! docker compose up -d; then
-            echo "❌ Docker服务启动失败！"
-            exit 1
+          if [ -n "$DOCKER_CMD" ]; then
+            if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+              if ! sg docker -c "docker compose up -d"; then
+                echo "❌ Docker服务启动失败！"
+                exit 1
+              fi
+            else
+              if ! sudo docker compose up -d; then
+                echo "❌ Docker服务启动失败！"
+                exit 1
+              fi
+            fi
+          else
+            if ! docker compose up -d; then
+              echo "❌ Docker服务启动失败！"
+              exit 1
+            fi
           fi
           
           echo "⏳ 等待服务启动..."
           sleep 10
           
           echo "📊 查看服务状态..."
-          docker compose ps
+          if [ -n "$DOCKER_CMD" ]; then
+            if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+              sg docker -c "docker compose ps"
+            else
+              sudo docker compose ps
+            fi
+          else
+            docker compose ps
+          fi
           
           # 验证服务是否正常运行
           # 使用docker compose ps直接统计，避免jq语法问题
-          RUNNING_COUNT=$(docker compose ps --filter "status=running" --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
-          TOTAL_COUNT=$(docker compose ps --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+          # 使用相同的DOCKER_CMD前缀
+          if [ -n "$DOCKER_CMD" ]; then
+            if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+              RUNNING_COUNT=$(sg docker -c "docker compose ps --filter 'status=running' --format '{{.Name}}'" | grep -v "^$" | wc -l || echo "0")
+              TOTAL_COUNT=$(sg docker -c "docker compose ps --format '{{.Name}}'" | grep -v "^$" | wc -l || echo "0")
+            else
+              RUNNING_COUNT=$(sudo docker compose ps --filter "status=running" --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+              TOTAL_COUNT=$(sudo docker compose ps --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+            fi
+          else
+            RUNNING_COUNT=$(docker compose ps --filter "status=running" --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+            TOTAL_COUNT=$(docker compose ps --format "{{.Name}}" | grep -v "^$" | wc -l || echo "0")
+          fi
           
           if [ "$TOTAL_COUNT" -eq "0" ]; then
             echo "❌ 错误: 没有找到任何容器！"
@@ -687,20 +756,48 @@ jobs:
           if [ "$RUNNING_COUNT" -eq "0" ]; then
             echo "❌ 错误: 所有容器都未运行！"
             echo "查看容器状态:"
-            docker compose ps
-            echo ""
-            echo "查看容器日志:"
-            docker compose logs --tail=30
+            if [ -n "$DOCKER_CMD" ]; then
+              if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+                sg docker -c "docker compose ps"
+                echo ""
+                echo "查看容器日志:"
+                sg docker -c "docker compose logs --tail=30"
+              else
+                sudo docker compose ps
+                echo ""
+                echo "查看容器日志:"
+                sudo docker compose logs --tail=30
+              fi
+            else
+              docker compose ps
+              echo ""
+              echo "查看容器日志:"
+              docker compose logs --tail=30
+            fi
             exit 1
           fi
           
           if [ "$RUNNING_COUNT" -lt "$TOTAL_COUNT" ]; then
             echo "⚠️  警告: 部分容器未运行 ($RUNNING_COUNT/$TOTAL_COUNT)"
             echo "查看未运行的容器:"
-            docker compose ps --filter "status=exited" --filter "status=dead"
-            echo ""
-            echo "查看错误日志:"
-            docker compose logs --tail=30
+            if [ -n "$DOCKER_CMD" ]; then
+              if [ "$DOCKER_CMD" = "sg docker -c" ]; then
+                sg docker -c "docker compose ps --filter 'status=exited' --filter 'status=dead'"
+                echo ""
+                echo "查看错误日志:"
+                sg docker -c "docker compose logs --tail=30"
+              else
+                sudo docker compose ps --filter "status=exited" --filter "status=dead"
+                echo ""
+                echo "查看错误日志:"
+                sudo docker compose logs --tail=30
+              fi
+            else
+              docker compose ps --filter "status=exited" --filter "status=dead"
+              echo ""
+              echo "查看错误日志:"
+              docker compose logs --tail=30
+            fi
             exit 1
           fi
           
@@ -720,12 +817,38 @@ jobs:
         sleep 15
         
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          # 检查Docker权限
+          DOCKER_CMD=\"\"
+          if ! docker ps &>/dev/null; then
+            if command -v sg &>/dev/null && sg docker -c \"docker ps\" &>/dev/null; then
+              DOCKER_CMD=\"sg docker -c\"
+            else
+              DOCKER_CMD=\"sudo\"
+            fi
+          fi
+          
           echo '1. Docker容器状态:'
-          docker compose ps
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              sg docker -c \"docker compose ps\"
+            else
+              sudo docker compose ps
+            fi
+          else
+            docker compose ps
+          fi
           
           echo ''
           echo '2. 检查容器健康状态:'
-          docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Health}}" || echo '健康检查信息不可用'
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              sg docker -c \"docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Health}}'\" || echo '健康检查信息不可用'
+            else
+              sudo docker compose ps --format \"table {{.Name}}\t{{.Status}}\t{{.Health}}\" || echo '健康检查信息不可用'
+            fi
+          else
+            docker compose ps --format \"table {{.Name}}\t{{.Status}}\t{{.Health}}\" || echo '健康检查信息不可用'
+          fi
           
           echo ''
           echo '3. 检查应用端口:'
