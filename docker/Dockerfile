@@ -1,10 +1,11 @@
 # 科幻未来风私域AI工具门户网站 - Docker配置
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # 安装依赖
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 # 复制package文件
 COPY client/package*.json ./
@@ -14,9 +15,11 @@ RUN npm ci --only=production
 FROM base AS builder
 WORKDIR /app
 COPY client/package*.json ./
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 RUN npm ci
 
 COPY client/ ./
+RUN npx prisma generate
 RUN npm run build
 
 # 生产镜像
