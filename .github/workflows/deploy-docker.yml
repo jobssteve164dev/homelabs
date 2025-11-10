@@ -301,84 +301,27 @@ jobs:
         chmod +x .github/scripts/generate-docker-config.sh
         
         # 运行脚本生成配置文件
+        echo "运行配置生成脚本..."
         ./.github/scripts/generate-docker-config.sh .
-    
-    - name: 🚀 部署Docker配置
-      if: env.DEPLOY_MODE == 'all'
-      env:
-        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
-      run: |
-        echo "==================================="
-        echo "部署Docker配置..."
-        echo "==================================="
         
-        # 确保部署目录存在
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
-          sudo mkdir -p ${{ env.DEPLOY_PATH }}
-          sudo chown -R ${{ env.SSH_USER }}:${{ env.SSH_USER }} ${{ env.DEPLOY_PATH }}
-          mkdir -p ${{ env.DEPLOY_PATH }}/docker
-          mkdir -p ${{ env.DEPLOY_PATH }}/logs
-        "
+        # 验证文件是否生成成功
+        echo "验证生成的文件..."
+        if [ ! -f "docker-compose-auto.yml" ]; then
+          echo "❌ 错误: docker-compose-auto.yml 文件未生成！"
+          ls -la . | grep -E "(docker|compose)" || echo "当前目录文件列表:"
+          ls -la .
+          exit 1
+        fi
         
-        # 上传配置文件到服务器
-        scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker-compose-auto.yml \
-          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker-compose.yml
+        if [ ! -f "docker/nginx-auto.conf" ]; then
+          echo "❌ 错误: docker/nginx-auto.conf 文件未生成！"
+          ls -la docker/ 2>/dev/null || echo "docker 目录不存在"
+          exit 1
+        fi
         
-        scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker/nginx-auto.conf \
-          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker/nginx.conf
-        
-        # 部署配置
-        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
-          set -e
-          
-          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
-          DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
-          PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
-          USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
-          SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
-          
-          cd $DEPLOY_PATH
-          
-          # 生产环境SSL证书处理
-          if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ] && [ -n "$SSL_EMAIL" ]; then
-            echo "处理生产环境SSL证书..."
-            
-            # 创建SSL目录
-            mkdir -p docker/ssl/$PRIMARY_DOMAIN
-            
-            # 检查certbot是否已安装（在主机上）
-            if ! command -v certbot &> /dev/null; then
-              echo "安装certbot..."
-              if command -v apt-get &> /dev/null; then
-                sudo apt-get update
-                sudo apt-get install -y certbot
-              elif command -v yum &> /dev/null; then
-                sudo yum install -y certbot
-              fi
-            fi
-            
-            # 检查证书是否存在
-            if [ ! -f "docker/ssl/$PRIMARY_DOMAIN/fullchain.pem" ]; then
-              echo "申请SSL证书..."
-              # 注意：需要先启动临时nginx容器或使用standalone模式
-              sudo certbot certonly --standalone -d $PRIMARY_DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive
-              
-              # 复制证书到docker/ssl目录
-              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem docker/ssl/$PRIMARY_DOMAIN/
-              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem docker/ssl/$PRIMARY_DOMAIN/
-              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem docker/ssl/$PRIMARY_DOMAIN/
-              sudo chown -R $USER:$USER docker/ssl/
-              echo "✅ SSL证书申请完成"
-            else
-              echo "SSL证书已存在"
-            fi
-          fi
-          
-          echo "✅ Docker配置部署完成"
-        ENDSSH
-        
-        echo "✅ Docker配置部署成功"
-        echo ""
+        echo "✅ 配置文件生成成功"
+        echo "文件列表:"
+        ls -lh docker-compose-auto.yml docker/nginx-auto.conf
     
     - name: 备份当前版本
       if: env.DEPLOY_MODE != 'check'
@@ -543,6 +486,135 @@ jobs:
           ./ ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/
         
         echo "✅ 代码传输完成"
+        
+        # 验证代码传输结果
+        echo "验证代码传输..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          cd ${{ env.DEPLOY_PATH }}
+          echo '代码传输验证:'
+          echo '  目录内容:'
+          ls -la | head -10
+          echo '✅ 代码传输验证完成'
+        "
+    
+    - name: 🚀 部署Docker配置
+      if: env.DEPLOY_MODE == 'all'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "部署Docker配置..."
+        echo "==================================="
+        echo "注意: 配置文件在代码传输后上传，避免被 rsync --delete 删除"
+        
+        # 检查本地配置文件是否存在
+        if [ ! -f "docker-compose-auto.yml" ]; then
+          echo "❌ 错误: docker-compose-auto.yml 文件不存在！"
+          echo "   配置文件生成可能失败"
+          exit 1
+        fi
+        
+        if [ ! -f "docker/nginx-auto.conf" ]; then
+          echo "❌ 错误: docker/nginx-auto.conf 文件不存在！"
+          echo "   配置文件生成可能失败"
+          exit 1
+        fi
+        
+        # 上传配置文件到服务器（在代码传输之后，避免被删除）
+        echo "上传 docker-compose.yml..."
+        if ! scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker-compose-auto.yml \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker-compose.yml; then
+          echo "❌ docker-compose.yml 上传失败！"
+          exit 1
+        fi
+        
+        echo "上传 nginx.conf..."
+        if ! scp -o StrictHostKeyChecking=no -P ${{ env.SSH_PORT }} docker/nginx-auto.conf \
+          ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker/nginx.conf; then
+          echo "❌ nginx.conf 上传失败！"
+          exit 1
+        fi
+        
+        echo "✅ 配置文件上传完成"
+        
+        # 验证文件是否成功上传
+        echo "验证配置文件是否成功上传..."
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          cd ${{ env.DEPLOY_PATH }}
+          
+          if [ ! -f 'docker-compose.yml' ]; then
+            echo '❌ 错误: docker-compose.yml 上传后验证失败！'
+            exit 1
+          fi
+          
+          if [ ! -f 'docker/nginx.conf' ]; then
+            echo '❌ 错误: docker/nginx.conf 上传后验证失败！'
+            exit 1
+          fi
+          
+          echo '✅ 配置文件验证成功'
+          echo '文件信息:'
+          ls -lh docker-compose.yml docker/nginx.conf
+        "
+        
+        # 部署配置（SSL证书等）
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+          PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
+          USE_SSL="${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}"
+          SSL_EMAIL="${{ vars.SSL_EMAIL || secrets.SSL_EMAIL || '' }}"
+          
+          cd $DEPLOY_PATH
+          
+          # 再次验证文件存在
+          if [ ! -f 'docker-compose.yml' ]; then
+            echo '❌ 错误: docker-compose.yml 文件不存在！'
+            exit 1
+          fi
+          
+          # 生产环境SSL证书处理
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$USE_SSL" = "true" ] && [ -n "$SSL_EMAIL" ]; then
+            echo "处理生产环境SSL证书..."
+            
+            # 创建SSL目录
+            mkdir -p docker/ssl/$PRIMARY_DOMAIN
+            
+            # 检查certbot是否已安装（在主机上）
+            if ! command -v certbot &> /dev/null; then
+              echo "安装certbot..."
+              if command -v apt-get &> /dev/null; then
+                sudo apt-get update
+                sudo apt-get install -y certbot
+              elif command -v yum &> /dev/null; then
+                sudo yum install -y certbot
+              fi
+            fi
+            
+            # 检查证书是否存在
+            if [ ! -f "docker/ssl/$PRIMARY_DOMAIN/fullchain.pem" ]; then
+              echo "申请SSL证书..."
+              # 注意：需要先启动临时nginx容器或使用standalone模式
+              sudo certbot certonly --standalone -d $PRIMARY_DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive
+              
+              # 复制证书到docker/ssl目录
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/fullchain.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/privkey.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo cp /etc/letsencrypt/live/$PRIMARY_DOMAIN/chain.pem docker/ssl/$PRIMARY_DOMAIN/
+              sudo chown -R $USER:$USER docker/ssl/
+              echo "✅ SSL证书申请完成"
+            else
+              echo "SSL证书已存在"
+            fi
+          fi
+          
+          echo "✅ Docker配置部署完成"
+        ENDSSH
+        
+        echo "✅ Docker配置部署成功"
+        echo ""
     
     - name: 构建并启动Docker服务
       if: env.DEPLOY_MODE != 'check'
@@ -555,13 +627,42 @@ jobs:
         echo "==================================="
         
         ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} '
+          set -e
           cd ${{ env.DEPLOY_PATH }}
           
+          echo "当前工作目录: $(pwd)"
+          echo "目录内容:"
+          ls -la | head -20
+          
+          # 检查 docker-compose.yml 是否存在
+          if [ ! -f "docker-compose.yml" ]; then
+            echo "❌ 错误: docker-compose.yml 文件不存在！"
+            echo "   当前目录: $(pwd)"
+            echo "   目录内容:"
+            ls -la
+            echo ""
+            echo "   请确保使用 'all' 模式部署，或手动上传配置文件"
+            exit 1
+          fi
+          
+          echo "✅ 找到 docker-compose.yml 文件"
+          echo "文件信息:"
+          ls -lh docker-compose.yml
+          echo ""
+          echo "文件前10行内容:"
+          head -10 docker-compose.yml
+          
           echo "🔨 构建Docker镜像..."
-          docker compose build --no-cache
+          if ! docker compose build --no-cache; then
+            echo "❌ Docker镜像构建失败！"
+            exit 1
+          fi
           
           echo "🚀 启动Docker服务..."
-          docker compose up -d
+          if ! docker compose up -d; then
+            echo "❌ Docker服务启动失败！"
+            exit 1
+          fi
           
           echo "⏳ 等待服务启动..."
           sleep 10
@@ -569,7 +670,47 @@ jobs:
           echo "📊 查看服务状态..."
           docker compose ps
           
-          echo "✅ Docker服务启动完成"
+          # 验证服务是否正常运行
+          COMPOSE_PS_OUTPUT=$(docker compose ps --format json 2>/dev/null || echo "[]")
+          
+          if [ "$COMPOSE_PS_OUTPUT" = "[]" ] || [ -z "$COMPOSE_PS_OUTPUT" ]; then
+            echo "❌ 错误: 没有找到任何容器！"
+            echo "查看 docker-compose.yml 配置:"
+            cat docker-compose.yml | head -20
+            exit 1
+          fi
+          
+          RUNNING_COUNT=$(echo "$COMPOSE_PS_OUTPUT" | jq -r '[.[] | select(.State == "running")] | length' 2>/dev/null || echo "0")
+          TOTAL_COUNT=$(echo "$COMPOSE_PS_OUTPUT" | jq -r '. | length' 2>/dev/null || echo "0")
+          
+          echo "容器状态: 运行中 $RUNNING_COUNT / 总计 $TOTAL_COUNT"
+          
+          if [ "$TOTAL_COUNT" -eq "0" ]; then
+            echo "❌ 错误: 没有定义任何服务！"
+            exit 1
+          fi
+          
+          if [ "$RUNNING_COUNT" -eq "0" ]; then
+            echo "❌ 错误: 所有容器都未运行！"
+            echo "查看容器状态:"
+            docker compose ps
+            echo ""
+            echo "查看容器日志:"
+            docker compose logs --tail=30
+            exit 1
+          fi
+          
+          if [ "$RUNNING_COUNT" -lt "$TOTAL_COUNT" ]; then
+            echo "⚠️  警告: 部分容器未运行 ($RUNNING_COUNT/$TOTAL_COUNT)"
+            echo "查看未运行的容器:"
+            docker compose ps --filter "status=exited" --filter "status=dead"
+            echo ""
+            echo "查看错误日志:"
+            docker compose logs --tail=30
+            exit 1
+          fi
+          
+          echo "✅ Docker服务启动完成 (所有 $TOTAL_COUNT 个容器都在运行)"
         '
     
     - name: 验证部署
