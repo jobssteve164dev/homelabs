@@ -286,12 +286,15 @@ jobs:
         ADDITIONAL_DOMAINS: ${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}
         USE_SSL: ${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}
         NGINX_PORT: ${{ vars.NGINX_PORT || secrets.NGINX_PORT || '80' }}
+        NGINX_SSL_PORT: ${{ vars.NGINX_SSL_PORT || secrets.NGINX_SSL_PORT || '443' }}
         BEHIND_PROXY: ${{ vars.BEHIND_PROXY || secrets.BEHIND_PROXY || 'false' }}
         PROXY_REAL_IP_FROM: ${{ vars.PROXY_REAL_IP_FROM || secrets.PROXY_REAL_IP_FROM || '192.168.0.0/16' }}
         APP_PORT: ${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}
         POSTGRES_DB: ${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}
         POSTGRES_USER: ${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        POSTGRES_HOST_PORT: ${{ vars.POSTGRES_HOST_PORT || secrets.POSTGRES_HOST_PORT || '15432' }}
+        REDIS_HOST_PORT: ${{ vars.REDIS_HOST_PORT || secrets.REDIS_HOST_PORT || '16379' }}
         NEXTAUTH_URL: ${{ vars.NEXTAUTH_URL || secrets.NEXTAUTH_URL }}
         NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
         APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}

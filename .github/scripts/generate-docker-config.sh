@@ -16,6 +16,11 @@ APP_PORT="${APP_PORT:-3000}"
 BEHIND_PROXY="${BEHIND_PROXY:-false}"
 PROXY_IP="${PROXY_REAL_IP_FROM:-192.168.0.0/16}"
 
+# 宿主机端口（可自定义，避免冲突）
+POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT:-15432}"
+REDIS_HOST_PORT="${REDIS_HOST_PORT:-16379}"
+NGINX_SSL_PORT="${NGINX_SSL_PORT:-443}"
+
 # 数据库配置
 POSTGRES_DB="${POSTGRES_DB:-homelabs_portal}"
 POSTGRES_USER="${POSTGRES_USER:-homelabs}"
@@ -38,7 +43,10 @@ echo "  主域名: $PRIMARY_DOMAIN"
 echo "  备用域名: $ADDITIONAL_DOMAINS"
 echo "  SSL启用: $USE_SSL"
 echo "  Nginx端口: $NGINX_PORT"
+echo "  Nginx(SSL)端口: $NGINX_SSL_PORT (仅在 USE_SSL=true 时启用)"
 echo "  应用端口: $APP_PORT"
+echo "  Postgres宿主端口: $POSTGRES_HOST_PORT"
+echo "  Redis宿主端口: $REDIS_HOST_PORT"
 echo "  反向代理: $BEHIND_PROXY"
 echo ""
 
@@ -46,13 +54,18 @@ echo ""
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/docker"
 
+# 计算 Nginx 端口映射（根据是否启用 SSL 决定是否映射 443）
+NGINX_PORTS="      - \"${NGINX_PORT}:80\""
+if [ "$USE_SSL" = "true" ]; then
+  NGINX_PORTS="${NGINX_PORTS}
+      - \"${NGINX_SSL_PORT}:443\""
+fi
+
 # ========================================
 # 生成 docker-compose.yml
 # ========================================
 echo "生成 docker-compose.yml..."
 cat > "$OUTPUT_DIR/docker-compose-auto.yml" <<EOF
-version: '3.8'
-
 services:
   # PostgreSQL 数据库
   postgres:
@@ -64,7 +77,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -81,7 +94,7 @@ services:
     container_name: homelabs-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -131,8 +144,7 @@ services:
     container_name: homelabs-nginx
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT}:80"
-      - "443:443"
+${NGINX_PORTS}
     volumes:
       - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/ssl:/etc/nginx/ssl:ro
