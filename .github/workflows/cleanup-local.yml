@@ -1,0 +1,358 @@
+name: 清理本地部署环境
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      cleanup_level:
+        description: '清理级别'
+        required: true
+        default: 'app'
+        type: choice
+        options:
+          - app          # 仅清理应用（停止服务、删除部署目录）
+          - app+nginx    # 清理应用 + Nginx配置
+          - full         # 完全清理（包括数据库和用户，危险操作）
+      confirm_database:
+        description: '确认删除数据库（仅full模式）'
+        required: false
+        default: 'no'
+        type: choice
+        options:
+          - yes
+          - no
+
+jobs:
+  cleanup-local:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+    
+    - name: 设置服务器配置
+      id: server_config
+      run: |
+        # 获取部署环境
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        echo "DEPLOY_ENVIRONMENT=$DEPLOY_ENVIRONMENT" >> $GITHUB_ENV
+        
+        # 根据环境选择服务器配置
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "🏭 使用生产服务器配置"
+          SERVER_HOST="${{ vars.SERVER_HOST_PROD || secrets.SERVER_HOST_PROD || vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT_PROD || secrets.SSH_PORT_PROD || vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER_PROD || secrets.SSH_USER_PROD || vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH_PROD || secrets.DEPLOY_PATH_PROD || vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+        else
+          echo "🏠 使用测试服务器配置（Homelab）"
+          SERVER_HOST="${{ vars.SERVER_HOST || secrets.SERVER_HOST }}"
+          SSH_PORT="${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}"
+          SSH_USER="${{ vars.SSH_USER || secrets.SSH_USER }}"
+          DEPLOY_PATH="${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/homelabs' }}"
+        fi
+        
+        # 设置环境变量
+        echo "SERVER_HOST=$SERVER_HOST" >> $GITHUB_ENV
+        echo "SSH_PORT=$SSH_PORT" >> $GITHUB_ENV
+        echo "SSH_USER=$SSH_USER" >> $GITHUB_ENV
+        echo "DEPLOY_PATH=$DEPLOY_PATH" >> $GITHUB_ENV
+        
+        # 设置清理级别
+        CLEANUP_LEVEL="${{ inputs.cleanup_level || 'app' }}"
+        echo "CLEANUP_LEVEL=$CLEANUP_LEVEL" >> $GITHUB_ENV
+        
+        echo ""
+        echo "📋 清理配置:"
+        echo "  环境: $DEPLOY_ENVIRONMENT"
+        echo "  主机: $SERVER_HOST"
+        echo "  端口: $SSH_PORT"
+        echo "  用户: $SSH_USER"
+        echo "  路径: $DEPLOY_PATH"
+        echo "  清理级别: $CLEANUP_LEVEL"
+    
+    - name: 设置SSH密钥
+      id: set_ssh_key
+      run: |
+        DEPLOY_ENVIRONMENT="${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}"
+        if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+          echo "使用生产服务器SSH密钥"
+          SSH_KEY_CONTENT="${{ secrets.SERVER_SSH_KEY_PROD || secrets.SERVER_SSH_KEY }}"
+        else
+          echo "使用测试服务器SSH密钥"
+          SSH_KEY_CONTENT="${{ secrets.SERVER_SSH_KEY }}"
+        fi
+        # 使用多行格式设置环境变量
+        {
+          echo "SSH_KEY_CONTENT<<EOF"
+          echo "$SSH_KEY_CONTENT"
+          echo "EOF"
+        } >> $GITHUB_ENV
+    
+    - name: 配置SSH Agent
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ env.SSH_KEY_CONTENT }}
+        ssh-auth-sock: ${{ github.workspace }}/ssh-auth.sock
+    
+    - name: 🛑 停止应用服务
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "停止应用服务..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          echo '1️⃣  停止所有PM2进程...'
+          if command -v pm2 &> /dev/null; then
+            pm2 stop all 2>/dev/null || true
+            pm2 delete all 2>/dev/null || true
+            pm2 kill 2>/dev/null || true
+            echo '   ✅ PM2进程已停止'
+          else
+            echo '   ⚠️  PM2未安装，跳过'
+          fi
+          
+          echo ''
+          echo '2️⃣  检查并停止占用端口的进程...'
+          APP_PORT=\"${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\"
+          if sudo ss -tlnp | grep -q \":\$APP_PORT\"; then
+            echo \"   发现端口 \$APP_PORT 被占用，尝试停止...\"
+            sudo lsof -ti:\$APP_PORT | xargs sudo kill -9 2>/dev/null || true
+            sleep 2
+            if sudo ss -tlnp | grep -q \":\$APP_PORT\"; then
+              echo \"   ⚠️  端口 \$APP_PORT 仍被占用\"
+            else
+              echo \"   ✅ 端口 \$APP_PORT 已释放\"
+            fi
+          else
+            echo \"   ✅ 端口 \$APP_PORT 未被占用\"
+          fi
+        "
+    
+    - name: 🗑️  清理PM2配置和日志
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "清理PM2配置和日志..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          if [ -d ~/.pm2 ]; then
+            echo '清理PM2持久化配置...'
+            rm -f ~/.pm2/dump.pm2
+            rm -rf ~/.pm2/logs/*
+            rm -rf ~/.pm2/pids/*
+            echo '   ✅ PM2配置已清理'
+          else
+            echo '   ⚠️  PM2目录不存在，跳过'
+          fi
+        "
+    
+    - name: 🗂️  清理部署目录
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "清理部署目录..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          DEPLOY_PATH=\"${{ env.DEPLOY_PATH }}\"
+          
+          if [ -d \"\$DEPLOY_PATH\" ]; then
+            echo \"删除部署目录: \$DEPLOY_PATH\"
+            sudo rm -rf \"\$DEPLOY_PATH\"
+            echo '   ✅ 部署目录已删除'
+          else
+            echo '   ⚠️  部署目录不存在，跳过'
+          fi
+          
+          echo ''
+          echo '清理备份目录...'
+          BACKUP_PATTERN=\"\$(dirname \$DEPLOY_PATH)/\$(basename \$DEPLOY_PATH)_backup_*\"
+          BACKUP_COUNT=\$(ls -d \$BACKUP_PATTERN 2>/dev/null | wc -l)
+          if [ \"\$BACKUP_COUNT\" -gt 0 ]; then
+            echo \"   发现 \$BACKUP_COUNT 个备份目录，正在删除...\"
+            sudo rm -rf \$BACKUP_PATTERN
+            echo '   ✅ 备份目录已清理'
+          else
+            echo '   ✅ 无备份目录需要清理'
+          fi
+        "
+    
+    - name: 🔧 清理Nginx配置（可选）
+      if: env.CLEANUP_LEVEL == 'app+nginx' || env.CLEANUP_LEVEL == 'full'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "清理Nginx配置..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          
+          PRIMARY_DOMAIN="${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}"
+          
+          echo '1️⃣  删除Nginx站点配置...'
+          if [ -f /etc/nginx/sites-available/homelabs ]; then
+            echo '   删除站点配置...'
+            sudo rm -f /etc/nginx/sites-available/homelabs
+            sudo rm -f /etc/nginx/sites-enabled/homelabs
+            echo '   ✅ Nginx站点配置已删除'
+          else
+            echo '   ⚠️  Nginx站点配置不存在，跳过'
+          fi
+          
+          echo ''
+          echo '2️⃣  测试Nginx配置...'
+          if sudo nginx -t 2>/dev/null; then
+            echo '   重载Nginx...'
+            sudo systemctl reload nginx 2>/dev/null || true
+            echo '   ✅ Nginx配置已更新'
+          else
+            echo '   ⚠️  Nginx配置测试失败，但继续执行'
+          fi
+          
+          echo ''
+          echo '3️⃣  清理应用日志目录...'
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          if [ -d "$DEPLOY_PATH/logs" ]; then
+            sudo rm -rf "$DEPLOY_PATH/logs"
+            echo '   ✅ 日志目录已清理'
+          else
+            echo '   ⚠️  日志目录不存在，跳过'
+          fi
+        ENDSSH
+    
+    - name: 🗄️  清理数据库（危险操作）
+      if: env.CLEANUP_LEVEL == 'full' && inputs.confirm_database == 'yes'
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "⚠️  清理数据库（危险操作）..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          
+          DB_NAME="${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}"
+          DB_USER="${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'homelabs' }}"
+          
+          echo "数据库名称: $DB_NAME"
+          echo "数据库用户: $DB_USER"
+          echo ""
+          echo "⚠️  警告：此操作将永久删除数据库和用户，无法恢复！"
+          echo ""
+          
+          # 切换到/tmp目录避免权限警告
+          cd /tmp
+          
+          echo '1️⃣  删除数据库...'
+          if sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+            echo "   正在删除数据库: $DB_NAME"
+            sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME"
+            echo "   ✅ 数据库已删除"
+          else
+            echo "   ⚠️  数据库不存在，跳过"
+          fi
+          
+          echo ''
+          echo '2️⃣  删除数据库用户...'
+          if sudo -u postgres psql -tc "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
+            echo "   正在删除用户: $DB_USER"
+            sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER"
+            echo "   ✅ 用户已删除"
+          else
+            echo "   ⚠️  用户不存在，跳过"
+          fi
+          
+          echo ''
+          echo '✅ 数据库清理完成'
+        ENDSSH
+    
+    - name: 📊 清理验证
+      env:
+        SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
+      run: |
+        echo "==================================="
+        echo "验证清理结果..."
+        echo "==================================="
+        
+        ssh -o StrictHostKeyChecking=no -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SERVER_HOST }} "
+          echo '1. 检查PM2进程:'
+          if command -v pm2 &> /dev/null; then
+            pm2 list || echo '   ✅ 无PM2进程运行'
+          else
+            echo '   ⚠️  PM2未安装'
+          fi
+          
+          echo ''
+          echo '2. 检查部署目录:'
+          if [ -d \"${{ env.DEPLOY_PATH }}\" ]; then
+            echo \"   ⚠️  部署目录仍存在: ${{ env.DEPLOY_PATH }}\"
+          else
+            echo \"   ✅ 部署目录已删除\"
+          fi
+          
+          echo ''
+          echo '3. 检查备份目录:'
+          BACKUP_PATTERN=\"\$(dirname ${{ env.DEPLOY_PATH }})/\$(basename ${{ env.DEPLOY_PATH }})_backup_*\"
+          BACKUP_COUNT=\$(ls -d \$BACKUP_PATTERN 2>/dev/null | wc -l)
+          if [ \"\$BACKUP_COUNT\" -gt 0 ]; then
+            echo \"   ⚠️  仍有 \$BACKUP_COUNT 个备份目录存在\"
+          else
+            echo '   ✅ 备份目录已清理'
+          fi
+          
+          echo ''
+          echo '4. 检查应用端口:'
+          APP_PORT=\"${{ vars.APP_PORT || secrets.APP_PORT || '3000' }}\"
+          if sudo ss -tlnp | grep -q \":\$APP_PORT\"; then
+            echo \"   ⚠️  端口 \$APP_PORT 仍被占用\"
+          else
+            echo \"   ✅ 端口 \$APP_PORT 已释放\"
+          fi
+          
+          if [ \"${{ env.CLEANUP_LEVEL }}\" = \"app+nginx\" ] || [ \"${{ env.CLEANUP_LEVEL }}\" = \"full\" ]; then
+            echo ''
+            echo '5. 检查Nginx配置:'
+            if [ -f /etc/nginx/sites-available/homelabs ]; then
+              echo '   ⚠️  Nginx站点配置仍存在'
+            else
+              echo '   ✅ Nginx站点配置已删除'
+            fi
+          fi
+          
+          if [ \"${{ env.CLEANUP_LEVEL }}\" = \"full\" ] && [ \"${{ inputs.confirm_database }}\" = \"yes\" ]; then
+            echo ''
+            echo '6. 检查数据库:'
+            DB_NAME=\"${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}\"
+            if sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '\$DB_NAME'\" | grep -q 1; then
+              echo \"   ⚠️  数据库 \$DB_NAME 仍存在\"
+            else
+              echo \"   ✅ 数据库 \$DB_NAME 已删除\"
+            fi
+          fi
+        "
+        
+        echo ""
+        echo "==================================="
+        echo "✅ 清理完成！"
+        echo "==================================="
+        echo ""
+        echo "📋 清理摘要:"
+        echo "  清理级别: ${{ env.CLEANUP_LEVEL }}"
+        if [ "${{ env.CLEANUP_LEVEL }}" = "full" ] && [ "${{ inputs.confirm_database }}" = "yes" ]; then
+          echo "  数据库: 已删除"
+        fi
+        echo ""
+        echo "⚠️  注意:"
+        echo "  - Node.js、PM2、PostgreSQL、Nginx等系统级软件未被卸载"
+        echo "  - 如需完全清理，请手动卸载这些软件"
+        echo "  - 数据库备份建议在清理前手动执行"
+
