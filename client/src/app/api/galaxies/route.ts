@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { ProjectType } from '@prisma/client'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,12 +102,20 @@ export async function GET() {
       total: galaxies.length,
     })
   } catch (error) {
-    console.error('获取星系列表失败:', error)
+    logError('获取星系列表失败', error)
+    
+    // 在开发环境或调试模式下暴露详细错误信息
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const isDebugMode = process.env.DEBUG === 'true'
+    
     return NextResponse.json(
       { 
         success: false, 
         error: '获取星系列表失败',
-        details: error instanceof Error ? error.message : '未知错误'
+        ...(isDevelopment || isDebugMode ? {
+          details: error instanceof Error ? error.message : String(error),
+          type: error instanceof Error ? error.constructor.name : typeof error
+        } : {})
       },
       { status: 500 }
     )

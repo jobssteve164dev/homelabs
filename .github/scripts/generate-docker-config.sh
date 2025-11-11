@@ -122,6 +122,8 @@ services:
       - APP_URL=${APP_URL}
       - LOG_LEVEL=${LOG_LEVEL}
       - REDIS_URL=redis://redis:6379
+      # 调试模式: 设置为 true 可在API响应中看到详细错误信息
+      - DEBUG=${DEBUG:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -260,8 +262,8 @@ cat >> "$OUTPUT_DIR/docker/nginx-auto.conf" <<'NGINX_MAIN'
         add_header X-XSS-Protection "1; mode=block" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         
-        # Content Security Policy
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';" always;
+        # Content Security Policy (允许Google Fonts和阿里云字体)
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://at.alicdn.com; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';" always;
         
         # Permissions Policy
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;

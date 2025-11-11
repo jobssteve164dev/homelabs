@@ -12,9 +12,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - homelabs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Redis 缓存 (可选)
   redis:
@@ -27,6 +31,11 @@ services:
       - redis_data:/data
     networks:
       - homelabs-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # Next.js 应用
   app:
@@ -40,12 +49,19 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/homelabs_portal
-      - NEXTAUTH_URL=http://localhost:6000
-      - NEXTAUTH_SECRET=homelabs-portal-secret-key-2025
+      # ⚠️ 重要: NEXTAUTH_URL 必须设置为实际的外部访问地址
+      # 如果通过域名访问，应设置为: https://aiuni.szlk.site
+      # 如果通过IP访问，应设置为: http://your-server-ip:680
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://aiuni.szlk.site}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-homelabs-portal-secret-key-2025}
       - REDIS_URL=redis://redis:6379
+      # 调试模式: 设置为 true 可在API响应中看到详细错误信息
+      - DEBUG=${DEBUG:-true}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - homelabs-network
     volumes:

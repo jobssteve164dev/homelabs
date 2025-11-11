@@ -88,8 +88,18 @@ export async function POST(request: NextRequest) {
       ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
     });
     
+    // 在开发环境或调试模式下暴露详细错误信息
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDebugMode = process.env.DEBUG === 'true';
+    
     return NextResponse.json(
-      { error: "服务器内部错误,请稍后重试" },
+      { 
+        error: "服务器内部错误,请稍后重试",
+        ...(isDevelopment || isDebugMode ? {
+          details: error instanceof Error ? error.message : String(error),
+          type: error instanceof Error ? error.constructor.name : typeof error
+        } : {})
+      },
       { status: 500 }
     );
   }

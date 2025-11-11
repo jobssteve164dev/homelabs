@@ -1,26 +1,60 @@
-🚀 启动Docker服务...
-time="2025-11-11T14:13:04+08:00" level=warning msg="/home/ubuntu/opt/homelabs/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
- Network homelabs_homelabs-network  Creating
- Network homelabs_homelabs-network  Created
- Container homelabs-redis  Creating
- Container homelabs-postgres  Creating
- Container homelabs-redis  Created
- Container homelabs-postgres  Created
- Container homelabs-app  Creating
- Container homelabs-app  Created
- Container homelabs-nginx  Creating
- Container homelabs-nginx  Created
- Container homelabs-redis  Starting
- Container homelabs-postgres  Starting
- Container homelabs-postgres  Started
- Container homelabs-redis  Started
- Container homelabs-redis  Waiting
- Container homelabs-postgres  Waiting
- Container homelabs-redis  Healthy
- Container homelabs-postgres  Healthy
- Container homelabs-app  Starting
- Container homelabs-app  Started
- Container homelabs-nginx  Starting
-Error response from daemon: driver failed programming external connectivity on endpoint homelabs-nginx (a1f43cd4fd7864cae262e2c894befcaa0e710846c0b65cd77a1135e49f47c37a): failed to bind port 0.0.0.0:443/tcp: Error starting userland proxy: listen tcp4 0.0.0.0:443: bind: address already in use
-❌ Docker服务启动失败！
-Error: Process completed with exit code 1.
+Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
+
+（索引）:1 Refused to load the font 'https://at.alicdn.com/t/font_2553510_61agzg96wm8.woff?t=1631948257467' because it violates the following Content Security Policy directive: "font-src 'self' data:".
+
+（索引）:1 Refused to load the font 'https://at.alicdn.com/t/font_2553510_61agzg96wm8.ttf?t=1631948257467' because it violates the following Content Security Policy directive: "font-src 'self' data:".
+
+（索引）:1 Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
+
+session:1  Failed to load resource: the server responded with a status of 500 ()
+5f5698f59e70afa5.js:1 [next-auth][error][CLIENT_FETCH_ERROR] 
+https://next-auth.js.org/errors#client_fetch_error Unexpected token '<', "<!DOCTYPE "... is not valid JSON {error: {…}, url: '/api/auth/session', message: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`}
+error @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+n @ 5f5698f59e70afa5.js:1
+s @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+n @ 5f5698f59e70afa5.js:1
+i @ 5f5698f59e70afa5.js:1
+Promise.then
+n @ 5f5698f59e70afa5.js:1
+s @ 5f5698f59e70afa5.js:1
+galaxies:1  Failed to load resource: the server responded with a status of 500 ()
+chunk-7ce85519.js:1  POST https://aiuni.szlk.site/api/auth/_log 500 (Internal Server Error)
+（匿名） @ chunk-7ce85519.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+n @ 5f5698f59e70afa5.js:1
+s @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+（匿名） @ 5f5698f59e70afa5.js:1
+n @ 5f5698f59e70afa5.js:1
+i @ 5f5698f59e70afa5.js:1
+Promise.then
+n @ 5f5698f59e70afa5.js:1
+s @ 5f5698f59e70afa5.js:1
+7ba3607576bd7d2e.js:1 THREE.WebGLRenderer: Context Lost.
+VM555 ec144bebf0cd2cbe.js:1  POST https://aiuni.szlk.site/api/auth/register 500 (Internal Server Error)
+p @ VM555 ec144bebf0cd2cbe.js:1
+i2 @ 1a0c2972e801c318.js:1
+（匿名） @ 1a0c2972e801c318.js:1
+nS @ 1a0c2972e801c318.js:1
+i9 @ 1a0c2972e801c318.js:1
+cu @ 1a0c2972e801c318.js:1
+ca @ 1a0c2972e801c318.js:1
