@@ -2,14 +2,14 @@
 name: 本地环境部署（非Docker）
 
 on:
-  # 监控 changelog.md 文件变更，自动触发部署
-  push:
-    branches:
-      - main
-    paths:
-      - 'changelog.md'
+  # 仅支持手动触发，已关闭自动触发机制
+  # 如需自动触发，请取消注释以下配置：
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'changelog.md'
   
-  # 保留手动触发方式
   workflow_dispatch:
     inputs:
       deploy_mode:
@@ -27,18 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: 设置默认部署模式
+    - name: 设置部署模式
       id: set_deploy_mode
       run: |
-        # 当通过push事件（changelog变更）触发时，使用all模式
-        # 当手动触发时，使用用户选择的模式
-        if [ -z "${{ inputs.deploy_mode }}" ]; then
-          echo "DEPLOY_MODE=all" >> $GITHUB_ENV
-          echo "📝 自动触发部署，使用默认模式: all"
-        else
-          echo "DEPLOY_MODE=${{ inputs.deploy_mode }}" >> $GITHUB_ENV
-          echo "📝 手动触发部署，使用选择模式: ${{ inputs.deploy_mode }}"
-        fi
+        # 手动触发，使用用户选择的模式
+        echo "DEPLOY_MODE=${{ inputs.deploy_mode }}" >> $GITHUB_ENV
+        echo "📝 部署模式: ${{ inputs.deploy_mode }}"
     
     - name: 检出代码
       uses: actions/checkout@v3

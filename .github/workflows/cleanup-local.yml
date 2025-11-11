@@ -252,23 +252,155 @@ jobs:
           # 切换到/tmp目录避免权限警告
           cd /tmp
           
-          echo '1️⃣  删除数据库...'
-          if sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
-            echo "   正在删除数据库: $DB_NAME"
-            sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME"
-            echo "   ✅ 数据库已删除"
+          # 检查PostgreSQL服务状态
+          echo '0️⃣  检查PostgreSQL服务状态...'
+          if sudo systemctl is-active --quiet postgresql; then
+            echo "   ✅ PostgreSQL服务正在运行"
+            PG_RUNNING=true
           else
-            echo "   ⚠️  数据库不存在，跳过"
+            echo "   ⚠️  PostgreSQL服务未运行"
+            PG_RUNNING=false
+          fi
+          
+          # 检查数据库是否存在
+          if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+            echo ""
+            echo "   ℹ️  数据库 $DB_NAME 不存在，跳过数据库删除"
+            SKIP_DB=true
+          else
+            SKIP_DB=false
+          fi
+          
+          # 如果数据库存在，需要先终止所有连接
+          if [ "$SKIP_DB" = "false" ] && [ "$PG_RUNNING" = "true" ]; then
+            echo ""
+            echo '1️⃣  终止所有到目标数据库的连接...'
+            
+            # 获取所有连接到目标数据库的进程ID
+            CONN_COUNT=$(sudo -u postgres psql -tc "
+              SELECT count(*) 
+              FROM pg_stat_activity 
+              WHERE datname = '$DB_NAME' 
+              AND pid != pg_backend_pid()
+            " 2>/dev/null || echo "0")
+            
+            if [ "$CONN_COUNT" -gt 0 ]; then
+              echo "   发现 $CONN_COUNT 个活跃连接，正在终止..."
+              
+              # 终止所有连接到目标数据库的会话
+              sudo -u postgres psql -c "
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = '$DB_NAME'
+                AND pid != pg_backend_pid()
+              " 2>/dev/null || true
+              
+              # 等待连接完全关闭
+              sleep 2
+              
+              # 再次检查连接数
+              REMAINING=$(sudo -u postgres psql -tc "
+                SELECT count(*) 
+                FROM pg_stat_activity 
+                WHERE datname = '$DB_NAME' 
+                AND pid != pg_backend_pid()
+              " 2>/dev/null || echo "0")
+              
+              if [ "$REMAINING" -gt 0 ]; then
+                echo "   ⚠️  仍有 $REMAINING 个连接未关闭，尝试强制终止..."
+                # 使用更强制的方式：修改数据库连接限制并重试
+                sudo -u postgres psql -c "
+                  ALTER DATABASE $DB_NAME CONNECTION LIMIT 0;
+                " 2>/dev/null || true
+                sleep 1
+                sudo -u postgres psql -c "
+                  SELECT pg_terminate_backend(pid)
+                  FROM pg_stat_activity
+                  WHERE datname = '$DB_NAME'
+                  AND pid != pg_backend_pid()
+                " 2>/dev/null || true
+                sleep 2
+              fi
+              
+              echo "   ✅ 连接已终止"
+            else
+              echo "   ✅ 无活跃连接"
+            fi
+          fi
+          
+          echo ""
+          echo '2️⃣  删除数据库...'
+          if [ "$SKIP_DB" = "false" ]; then
+            # 再次确认数据库存在
+            if sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1; then
+              echo "   正在删除数据库: $DB_NAME"
+              
+              # 尝试删除数据库，如果失败则尝试强制删除
+              if ! sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME" 2>/dev/null; then
+                echo "   ⚠️  标准删除失败，尝试强制删除..."
+                # 先终止所有连接，然后删除
+                sudo -u postgres psql -c "
+                  SELECT pg_terminate_backend(pid)
+                  FROM pg_stat_activity
+                  WHERE datname = '$DB_NAME'
+                  AND pid != pg_backend_pid()
+                " 2>/dev/null || true
+                sleep 2
+                sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME" || {
+                  echo "   ❌ 数据库删除失败，可能仍有连接占用"
+                  echo "   请手动检查: sudo -u postgres psql -c \"SELECT * FROM pg_stat_activity WHERE datname = '$DB_NAME'\""
+                  exit 1
+                }
+              fi
+              
+              echo "   ✅ 数据库已删除"
+            else
+              echo "   ⚠️  数据库不存在，跳过"
+            fi
           fi
           
           echo ''
-          echo '2️⃣  删除数据库用户...'
+          echo '3️⃣  删除数据库用户...'
           if sudo -u postgres psql -tc "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
             echo "   正在删除用户: $DB_USER"
-            sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER"
+            
+            # 先检查用户是否还有依赖对象
+            DEPENDENCIES=$(sudo -u postgres psql -tc "
+              SELECT count(*) 
+              FROM pg_database 
+              WHERE datdba = (SELECT oid FROM pg_roles WHERE rolname = '$DB_USER')
+            " 2>/dev/null || echo "0")
+            
+            if [ "$DEPENDENCIES" -gt 0 ]; then
+              echo "   ⚠️  用户仍有 $DEPENDENCIES 个数据库依赖，尝试强制删除..."
+            fi
+            
+            sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER" || {
+              echo "   ⚠️  用户删除失败，可能仍有依赖"
+              echo "   尝试使用 CASCADE 强制删除..."
+              sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER CASCADE" 2>/dev/null || true
+            }
+            
             echo "   ✅ 用户已删除"
           else
             echo "   ⚠️  用户不存在，跳过"
+          fi
+          
+          echo ''
+          echo '4️⃣  验证清理结果...'
+          # 检查数据库是否真的被删除
+          if sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" 2>/dev/null | grep -q 1; then
+            echo "   ❌ 警告: 数据库 $DB_NAME 仍然存在！"
+            exit 1
+          else
+            echo "   ✅ 数据库 $DB_NAME 已确认删除"
+          fi
+          
+          # 检查用户是否真的被删除
+          if sudo -u postgres psql -tc "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER'" 2>/dev/null | grep -q 1; then
+            echo "   ⚠️  警告: 用户 $DB_USER 仍然存在"
+          else
+            echo "   ✅ 用户 $DB_USER 已确认删除"
           fi
           
           echo ''
@@ -332,10 +464,26 @@ jobs:
             echo ''
             echo '6. 检查数据库:'
             DB_NAME=\"${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'homelabs_portal' }}\"
-            if sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '\$DB_NAME'\" | grep -q 1; then
+            if sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '\$DB_NAME'\" 2>/dev/null | grep -q 1; then
               echo \"   ⚠️  数据库 \$DB_NAME 仍存在\"
             else
               echo \"   ✅ 数据库 \$DB_NAME 已删除\"
+            fi
+            
+            echo ''
+            echo '7. 检查PostgreSQL服务状态:'
+            if sudo systemctl is-active --quiet postgresql; then
+              echo '   ℹ️  PostgreSQL服务仍在运行（这是正常的，因为可能被其他服务使用）'
+              echo '   检查PostgreSQL端口占用:'
+              if sudo ss -tlnp | grep -q ':5432'; then
+                echo '   ✅ PostgreSQL端口5432正在监听'
+                echo '   端口占用详情:'
+                sudo lsof -i :5432 2>/dev/null | head -5 || sudo ss -tlnp | grep ':5432' || echo '   无法获取详细信息'
+              else
+                echo '   ⚠️  PostgreSQL端口5432未监听'
+              fi
+            else
+              echo '   ✅ PostgreSQL服务已停止'
             fi
           fi
         "
@@ -353,6 +501,8 @@ jobs:
         echo ""
         echo "⚠️  注意:"
         echo "  - Node.js、PM2、PostgreSQL、Nginx等系统级软件未被卸载"
+        echo "  - PostgreSQL服务可能仍在运行（这是正常的，因为可能被其他服务使用）"
+        echo "  - 如果确认不再需要PostgreSQL，可手动停止: sudo systemctl stop postgresql"
         echo "  - 如需完全清理，请手动卸载这些软件"
         echo "  - 数据库备份建议在清理前手动执行"
 
