@@ -9,14 +9,14 @@ ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 # 复制package文件
 COPY client/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --ignore-scripts
 
 # 构建应用
 FROM base AS builder
 WORKDIR /app
 COPY client/package*.json ./
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY client/ ./
 RUN npx prisma generate
