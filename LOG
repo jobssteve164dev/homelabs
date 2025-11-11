@@ -1,120 +1,26 @@
-Run echo "==================================="
-===================================
-构建并启动Docker服务...
-===================================
-当前工作目录: /home/ubuntu/opt/homelabs
-目录内容:
-total 56
-drwxr-xr-x 8 ubuntu ubuntu 4096 Nov 11 10:54 .
-drwxr-xr-x 7 root   root   4096 Nov 11 10:54 ..
--rw-r--r-- 1 ubuntu ubuntu  454 Nov 11 10:53 changelog.md
-drwxr-xr-x 6 ubuntu ubuntu 4096 Nov 11 10:53 client
-drwxr-xr-x 2 ubuntu ubuntu 4096 Nov 11 10:54 docker
--rw-r--r-- 1 ubuntu ubuntu 2506 Nov 11 10:54 docker-compose-auto.yml
--rw-r--r-- 1 ubuntu ubuntu 2506 Nov 11 10:54 docker-compose.yml
-drwxr-xr-x 2 ubuntu ubuntu 4096 Nov 11 10:53 docs
--rw-r--r-- 1 ubuntu ubuntu  328 Nov 11 10:53 .gitignore
--rw-r--r-- 1 ubuntu ubuntu 4766 Nov 11 10:53 LOG
-drwxrwxr-x 2 ubuntu ubuntu 4096 Nov 10 20:17 logs
-drwxr-xr-x 2 ubuntu ubuntu 4096 Nov 11 10:53 scripts
-srw------- 1 ubuntu ubuntu    0 Nov 11 10:53 ssh-auth.sock
-drwxr-xr-x 2 ubuntu ubuntu 4096 Nov 11 10:53 template
-✅ 找到 docker-compose.yml 文件
-文件信息:
--rw-r--r-- 1 ubuntu ubuntu 2.5K Nov 11 10:54 docker-compose.yml
-
-文件前10行内容:
-version: '3.8'
-
-services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:15-alpine
-    container_name: homelabs-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: homelabs_portal
-检查Docker权限...
-✅ Docker权限正常
-🔨 构建Docker镜像...
-time="2025-11-11T10:54:40+08:00" level=warning msg="/home/ubuntu/opt/homelabs/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
-#0 building with "default" instance using docker driver
-
-#1 [app internal] load build definition from Dockerfile
-#1 transferring dockerfile: 967B 0.0s done
-#1 DONE 0.0s
-
-#2 [app internal] load metadata for docker.io/library/node:20-alpine
-#2 DONE 0.7s
-
-#3 [app internal] load .dockerignore
-#3 transferring context: 2B done
-#3 DONE 0.0s
-
-#4 [app base 1/1] FROM docker.io/library/node:20-alpine@sha256:6178e78b972f79c335df281f4b7674a2d85071aae2af020ffa39f0a770265435
-#4 DONE 0.0s
-
-#5 [app builder 1/6] WORKDIR /app
-#5 CACHED
-
-#6 [app internal] load build context
-#6 transferring context: 945.95kB 0.1s done
-#6 DONE 0.1s
-
-#7 [app builder 2/6] COPY client/package*.json ./
-#7 DONE 0.1s
-
-#8 [app builder 3/6] RUN npm ci
-#8 ...
-
-#9 [app runner 2/6] RUN addgroup --system --gid 1001 nodejs
-#9 DONE 0.6s
-
-#10 [app runner 3/6] RUN adduser --system --uid 1001 nextjs
-#10 DONE 0.2s
-
-#8 [app builder 3/6] RUN npm ci
-#8 17.14 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
-#8 44.56 npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-#8 74.26 
-#8 74.26 > homelabs-portal@1.0.0 postinstall
-#8 74.26 > prisma generate
-#8 74.26 
-#8 76.12 Error: Could not find Prisma Schema that is required for this command.
-#8 76.12 You can either provide it with `--schema` argument,
-#8 76.12 set it in your Prisma Config file (e.g., `prisma.config.ts`),
-#8 76.12 set it as `prisma.schema` in your package.json,
-#8 76.12 or put it into the default location (`./prisma/schema.prisma`, or `./schema.prisma`.
-#8 76.12 Checked following paths:
-#8 76.12 
-#8 76.12 schema.prisma: file not found
-#8 76.12 prisma/schema.prisma: file not found
-#8 76.12 
-#8 76.12 See also https://pris.ly/d/prisma-schema-location
-#8 76.14 npm error code 1
-#8 76.14 npm error path /app
-#8 76.14 npm error command failed
-#8 76.14 npm error command sh -c prisma generate
-#8 76.14 npm notice
-#8 76.14 npm notice New major version of npm available! 10.8.2 -> 11.6.2
-#8 76.14 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
-#8 76.14 npm notice To update run: npm install -g npm@11.6.2
-#8 76.14 npm notice
-#8 76.14 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-11T02_54_42_186Z-debug-0.log
-#8 ERROR: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1
-------
- > [app builder 3/6] RUN npm ci:
-76.14 npm error code 1
-76.14 npm error path /app
-76.14 npm error command failed
-76.14 npm error command sh -c prisma generate
-76.14 npm notice
-76.14 npm notice New major version of npm available! 10.8.2 -> 11.6.2
-76.14 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
-76.14 npm notice To update run: npm install -g npm@11.6.2
-76.14 npm notice
-76.14 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-11T02_54_42_186Z-debug-0.log
-------
-failed to solve: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1
-❌ Docker镜像构建失败！
+ 9229d0c336e2 Pull complete 
+ postgres Pulled 
+ Network homelabs_homelabs-network  Creating
+ Network homelabs_homelabs-network  Created
+ Volume "homelabs_nginx_logs"  Creating
+ Volume "homelabs_nginx_logs"  Created
+ Volume "homelabs_postgres_data"  Creating
+ Volume "homelabs_postgres_data"  Created
+ Volume "homelabs_redis_data"  Creating
+ Volume "homelabs_redis_data"  Created
+ Volume "homelabs_app_logs"  Creating
+ Volume "homelabs_app_logs"  Created
+ Container homelabs-postgres  Creating
+ Container homelabs-redis  Creating
+ Container homelabs-redis  Created
+ Container homelabs-postgres  Created
+ Container homelabs-app  Creating
+ Container homelabs-app  Created
+ Container homelabs-nginx  Creating
+ Container homelabs-nginx  Created
+ Container homelabs-redis  Starting
+ Container homelabs-postgres  Starting
+ Container homelabs-redis  Started
+Error response from daemon: driver failed programming external connectivity on endpoint homelabs-postgres (b12a101dca36166531366e2cd43a8a38588fcb2aea72aaeace377bdeacbbebd6): failed to bind port 0.0.0.0:5432/tcp: Error starting userland proxy: listen tcp4 0.0.0.0:5432: bind: address already in use
+❌ Docker服务启动失败！
 Error: Process completed with exit code 1.
