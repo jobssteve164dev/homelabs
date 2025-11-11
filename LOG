@@ -1,60 +1,14 @@
-Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
-
-（索引）:1 Refused to load the font 'https://at.alicdn.com/t/font_2553510_61agzg96wm8.woff?t=1631948257467' because it violates the following Content Security Policy directive: "font-src 'self' data:".
-
-（索引）:1 Refused to load the font 'https://at.alicdn.com/t/font_2553510_61agzg96wm8.ttf?t=1631948257467' because it violates the following Content Security Policy directive: "font-src 'self' data:".
-
-（索引）:1 Refused to load the stylesheet 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap' because it violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline'". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback.
-
-session:1  Failed to load resource: the server responded with a status of 500 ()
+7ba3607576bd7d2e.js:1 
+ GET https://aiuni.szlk.site/api/galaxies 500 (Internal Server Error)
+5f5698f59e70afa5.js:1 
+ GET https://aiuni.szlk.site/api/auth/session 500 (Internal Server Error)
 5f5698f59e70afa5.js:1 [next-auth][error][CLIENT_FETCH_ERROR] 
-https://next-auth.js.org/errors#client_fetch_error Unexpected token '<', "<!DOCTYPE "... is not valid JSON {error: {…}, url: '/api/auth/session', message: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`}
-error @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-n @ 5f5698f59e70afa5.js:1
-s @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-n @ 5f5698f59e70afa5.js:1
-i @ 5f5698f59e70afa5.js:1
-Promise.then
-n @ 5f5698f59e70afa5.js:1
-s @ 5f5698f59e70afa5.js:1
-galaxies:1  Failed to load resource: the server responded with a status of 500 ()
-chunk-7ce85519.js:1  POST https://aiuni.szlk.site/api/auth/_log 500 (Internal Server Error)
-（匿名） @ chunk-7ce85519.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-n @ 5f5698f59e70afa5.js:1
-s @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-（匿名） @ 5f5698f59e70afa5.js:1
-n @ 5f5698f59e70afa5.js:1
-i @ 5f5698f59e70afa5.js:1
-Promise.then
-n @ 5f5698f59e70afa5.js:1
-s @ 5f5698f59e70afa5.js:1
+https://next-auth.js.org/errors#client_fetch_error Unexpected token '<', "<!DOCTYPE "... is not valid JSON 
+{error: {…}, url: '/api/auth/session', message: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`}
+chunk-7ce85519.js:1 
+ POST https://aiuni.szlk.site/api/auth/_log 500 (Internal Server Error)
 7ba3607576bd7d2e.js:1 THREE.WebGLRenderer: Context Lost.
-VM555 ec144bebf0cd2cbe.js:1  POST https://aiuni.szlk.site/api/auth/register 500 (Internal Server Error)
-p @ VM555 ec144bebf0cd2cbe.js:1
-i2 @ 1a0c2972e801c318.js:1
-（匿名） @ 1a0c2972e801c318.js:1
-nS @ 1a0c2972e801c318.js:1
-i9 @ 1a0c2972e801c318.js:1
-cu @ 1a0c2972e801c318.js:1
-ca @ 1a0c2972e801c318.js:1
+VM331 ec144bebf0cd2cbe.js:1 
+ POST https://aiuni.szlk.site/api/auth/register 500 (Internal Server Error)
+﻿
+

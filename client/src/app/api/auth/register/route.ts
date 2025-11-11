@@ -92,12 +92,25 @@ export async function POST(request: NextRequest) {
     const isDevelopment = process.env.NODE_ENV === 'development';
     const isDebugMode = process.env.DEBUG === 'true';
     
+    // 检查是否是数据库连接错误
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isDatabaseError = errorMessage.includes('P1001') || 
+                            errorMessage.includes('P1000') ||
+                            errorMessage.includes('connect') ||
+                            errorMessage.includes('ECONNREFUSED') ||
+                            errorMessage.includes('Can\'t reach database');
+    
     return NextResponse.json(
       { 
         error: "服务器内部错误,请稍后重试",
         ...(isDevelopment || isDebugMode ? {
-          details: error instanceof Error ? error.message : String(error),
-          type: error instanceof Error ? error.constructor.name : typeof error
+          details: errorMessage,
+          type: error instanceof Error ? error.constructor.name : typeof error,
+          stack: error instanceof Error ? error.stack : undefined,
+          isDatabaseError
+        } : {}),
+        ...(isDatabaseError ? {
+          hint: "数据库连接失败，请检查DATABASE_URL配置和数据库服务状态"
         } : {})
       },
       { status: 500 }
