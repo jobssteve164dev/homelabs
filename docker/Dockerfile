@@ -31,6 +31,9 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# 复制生产依赖（包含 Prisma CLI 所需的全部依赖）
+COPY --from=deps /app/node_modules ./node_modules
+
 # 复制构建产物
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

@@ -116,6 +116,7 @@ services:
       - "${APP_PORT}:3000"
     environment:
       - NODE_ENV=production
+      - LOGS_DIR=/app/logs
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
