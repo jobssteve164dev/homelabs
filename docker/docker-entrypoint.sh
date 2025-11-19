@@ -5,14 +5,25 @@ echo "🚀 启动应用容器..."
 
 # 检查Prisma是否可用
 PRISMA_CMD=""
-if command -v npx > /dev/null 2>&1; then
-  PRISMA_CMD="npx prisma"
-elif [ -f "node_modules/.bin/prisma" ]; then
-  PRISMA_CMD="node node_modules/.bin/prisma"
-elif [ -f "node_modules/prisma/build/index.js" ]; then
+
+# 优先使用Prisma的入口文件（最可靠的方法）
+if [ -f "node_modules/prisma/build/index.js" ]; then
   PRISMA_CMD="node node_modules/prisma/build/index.js"
+  echo "✅ 使用Prisma CLI: node_modules/prisma/build/index.js"
+elif [ -f "node_modules/.bin/prisma" ]; then
+  # 如果.bin目录存在，尝试使用它
+  PRISMA_CMD="node node_modules/.bin/prisma"
+  echo "✅ 使用Prisma CLI: node_modules/.bin/prisma"
+elif command -v npx > /dev/null 2>&1; then
+  PRISMA_CMD="npx prisma"
+  echo "✅ 使用npx执行Prisma"
 else
   echo "⚠️  警告: 未找到Prisma命令，跳过数据库初始化"
+  echo "调试信息:"
+  echo "  - node_modules/prisma/build/index.js: $([ -f "node_modules/prisma/build/index.js" ] && echo '存在' || echo '不存在')"
+  echo "  - node_modules/.bin/prisma: $([ -f "node_modules/.bin/prisma" ] && echo '存在' || echo '不存在')"
+  echo "  - node_modules/prisma: $([ -d "node_modules/prisma" ] && echo '存在' || echo '不存在')"
+  echo "  - npx: $(command -v npx || echo '未找到')"
   PRISMA_CMD=""
 fi
 

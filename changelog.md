@@ -9,3 +9,4 @@
 202510221129-优化创建项目按钮位置
 20251110-修复Docker部署工作流：修复配置文件上传顺序、Nginx变量替换、jq语法错误和Docker权限问题
 20251119-修复生产环境500错误：修复NextAuth配置缺失secret、增强API错误处理、添加环境变量验证、修复日志目录权限问题（根本原因：logger尝试在根目录创建logs导致EACCES错误）
+20251119-修复Docker容器Prisma CLI不可用问题：修复Dockerfile中Prisma CLI可执行文件复制、优化docker-entrypoint.sh的Prisma检测逻辑（优先使用node_modules/prisma/build/index.js）、优化部署工作流添加多层验证（代码传输验证、构建前验证、构建后验证、运行时验证）

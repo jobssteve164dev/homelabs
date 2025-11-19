@@ -497,6 +497,35 @@ jobs:
           echo '代码传输验证:'
           echo '  目录内容:'
           ls -la | head -10
+          
+          echo ''
+          echo '验证关键Docker文件:'
+          if [ -f 'docker/Dockerfile' ]; then
+            echo '  ✅ docker/Dockerfile 存在'
+            # 验证是否包含Prisma CLI修复
+            if grep -q 'node_modules/.bin/prisma' docker/Dockerfile; then
+              echo '  ✅ Dockerfile 包含 Prisma CLI 修复'
+            else
+              echo '  ⚠️  警告: Dockerfile 可能缺少 Prisma CLI 修复'
+            fi
+          else
+            echo '  ❌ docker/Dockerfile 不存在！'
+            exit 1
+          fi
+          
+          if [ -f 'docker/docker-entrypoint.sh' ]; then
+            echo '  ✅ docker/docker-entrypoint.sh 存在'
+            # 验证是否包含优化后的Prisma检测逻辑
+            if grep -q 'node_modules/prisma/build/index.js' docker/docker-entrypoint.sh; then
+              echo '  ✅ docker-entrypoint.sh 包含优化的 Prisma 检测逻辑'
+            else
+              echo '  ⚠️  警告: docker-entrypoint.sh 可能缺少优化'
+            fi
+          else
+            echo '  ❌ docker/docker-entrypoint.sh 不存在！'
+            exit 1
+          fi
+          
           echo '✅ 代码传输验证完成'
         "
     
@@ -676,6 +705,29 @@ jobs:
           echo "文件前10行内容:"
           head -10 docker-compose.yml
           
+          # 验证Docker构建所需的关键文件
+          echo ""
+          echo "验证Docker构建文件..."
+          if [ ! -f "docker/Dockerfile" ]; then
+            echo "❌ 错误: docker/Dockerfile 文件不存在！"
+            echo "   请确保代码传输成功"
+            exit 1
+          fi
+          
+          if [ ! -f "docker/docker-entrypoint.sh" ]; then
+            echo "❌ 错误: docker/docker-entrypoint.sh 文件不存在！"
+            echo "   请确保代码传输成功"
+            exit 1
+          fi
+          
+          if [ ! -f "client/package.json" ]; then
+            echo "❌ 错误: client/package.json 文件不存在！"
+            echo "   请确保代码传输成功"
+            exit 1
+          fi
+          
+          echo "✅ 所有必需的Docker构建文件都存在"
+          
           # 检查Docker权限并确保用户有权限
           echo "检查Docker权限..."
           DOCKER_CMD=""
@@ -729,6 +781,20 @@ jobs:
           fi
           
           echo "✅ Docker镜像构建完成"
+          
+          # 验证构建的镜像中Prisma CLI是否可用（可选，用于调试）
+          echo ""
+          echo "验证构建的镜像..."
+          APP_IMAGE=\$(docker compose config | grep -A 5 "app:" | grep "image:" | awk '{print \$2}' || docker images --format "{{.Repository}}:{{.Tag}}" | grep homelabs | head -1)
+          if [ -n "\$APP_IMAGE" ]; then
+            echo "应用镜像: \$APP_IMAGE"
+            # 检查镜像中是否包含Prisma相关文件
+            if docker run --rm \$APP_IMAGE test -f node_modules/prisma/build/index.js 2>/dev/null; then
+              echo "  ✅ Prisma CLI 入口文件存在"
+            else
+              echo "  ⚠️  警告: Prisma CLI 入口文件可能不存在"
+            fi
+          fi
           
           echo "🚀 启动Docker服务..."
           if [ -n "$DOCKER_CMD" ]; then
@@ -911,11 +977,56 @@ jobs:
           fi
           
           echo ''
-          echo '7. 查看容器日志（最近10行）:'
+          echo '7. 验证Prisma CLI可用性:'
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              PRISMA_CHECK=\$(sg docker -c \"docker compose exec -T app sh -c 'test -f node_modules/prisma/build/index.js && echo OK || echo FAIL'\" 2>/dev/null || echo \"FAIL\")
+            else
+              PRISMA_CHECK=\$(sudo docker compose exec -T app sh -c 'test -f node_modules/prisma/build/index.js && echo OK || echo FAIL' 2>/dev/null || echo \"FAIL\")
+            fi
+          else
+            PRISMA_CHECK=\$(docker compose exec -T app sh -c 'test -f node_modules/prisma/build/index.js && echo OK || echo FAIL' 2>/dev/null || echo \"FAIL\")
+          fi
+          if [ \"\$PRISMA_CHECK\" = \"OK\" ]; then
+            echo '  ✅ Prisma CLI 文件存在'
+          else
+            echo '  ⚠️  警告: Prisma CLI 文件可能不存在'
+          fi
+          
+          echo ''
+          echo '8. 查看容器日志（最近10行）:'
           echo '--- App日志 ---'
-          docker compose logs --tail=10 app || true
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              sg docker -c \"docker compose logs --tail=10 app\" || true
+            else
+              sudo docker compose logs --tail=10 app || true
+            fi
+          else
+            docker compose logs --tail=10 app || true
+          fi
           echo '--- Nginx日志 ---'
-          docker compose logs --tail=10 nginx || true
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              sg docker -c \"docker compose logs --tail=10 nginx\" || true
+            else
+              sudo docker compose logs --tail=10 nginx || true
+            fi
+          else
+            docker compose logs --tail=10 nginx || true
+          fi
+          
+          echo ''
+          echo '9. 检查数据库初始化状态:'
+          if [ -n \"\$DOCKER_CMD\" ]; then
+            if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+              sg docker -c \"docker compose logs app\" | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+            else
+              sudo docker compose logs app | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+            fi
+          else
+            docker compose logs app | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+          fi
         "
         
         echo ""
