@@ -785,8 +785,9 @@ jobs:
           # 验证构建的镜像中Prisma CLI是否可用（可选，用于调试）
           echo ""
           echo "验证构建的镜像..."
-          APP_IMAGE=\$(docker compose config | grep -A 5 "app:" | grep "image:" | awk '{print \$2}' || docker images --format "{{.Repository}}:{{.Tag}}" | grep homelabs | head -1)
-          if [ -n "\$APP_IMAGE" ]; then
+          # 使用更简单的方法获取镜像名称（避免特殊字符问题）
+          APP_IMAGE=\$(docker images | grep -E "homelabs|localhost" | head -1 | awk '{print \$1":"\$2}' || echo "")
+          if [ -n "\$APP_IMAGE" ] && [ "\$APP_IMAGE" != "REPOSITORY:TAG" ]; then
             echo "应用镜像: \$APP_IMAGE"
             # 检查镜像中是否包含Prisma相关文件
             if docker run --rm \$APP_IMAGE test -f node_modules/prisma/build/index.js 2>/dev/null; then
@@ -794,6 +795,8 @@ jobs:
             else
               echo "  ⚠️  警告: Prisma CLI 入口文件可能不存在"
             fi
+          else
+            echo "  ℹ️  无法自动检测镜像名称，将在容器启动后验证"
           fi
           
           echo "🚀 启动Docker服务..."
