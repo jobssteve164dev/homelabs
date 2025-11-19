@@ -2,7 +2,15 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./db";
 import bcrypt from "bcryptjs";
-import { logSecurityEvent } from "./logger";
+import { logSecurityEvent, logError } from "./logger";
+
+// 验证环境变量
+if (!process.env.NEXTAUTH_SECRET) {
+  logError('NEXTAUTH_SECRET未设置', new Error('NEXTAUTH_SECRET环境变量缺失'), {
+    component: 'auth',
+    severity: 'critical'
+  });
+}
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -91,6 +99,8 @@ export const authOptions = {
     signIn: "/auth/signin",
     signUp: "/auth/signup",
   },
-  // Next.js 14推荐配置
+  // NextAuth配置
+  secret: process.env.NEXTAUTH_SECRET,
+  // Next.js 14推荐配置 - 在反向代理后运行时需要
   trustHost: true,
 };

@@ -102,23 +102,36 @@ export async function GET() {
       total: galaxies.length,
     })
   } catch (error) {
-    logError('获取星系列表失败', error)
+    logError('获取星系列表失败', error, {
+      endpoint: '/api/galaxies',
+      method: 'GET'
+    })
     
     // 在开发环境或调试模式下暴露详细错误信息
     const isDevelopment = process.env.NODE_ENV === 'development'
     const isDebugMode = process.env.DEBUG === 'true'
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: '获取星系列表失败',
-        ...(isDevelopment || isDebugMode ? {
-          details: error instanceof Error ? error.message : String(error),
-          type: error instanceof Error ? error.constructor.name : typeof error
-        } : {})
-      },
-      { status: 500 }
-    )
+    // 构建错误响应
+    const errorResponse: Record<string, unknown> = {
+      success: false,
+      error: '获取星系列表失败'
+    }
+    
+    // 在调试模式下暴露详细错误信息
+    if (isDevelopment || isDebugMode) {
+      if (error instanceof Error) {
+        errorResponse.details = error.message
+        errorResponse.type = error.constructor.name
+        if (error.stack) {
+          errorResponse.stack = error.stack.split('\n').slice(0, 5) // 只返回前5行堆栈
+        }
+      } else {
+        errorResponse.details = String(error)
+        errorResponse.type = typeof error
+      }
+    }
+    
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 

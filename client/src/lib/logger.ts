@@ -30,7 +30,10 @@ const consoleFormat = winston.format.combine(
 );
 
 // 日志目录配置
-const logsDir = path.join(process.cwd(), '..', 'logs');
+// - Docker生产环境: WORKDIR 通常为 /app, 日志目录为 /app/logs（已在 docker-compose 中挂载为 volume）
+// - 本地开发环境: CWD 为项目根目录, 日志目录为 <project>/logs
+// 通过 LOGS_DIR 可显式覆盖默认路径
+const logsDir = process.env.LOGS_DIR || path.join(process.cwd(), 'logs');
 
 // 创建日志传输器
 const transports: winston.transport[] = [];

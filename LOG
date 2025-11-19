@@ -1,58 +1,141 @@
-✅ 找到 docker-compose.yml 文件
-文件信息:
--rw-r--r-- 1 ubuntu ubuntu 2.6K Nov 11 20:08 docker-compose.yml
+🚀 启动应用容器...
+✅ 使用Prisma CLI: node_modules/prisma/build/index.js
+⏳ 等待数据库连接并初始化...
+等待数据库... (1/15)
+等待数据库... (2/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (3/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (4/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (5/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (6/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (7/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (8/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (9/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (10/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (11/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (12/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (13/15)
+  上次错误: Node.js v20.19.5
+等待数据库... (14/15)
+  上次错误: Node.js v20.19.5
+⚠️  数据库连接超时，尝试最后一次初始化...
+详细错误信息:
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
 
-文件前10行内容:
-services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:15-alpine
-    container_name: homelabs-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: homelabs_portal
-      POSTGRES_USER: homelabs
-      POSTGRES_PASSWORD: ***
-检查Docker权限...
-✅ Docker权限正常
-🔨 构建Docker镜像...
-#0 building with "default" instance using docker driver
+Error: Cannot find module 'effect'
+Require stack:
+- /app/node_modules/@prisma/config/dist/index.js
+- /app/node_modules/prisma/build/index.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/app/node_modules/@prisma/config/dist/index.js:353:22)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/app/node_modules/@prisma/config/dist/index.js',
+    '/app/node_modules/prisma/build/index.js'
+  ]
+}
 
-#1 [app internal] load build definition from Dockerfile
-#1 transferring dockerfile: 1.50kB 0.0s done
-#1 DONE 0.1s
+Node.js v20.19.5
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
 
-#2 [app internal] load metadata for docker.io/library/node:20-alpine
-#2 DONE 0.7s
+Error: Cannot find module 'effect'
+Require stack:
+- /app/node_modules/@prisma/config/dist/index.js
+- /app/node_modules/prisma/build/index.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/app/node_modules/@prisma/config/dist/index.js:353:22)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/app/node_modules/@prisma/config/dist/index.js',
+    '/app/node_modules/prisma/build/index.js'
+  ]
+}
 
-#3 [app internal] load .dockerignore
-#3 transferring context: 2B done
-#3 DONE 0.0s
+Node.js v20.19.5
+❌ 数据库初始化失败，但继续启动应用...
+请检查:
+  1. DATABASE_URL环境变量是否正确
+  2. 数据库服务是否正在运行
+  3. 网络连接是否正常
+🚀 启动Next.js应用...
+   ▲ Next.js 15.5.5
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
 
-#4 [app internal] load build context
-#4 DONE 0.0s
-
-#5 [app base 1/1] FROM docker.io/library/node:20-alpine@sha256:6178e78b972f79c335df281f4b7674a2d85071aae2af020ffa39f0a770265435
-#5 DONE 0.0s
-
-#6 [app builder 1/6] WORKDIR /app
-#6 CACHED
-
-#4 [app internal] load build context
-#4 transferring context: 949.83kB 0.2s done
-#4 DONE 0.2s
-
-#7 [app builder 2/6] COPY client/package*.json ./
-#7 DONE 0.1s
-
-#8 [app runner  2/13] RUN addgroup --system --gid 1001 nodejs
-#8 DONE 0.7s
-
-#9 [app runner  3/13] RUN adduser --system --uid 1001 nextjs
-#9 DONE 0.5s
-
-#10 [app builder 3/6] RUN npm ci --ignore-scripts
-#10 30.79 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
-#10 91.26 npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-client_loop: send disconnect: Broken pipe
-Error: Process completed with exit code 255.
+ ✓ Starting...
+ ✓ Ready in 178ms
+ ⨯ Error: EACCES: permission denied, mkdir '/logs/'
+    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
+    at Array.reduce (<anonymous>)
+    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
+    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
+    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
+    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
+    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
+    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'mkdir',
+  path: '/logs/'
+}
+ ⨯ Error: EACCES: permission denied, mkdir '/logs/'
+    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
+    at Array.reduce (<anonymous>)
+    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
+    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
+    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
+    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
+    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
+    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'mkdir',
+  path: '/logs/'
+}
+ ⨯ Error: EACCES: permission denied, mkdir '/logs/'
+    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
+    at Array.reduce (<anonymous>)
+    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
+    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
+    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
+    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
+    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
+    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'mkdir',
+  path: '/logs/'
+}
