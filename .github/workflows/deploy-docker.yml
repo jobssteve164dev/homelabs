@@ -355,16 +355,25 @@ jobs:
           ls -la .
           exit 1
         fi
+        echo "✅ docker-compose-auto.yml 生成成功"
         
-        if [ ! -f "docker/nginx-auto.conf" ]; then
-          echo "❌ 错误: docker/nginx-auto.conf 文件未生成！"
-          ls -la docker/ 2>/dev/null || echo "docker 目录不存在"
-          exit 1
+        # 验证 nginx.conf（仅当启用 Nginx 时）
+        if [ "$USE_NGINX" = "true" ] || [ "$DEPLOY_ARCHITECTURE" = "multi-container" ]; then
+          if [ ! -f "docker/nginx-auto.conf" ]; then
+            echo "❌ 错误: docker/nginx-auto.conf 文件未生成！"
+            ls -la docker/ 2>/dev/null || echo "docker 目录不存在"
+            exit 1
+          fi
+          echo "✅ nginx-auto.conf 生成成功"
+          echo "文件列表:"
+          ls -lh docker-compose-auto.yml docker/nginx-auto.conf
+        else
+          echo "⏭️  跳过 nginx-auto.conf 验证（USE_NGINX=false）"
+          echo "文件列表:"
+          ls -lh docker-compose-auto.yml
         fi
         
-        echo "✅ 配置文件生成成功"
-        echo "文件列表:"
-        ls -lh docker-compose-auto.yml docker/nginx-auto.conf
+        echo "✅ 配置文件生成验证完成"
     
     - name: 备份当前版本
       if: env.DEPLOY_MODE != 'check'
