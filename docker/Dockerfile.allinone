@@ -1,0 +1,117 @@
+# All-in-One Docker镜像: PostgreSQL + Next.js 应用
+# 适用于私域部署，简化网络配置
+# 包含完整的日志收集系统
+
+FROM node:20-alpine AS base
+
+# ========================================
+# 阶段1: 安装依赖
+# ========================================
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+
+COPY client/package*.json ./
+RUN npm ci --only=production --ignore-scripts
+
+# ========================================
+# 阶段2: 构建应用
+# ========================================
+FROM base AS builder
+WORKDIR /app
+COPY client/package*.json ./
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+RUN npm ci --ignore-scripts
+
+COPY client/ ./
+RUN npx prisma generate
+RUN npm run build
+
+# ========================================
+# 阶段3: 生产镜像 (All-in-One)
+# ========================================
+FROM alpine:3.19 AS runner
+
+# 安装 PostgreSQL 和 Node.js 及日志工具
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    postgresql15 \
+    postgresql15-contrib \
+    su-exec \
+    bash \
+    coreutils \
+    findutils \
+    && mkdir -p /var/lib/postgresql/data \
+    && mkdir -p /run/postgresql \
+    && chown -R postgres:postgres /var/lib/postgresql \
+    && chown -R postgres:postgres /run/postgresql
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PGDATA=/var/lib/postgresql/data
+
+# 创建应用用户
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# 复制生产依赖
+COPY --from=deps /app/node_modules ./node_modules
+
+# 复制构建产物
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# 复制Prisma相关文件
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./package.json
+
+# 复制启动脚本
+COPY docker/docker-entrypoint-allinone.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+# ========================================
+# 日志系统配置
+# ========================================
+# 创建统一的日志目录结构
+# /app/logs/
+#   ├── postgresql/     PostgreSQL 日志
+#   ├── app/            Next.js 应用日志
+#   └── combined.log    组合日志（便于统一查看）
+
+ENV LOGS_DIR=/app/logs
+
+RUN mkdir -p /app/logs/postgresql \
+    && mkdir -p /app/logs/app \
+    && touch /app/logs/combined.log \
+    && chmod 755 /app/logs /app/logs/postgresql /app/logs/app \
+    && chmod 666 /app/logs/combined.log
+
+# 设置日志目录权限（postgres 用户需要写入 postgresql 目录）
+# nextjs 用户需要写入 app 目录
+# 两者都需要写入 combined.log
+RUN chown -R postgres:postgres /app/logs/postgresql \
+    && chown -R nextjs:nodejs /app/logs/app
+
+# 暴露端口
+EXPOSE 3000
+# PostgreSQL 默认只在容器内使用，不暴露到外部
+# 如需外部访问数据库，取消下行注释
+# EXPOSE 5432
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+
+# 使用自定义启动脚本
+ENTRYPOINT ["./docker-entrypoint.sh"]

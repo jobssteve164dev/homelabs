@@ -1,141 +1,21 @@
-🚀 启动应用容器...
-✅ 使用Prisma CLI: node_modules/prisma/build/index.js
-⏳ 等待数据库连接并初始化...
-等待数据库... (1/15)
-等待数据库... (2/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (3/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (4/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (5/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (6/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (7/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (8/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (9/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (10/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (11/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (12/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (13/15)
-  上次错误: Node.js v20.19.5
-等待数据库... (14/15)
-  上次错误: Node.js v20.19.5
-⚠️  数据库连接超时，尝试最后一次初始化...
-详细错误信息:
-node:internal/modules/cjs/loader:1210
-  throw err;
-  ^
-
-Error: Cannot find module 'effect'
-Require stack:
-- /app/node_modules/@prisma/config/dist/index.js
-- /app/node_modules/prisma/build/index.js
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
-    at Module._load (node:internal/modules/cjs/loader:1038:27)
-    at Module.require (node:internal/modules/cjs/loader:1289:19)
-    at require (node:internal/modules/helpers:182:18)
-    at Object.<anonymous> (/app/node_modules/@prisma/config/dist/index.js:353:22)
-    at Module._compile (node:internal/modules/cjs/loader:1521:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
-    at Module.load (node:internal/modules/cjs/loader:1266:32)
-    at Module._load (node:internal/modules/cjs/loader:1091:12)
-    at Module.require (node:internal/modules/cjs/loader:1289:19) {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [
-    '/app/node_modules/@prisma/config/dist/index.js',
-    '/app/node_modules/prisma/build/index.js'
-  ]
-}
-
-Node.js v20.19.5
-node:internal/modules/cjs/loader:1210
-  throw err;
-  ^
-
-Error: Cannot find module 'effect'
-Require stack:
-- /app/node_modules/@prisma/config/dist/index.js
-- /app/node_modules/prisma/build/index.js
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
-    at Module._load (node:internal/modules/cjs/loader:1038:27)
-    at Module.require (node:internal/modules/cjs/loader:1289:19)
-    at require (node:internal/modules/helpers:182:18)
-    at Object.<anonymous> (/app/node_modules/@prisma/config/dist/index.js:353:22)
-    at Module._compile (node:internal/modules/cjs/loader:1521:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
-    at Module.load (node:internal/modules/cjs/loader:1266:32)
-    at Module._load (node:internal/modules/cjs/loader:1091:12)
-    at Module.require (node:internal/modules/cjs/loader:1289:19) {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [
-    '/app/node_modules/@prisma/config/dist/index.js',
-    '/app/node_modules/prisma/build/index.js'
-  ]
-}
-
-Node.js v20.19.5
-❌ 数据库初始化失败，但继续启动应用...
-请检查:
-  1. DATABASE_URL环境变量是否正确
-  2. 数据库服务是否正在运行
-  3. 网络连接是否正常
-🚀 启动Next.js应用...
-   ▲ Next.js 15.5.5
-   - Local:        http://localhost:3000
-   - Network:      http://0.0.0.0:3000
-
- ✓ Starting...
- ✓ Ready in 178ms
- ⨯ Error: EACCES: permission denied, mkdir '/logs/'
-    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
-    at Array.reduce (<anonymous>)
-    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
-    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
-    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
-    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
-    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
-    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
-    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
-  errno: -13,
-  code: 'EACCES',
-  syscall: 'mkdir',
-  path: '/logs/'
-}
- ⨯ Error: EACCES: permission denied, mkdir '/logs/'
-    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
-    at Array.reduce (<anonymous>)
-    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
-    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
-    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
-    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
-    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
-    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
-    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
-  errno: -13,
-  code: 'EACCES',
-  syscall: 'mkdir',
-  path: '/logs/'
-}
- ⨯ Error: EACCES: permission denied, mkdir '/logs/'
-    at <unknown> (.next/server/chunks/_6e5fa7aa._.js:22:330493)
-    at Array.reduce (<anonymous>)
-    at h (.next/server/chunks/_6e5fa7aa._.js:22:330435)
-    at d.getStream (.next/server/chunks/_6e5fa7aa._.js:22:328410)
-    at new c (.next/server/chunks/_6e5fa7aa._.js:22:331899)
-    at __TURBOPACK__module__evaluation__ (.next/server/chunks/_6e5fa7aa._.js:23:132)
-    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:702:9)
-    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:725:12)
-    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:215:20) {
-  errno: -13,
-  code: 'EACCES',
-  syscall: 'mkdir',
-  path: '/logs/'
-}
+Run echo "==================================="
+===================================
+备份当前版本...
+===================================
+📦 创建备份: opt/homelabs_backup_20251119_170902
+🔐 创建备份目录（需要sudo权限）...
+🔄 开始备份...
+rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/client" failed: No space left on device (28)
+*** Skipping any contents from this failed directory ***
+rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/docker" failed: No space left on device (28)
+*** Skipping any contents from this failed directory ***
+rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/docs" failed: No space left on device (28)
+*** Skipping any contents from this failed directory ***
+rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/scripts" failed: No space left on device (28)
+*** Skipping any contents from this failed directory ***
+rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/template" failed: No space left on device (28)
+*** Skipping any contents from this failed directory ***
+rsync: [receiver] write failed on "/home/ubuntu/opt/homelabs_backup_20251119_170902/.gitignore": No space left on device (28)
+rsync error: error in file IO (code 11) at receiver.c(380) [receiver=3.2.7]
+❌ 备份失败！
+Error: Process completed with exit code 1.

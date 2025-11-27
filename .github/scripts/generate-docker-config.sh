@@ -1,6 +1,14 @@
 #!/bin/bash
 # 生成 Docker 部署配置文件
 # 用法: ./generate-docker-config.sh <output_dir>
+# 
+# 支持两种部署架构:
+#   - multi-container: 多容器模式 (PostgreSQL + Redis + App + Nginx 分离)
+#   - all-in-one: 单容器模式 (PostgreSQL + App 合并)
+#
+# Nginx 选项:
+#   - USE_NGINX=true: 启用 Nginx 反向代理（适合生产环境）
+#   - USE_NGINX=false: 不使用 Nginx，直接暴露应用端口（适合开发/测试或已有外部代理）
 
 set -e
 
@@ -8,6 +16,8 @@ OUTPUT_DIR="${1:-.}"
 
 # 从环境变量读取配置
 DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-local}"
+DEPLOY_ARCHITECTURE="${DEPLOY_ARCHITECTURE:-all-in-one}"  # 默认使用 all-in-one 模式
+USE_NGINX="${USE_NGINX:-false}"  # 默认不使用 Nginx
 PRIMARY_DOMAIN="${PRIMARY_DOMAIN:-localhost}"
 ADDITIONAL_DOMAINS="${ADDITIONAL_DOMAINS:-}"
 USE_SSL="${USE_SSL:-false}"
@@ -39,15 +49,21 @@ echo "生成 Docker 配置文件..."
 echo "==================================="
 echo "配置参数:"
 echo "  部署环境: $DEPLOY_ENVIRONMENT"
-echo "  主域名: $PRIMARY_DOMAIN"
-echo "  备用域名: $ADDITIONAL_DOMAINS"
-echo "  SSL启用: $USE_SSL"
-echo "  Nginx端口: $NGINX_PORT"
-echo "  Nginx(SSL)端口: $NGINX_SSL_PORT (仅在 USE_SSL=true 时启用)"
+echo "  部署架构: $DEPLOY_ARCHITECTURE"
+echo "  启用Nginx: $USE_NGINX"
 echo "  应用端口: $APP_PORT"
-echo "  Postgres宿主端口: $POSTGRES_HOST_PORT"
-echo "  Redis宿主端口: $REDIS_HOST_PORT"
-echo "  反向代理: $BEHIND_PROXY"
+if [ "$USE_NGINX" = "true" ]; then
+  echo "  Nginx端口: $NGINX_PORT"
+  echo "  Nginx(SSL)端口: $NGINX_SSL_PORT (仅在 USE_SSL=true 时启用)"
+  echo "  主域名: $PRIMARY_DOMAIN"
+  echo "  备用域名: $ADDITIONAL_DOMAINS"
+  echo "  SSL启用: $USE_SSL"
+  echo "  反向代理: $BEHIND_PROXY"
+fi
+if [ "$DEPLOY_ARCHITECTURE" = "multi-container" ]; then
+  echo "  Postgres宿主端口: $POSTGRES_HOST_PORT"
+  echo "  Redis宿主端口: $REDIS_HOST_PORT"
+fi
 echo ""
 
 # 确保输出目录存在
@@ -64,8 +80,190 @@ fi
 # ========================================
 # 生成 docker-compose.yml
 # ========================================
-echo "生成 docker-compose.yml..."
-cat > "$OUTPUT_DIR/docker-compose-auto.yml" <<EOF
+echo "生成 docker-compose.yml (架构: $DEPLOY_ARCHITECTURE)..."
+
+if [ "$DEPLOY_ARCHITECTURE" = "all-in-one" ]; then
+  # ========================================
+  # All-in-One 模式: PostgreSQL + App 在同一容器
+  # ========================================
+  
+  if [ "$USE_NGINX" = "true" ]; then
+    # ========================================
+    # All-in-One + Nginx 模式
+    # ========================================
+    cat > "$OUTPUT_DIR/docker-compose-auto.yml" <<EOF
+# ========================================
+# All-in-One 部署模式 (带 Nginx)
+# ========================================
+# PostgreSQL 和 Next.js 应用运行在同一个容器中
+# Nginx 作为反向代理提供 SSL 终结和静态资源缓存
+# 
+# 架构: 用户 → Nginx (80/443) → App (3000) → PostgreSQL (内部)
+#
+# 日志系统:
+#   - /app/logs/postgresql/  PostgreSQL 日志
+#   - /app/logs/app/         Next.js 应用日志
+#   - /app/logs/combined.log 组合日志
+
+services:
+  # All-in-One 应用 (PostgreSQL + Next.js)
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.allinone
+    container_name: homelabs-app
+    restart: unless-stopped
+    # 不直接暴露端口，通过 Nginx 代理
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - LOGS_DIR=/app/logs
+      - LOG_LEVEL=${LOG_LEVEL}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - APP_URL=${APP_URL}
+      - DEBUG=\${DEBUG:-false}
+    networks:
+      - homelabs-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - app_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: homelabs-nginx
+    restart: unless-stopped
+    ports:
+${NGINX_PORTS}
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - homelabs-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    name: homelabs-postgres-data
+  app_logs:
+    name: homelabs-app-logs
+  nginx_logs:
+    name: homelabs-nginx-logs
+
+networks:
+  homelabs-network:
+    driver: bridge
+    name: homelabs-network
+EOF
+
+  else
+    # ========================================
+    # All-in-One 纯净模式（无 Nginx）
+    # ========================================
+    cat > "$OUTPUT_DIR/docker-compose-auto.yml" <<EOF
+# ========================================
+# All-in-One 部署模式 (纯净版)
+# ========================================
+# 最简配置：只有一个容器包含 PostgreSQL + Next.js
+# 
+# 适用场景:
+#   - 开发/测试环境
+#   - 已有外部反向代理（如 Nginx、Traefik、Caddy）
+#   - 轻量级私域部署
+#
+# 架构: 用户 → App (${APP_PORT}) → PostgreSQL (内部)
+#
+# 日志系统:
+#   - /app/logs/postgresql/  PostgreSQL 日志
+#   - /app/logs/app/         Next.js 应用日志
+#   - /app/logs/combined.log 组合日志
+#
+# 查看日志:
+#   docker compose logs -f app
+#   docker compose exec app tail -f /app/logs/combined.log
+
+services:
+  # All-in-One 应用 (PostgreSQL + Next.js)
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.allinone
+    container_name: homelabs-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT}:3000"
+    environment:
+      - NODE_ENV=production
+      - LOGS_DIR=/app/logs
+      - LOG_LEVEL=${LOG_LEVEL}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - APP_URL=${APP_URL}
+      - DEBUG=\${DEBUG:-false}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - app_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  postgres_data:
+    name: homelabs-postgres-data
+  app_logs:
+    name: homelabs-app-logs
+EOF
+
+  fi
+
+else
+  # ========================================
+  # Multi-Container 模式: 传统分离架构
+  # ========================================
+  cat > "$OUTPUT_DIR/docker-compose-auto.yml" <<EOF
+# Multi-Container 部署模式
+# PostgreSQL、Redis、App、Nginx 分离部署
+
 services:
   # PostgreSQL 数据库
   postgres:
@@ -124,7 +322,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
       - REDIS_URL=redis://redis:6379
       # 调试模式: 设置为 true 可在API响应中看到详细错误信息
-      - DEBUG=${DEBUG:-false}
+      - DEBUG=\${DEBUG:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -173,21 +371,24 @@ networks:
     driver: bridge
 EOF
 
-echo "✅ docker-compose.yml 生成完成"
-
-# ========================================
-# 生成 nginx.conf
-# ========================================
-echo "生成 nginx.conf..."
-
-# 构建 server_name
-SERVER_NAMES="$PRIMARY_DOMAIN"
-if [ -n "$ADDITIONAL_DOMAINS" ]; then
-  SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
 fi
 
-# 生成基础配置
-cat > "$OUTPUT_DIR/docker/nginx-auto.conf" <<'NGINX_BASE'
+echo "✅ docker-compose.yml 生成完成 (架构: $DEPLOY_ARCHITECTURE)"
+
+# ========================================
+# 生成 nginx.conf（仅当启用 Nginx 时）
+# ========================================
+if [ "$USE_NGINX" = "true" ] || [ "$DEPLOY_ARCHITECTURE" = "multi-container" ]; then
+  echo "生成 nginx.conf..."
+
+  # 构建 server_name
+  SERVER_NAMES="$PRIMARY_DOMAIN"
+  if [ -n "$ADDITIONAL_DOMAINS" ]; then
+    SERVER_NAMES="$SERVER_NAMES $ADDITIONAL_DOMAINS"
+  fi
+
+  # 生成基础配置
+  cat > "$OUTPUT_DIR/docker/nginx-auto.conf" <<'NGINX_BASE'
 events {
     worker_connections 1024;
 }
@@ -327,12 +528,31 @@ cat >> "$OUTPUT_DIR/docker/nginx-auto.conf" <<'NGINX_MAIN'
 }
 NGINX_MAIN
 
-echo "✅ nginx.conf 生成完成"
+  echo "✅ nginx.conf 生成完成"
+else
+  echo "⏭️  跳过 nginx.conf 生成（USE_NGINX=false）"
+fi
+
 echo ""
 echo "==================================="
 echo "✅ 所有配置文件生成完成！"
 echo "==================================="
 echo "输出目录: $OUTPUT_DIR"
 echo "  - docker-compose-auto.yml"
-echo "  - docker/nginx-auto.conf"
-
+if [ "$USE_NGINX" = "true" ] || [ "$DEPLOY_ARCHITECTURE" = "multi-container" ]; then
+  echo "  - docker/nginx-auto.conf"
+fi
+echo ""
+echo "部署架构: $DEPLOY_ARCHITECTURE"
+if [ "$DEPLOY_ARCHITECTURE" = "all-in-one" ]; then
+  echo "  📦 使用 Dockerfile.allinone (PostgreSQL + App 合并)"
+  echo "  ✅ 数据库连接使用 localhost，无需跨容器通信"
+  if [ "$USE_NGINX" = "true" ]; then
+    echo "  🌐 Nginx 反向代理: 已启用"
+  else
+    echo "  🚀 纯净模式: 无 Nginx，直接暴露端口 $APP_PORT"
+  fi
+else
+  echo "  📦 使用传统 Dockerfile (多容器分离)"
+  echo "  ⚠️  数据库连接使用容器名称，需要 Docker 网络"
+fi

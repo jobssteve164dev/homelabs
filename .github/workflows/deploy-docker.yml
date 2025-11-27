@@ -21,6 +21,22 @@ on:
           - all          # 全部部署
           - app-only     # 仅应用
           - check        # 仅检查环境
+      deploy_architecture:
+        description: '部署架构'
+        required: true
+        default: 'all-in-one'
+        type: choice
+        options:
+          - all-in-one       # 单容器模式 (PostgreSQL + App 合并，推荐)
+          - multi-container  # 多容器模式 (传统分离架构)
+      use_nginx:
+        description: '启用 Nginx 反向代理'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'    # 不使用 Nginx（直接暴露应用端口，适合开发/已有外部代理）
+          - 'true'     # 使用 Nginx（提供 SSL 终结和静态资源缓存）
 
 jobs:
   deploy-docker:
@@ -30,7 +46,7 @@ jobs:
     - name: 设置默认部署模式
       id: set_deploy_mode
       run: |
-        # 当通过push事件（changelog变更）触发时，使用all模式
+        # 当通过push事件（changelog变更）触发时，使用默认值
         # 当手动触发时，使用用户选择的模式
         if [ -z "${{ inputs.deploy_mode }}" ]; then
           echo "DEPLOY_MODE=all" >> $GITHUB_ENV
@@ -38,6 +54,28 @@ jobs:
         else
           echo "DEPLOY_MODE=${{ inputs.deploy_mode }}" >> $GITHUB_ENV
           echo "📝 手动触发部署，使用选择模式: ${{ inputs.deploy_mode }}"
+        fi
+        
+        # 部署架构设置（默认使用 all-in-one 模式）
+        # all-in-one: PostgreSQL + App 在同一容器，避免跨容器网络问题
+        # multi-container: 传统分离架构
+        ARCH="${{ inputs.deploy_architecture }}"
+        if [ -z "$ARCH" ]; then
+          ARCH="${{ vars.DEPLOY_ARCHITECTURE || 'all-in-one' }}"
+        fi
+        echo "DEPLOY_ARCHITECTURE=$ARCH" >> $GITHUB_ENV
+        echo "📦 部署架构: $ARCH"
+        
+        # Nginx 开关设置（默认不使用）
+        USE_NGINX="${{ inputs.use_nginx }}"
+        if [ -z "$USE_NGINX" ]; then
+          USE_NGINX="${{ vars.USE_NGINX || 'false' }}"
+        fi
+        echo "USE_NGINX=$USE_NGINX" >> $GITHUB_ENV
+        if [ "$USE_NGINX" = "true" ]; then
+          echo "🌐 Nginx 反向代理: 已启用"
+        else
+          echo "🚀 Nginx 反向代理: 未启用（直接暴露应用端口）"
         fi
     
     - name: 检出代码
@@ -282,6 +320,8 @@ jobs:
       env:
         SSH_AUTH_SOCK: ${{ github.workspace }}/ssh-auth.sock
         DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || secrets.DEPLOY_ENVIRONMENT || 'local' }}
+        DEPLOY_ARCHITECTURE: ${{ env.DEPLOY_ARCHITECTURE }}
+        USE_NGINX: ${{ env.USE_NGINX }}
         PRIMARY_DOMAIN: ${{ vars.PRIMARY_DOMAIN || secrets.PRIMARY_DOMAIN || 'localhost' }}
         ADDITIONAL_DOMAINS: ${{ vars.ADDITIONAL_DOMAINS || secrets.ADDITIONAL_DOMAINS || '' }}
         USE_SSL: ${{ vars.USE_SSL || secrets.USE_SSL || 'false' }}
@@ -500,30 +540,53 @@ jobs:
           
           echo ''
           echo '验证关键Docker文件:'
-          if [ -f 'docker/Dockerfile' ]; then
-            echo '  ✅ docker/Dockerfile 存在'
-            # 验证是否包含Prisma CLI修复
-            if grep -q 'node_modules/.bin/prisma' docker/Dockerfile; then
-              echo '  ✅ Dockerfile 包含 Prisma CLI 修复'
-            else
-              echo '  ⚠️  警告: Dockerfile 可能缺少 Prisma CLI 修复'
-            fi
-          else
-            echo '  ❌ docker/Dockerfile 不存在！'
-            exit 1
-          fi
           
-          if [ -f 'docker/docker-entrypoint.sh' ]; then
-            echo '  ✅ docker/docker-entrypoint.sh 存在'
-            # 验证是否包含优化后的Prisma检测逻辑
-            if grep -q 'node_modules/prisma/build/index.js' docker/docker-entrypoint.sh; then
-              echo '  ✅ docker-entrypoint.sh 包含优化的 Prisma 检测逻辑'
+          # 检测部署架构
+          DEPLOY_ARCH="${{ env.DEPLOY_ARCHITECTURE }}"
+          echo "  📦 部署架构: $DEPLOY_ARCH"
+          
+          if [ "$DEPLOY_ARCH" = "all-in-one" ]; then
+            # All-in-One 模式检查
+            if [ -f 'docker/Dockerfile.allinone' ]; then
+              echo '  ✅ docker/Dockerfile.allinone 存在'
             else
-              echo '  ⚠️  警告: docker-entrypoint.sh 可能缺少优化'
+              echo '  ❌ docker/Dockerfile.allinone 不存在！'
+              exit 1
+            fi
+            
+            if [ -f 'docker/docker-entrypoint-allinone.sh' ]; then
+              echo '  ✅ docker/docker-entrypoint-allinone.sh 存在'
+            else
+              echo '  ❌ docker/docker-entrypoint-allinone.sh 不存在！'
+              exit 1
             fi
           else
-            echo '  ❌ docker/docker-entrypoint.sh 不存在！'
-            exit 1
+            # Multi-Container 模式检查
+            if [ -f 'docker/Dockerfile' ]; then
+              echo '  ✅ docker/Dockerfile 存在'
+              # 验证是否包含Prisma CLI修复
+              if grep -q 'node_modules/.bin/prisma' docker/Dockerfile; then
+                echo '  ✅ Dockerfile 包含 Prisma CLI 修复'
+              else
+                echo '  ⚠️  警告: Dockerfile 可能缺少 Prisma CLI 修复'
+              fi
+            else
+              echo '  ❌ docker/Dockerfile 不存在！'
+              exit 1
+            fi
+            
+            if [ -f 'docker/docker-entrypoint.sh' ]; then
+              echo '  ✅ docker/docker-entrypoint.sh 存在'
+              # 验证是否包含优化后的Prisma检测逻辑
+              if grep -q 'node_modules/prisma/build/index.js' docker/docker-entrypoint.sh; then
+                echo '  ✅ docker-entrypoint.sh 包含优化的 Prisma 检测逻辑'
+              else
+                echo '  ⚠️  警告: docker-entrypoint.sh 可能缺少优化'
+              fi
+            else
+              echo '  ❌ docker/docker-entrypoint.sh 不存在！'
+              exit 1
+            fi
           fi
           
           echo '✅ 代码传输验证完成'
@@ -546,10 +609,14 @@ jobs:
           exit 1
         fi
         
-        if [ ! -f "docker/nginx-auto.conf" ]; then
-          echo "❌ 错误: docker/nginx-auto.conf 文件不存在！"
-          echo "   配置文件生成可能失败"
-          exit 1
+        if [ "${{ env.USE_NGINX }}" = "true" ] || [ "${{ env.DEPLOY_ARCHITECTURE }}" = "multi-container" ]; then
+          if [ ! -f "docker/nginx-auto.conf" ]; then
+            echo "❌ 错误: docker/nginx-auto.conf 文件不存在！"
+            echo "   配置文件生成可能失败"
+            exit 1
+          fi
+        else
+          echo "⏭️  跳过 nginx.conf 验证（USE_NGINX=false）"
         fi
         
         # 上传配置文件到服务器（在代码传输之后，避免被删除）
@@ -565,16 +632,21 @@ jobs:
           exit 1
         fi
         
-        echo "上传 nginx.conf..."
-        if ! scp -o StrictHostKeyChecking=no \
-            -o ServerAliveInterval=60 \
-            -o ServerAliveCountMax=10 \
-            -o TCPKeepAlive=yes \
-            -P ${{ env.SSH_PORT }} \
-            docker/nginx-auto.conf \
-            ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker/nginx.conf; then
-          echo "❌ nginx.conf 上传失败！"
-          exit 1
+        # 上传 nginx.conf（仅当启用 Nginx 时）
+        if [ "${{ env.USE_NGINX }}" = "true" ] || [ "${{ env.DEPLOY_ARCHITECTURE }}" = "multi-container" ]; then
+          echo "上传 nginx.conf..."
+          if ! scp -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=60 \
+              -o ServerAliveCountMax=10 \
+              -o TCPKeepAlive=yes \
+              -P ${{ env.SSH_PORT }} \
+              docker/nginx-auto.conf \
+              ${{ env.SSH_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/docker/nginx.conf; then
+            echo "❌ nginx.conf 上传失败！"
+            exit 1
+          fi
+        else
+          echo "⏭️  跳过 nginx.conf 上传（USE_NGINX=false）"
         fi
         
         echo "✅ 配置文件上传完成"
@@ -589,14 +661,21 @@ jobs:
             exit 1
           fi
           
-          if [ ! -f 'docker/nginx.conf' ]; then
-            echo '❌ 错误: docker/nginx.conf 上传后验证失败！'
-            exit 1
+          USE_NGINX='${{ env.USE_NGINX }}'
+          DEPLOY_ARCH='${{ env.DEPLOY_ARCHITECTURE }}'
+          if [ \"\$USE_NGINX\" = \"true\" ] || [ \"\$DEPLOY_ARCH\" = \"multi-container\" ]; then
+            if [ ! -f 'docker/nginx.conf' ]; then
+              echo '❌ 错误: docker/nginx.conf 上传后验证失败！'
+              exit 1
+            fi
+            echo '✅ 配置文件验证成功'
+            echo '文件信息:'
+            ls -lh docker-compose.yml docker/nginx.conf
+          else
+            echo '✅ 配置文件验证成功（纯净模式，无 Nginx）'
+            echo '文件信息:'
+            ls -lh docker-compose.yml
           fi
-          
-          echo '✅ 配置文件验证成功'
-          echo '文件信息:'
-          ls -lh docker-compose.yml docker/nginx.conf
         "
         
         # 部署配置（SSL证书等）
@@ -708,16 +787,37 @@ jobs:
           # 验证Docker构建所需的关键文件
           echo ""
           echo "验证Docker构建文件..."
-          if [ ! -f "docker/Dockerfile" ]; then
-            echo "❌ 错误: docker/Dockerfile 文件不存在！"
-            echo "   请确保代码传输成功"
-            exit 1
-          fi
           
-          if [ ! -f "docker/docker-entrypoint.sh" ]; then
-            echo "❌ 错误: docker/docker-entrypoint.sh 文件不存在！"
-            echo "   请确保代码传输成功"
-            exit 1
+          # 检测部署架构
+          DEPLOY_ARCH="${{ env.DEPLOY_ARCHITECTURE }}"
+          echo "部署架构: $DEPLOY_ARCH"
+          
+          if [ "$DEPLOY_ARCH" = "all-in-one" ]; then
+            # All-in-One 模式
+            if [ ! -f "docker/Dockerfile.allinone" ]; then
+              echo "❌ 错误: docker/Dockerfile.allinone 文件不存在！"
+              echo "   请确保代码传输成功"
+              exit 1
+            fi
+            
+            if [ ! -f "docker/docker-entrypoint-allinone.sh" ]; then
+              echo "❌ 错误: docker/docker-entrypoint-allinone.sh 文件不存在！"
+              echo "   请确保代码传输成功"
+              exit 1
+            fi
+          else
+            # Multi-Container 模式
+            if [ ! -f "docker/Dockerfile" ]; then
+              echo "❌ 错误: docker/Dockerfile 文件不存在！"
+              echo "   请确保代码传输成功"
+              exit 1
+            fi
+            
+            if [ ! -f "docker/docker-entrypoint.sh" ]; then
+              echo "❌ 错误: docker/docker-entrypoint.sh 文件不存在！"
+              echo "   请确保代码传输成功"
+              exit 1
+            fi
           fi
           
           if [ ! -f "client/package.json" ]; then
@@ -1005,14 +1105,54 @@ jobs:
           
           echo ''
           echo '9. 检查数据库初始化状态:'
+          DEPLOY_ARCH='${{ env.DEPLOY_ARCHITECTURE }}'
+          if [ \"\$DEPLOY_ARCH\" = \"all-in-one\" ]; then
+            echo '  📦 All-in-One 模式: PostgreSQL 内嵌在 app 容器中'
+          fi
           if [ -n \"\$DOCKER_CMD\" ]; then
             if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
-              sg docker -c \"docker compose logs app\" | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+              sg docker -c \"docker compose logs app\" | grep -E '(Prisma|数据库|database|PostgreSQL)' | tail -10 || echo '未找到相关日志'
             else
-              sudo docker compose logs app | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+              sudo docker compose logs app | grep -E '(Prisma|数据库|database|PostgreSQL)' | tail -10 || echo '未找到相关日志'
             fi
           else
-            docker compose logs app | grep -E '(Prisma|数据库|database)' | tail -5 || echo '未找到相关日志'
+            docker compose logs app | grep -E '(Prisma|数据库|database|PostgreSQL)' | tail -10 || echo '未找到相关日志'
+          fi
+          
+          echo ''
+          echo '10. 验证日志系统:'
+          if [ \"\$DEPLOY_ARCH\" = \"all-in-one\" ]; then
+            echo '  📁 检查 All-in-One 日志目录结构...'
+            if [ -n \"\$DOCKER_CMD\" ]; then
+              if [ \"\$DOCKER_CMD\" = \"sg docker -c\" ]; then
+                sg docker -c \"docker compose exec -T app ls -la /app/logs/ 2>/dev/null\" || echo '  ⚠️ 无法访问日志目录'
+                echo '  --- PostgreSQL 日志文件 ---'
+                sg docker -c \"docker compose exec -T app ls -la /app/logs/postgresql/ 2>/dev/null\" || echo '  ⚠️ PostgreSQL 日志目录为空或不存在'
+                echo '  --- 应用日志文件 ---'
+                sg docker -c \"docker compose exec -T app ls -la /app/logs/app/ 2>/dev/null\" || echo '  ⚠️ 应用日志目录为空或不存在'
+                echo '  --- 组合日志最后10行 ---'
+                sg docker -c \"docker compose exec -T app tail -10 /app/logs/combined.log 2>/dev/null\" || echo '  ⚠️ 组合日志文件不存在或为空'
+              else
+                sudo docker compose exec -T app ls -la /app/logs/ 2>/dev/null || echo '  ⚠️ 无法访问日志目录'
+                echo '  --- PostgreSQL 日志文件 ---'
+                sudo docker compose exec -T app ls -la /app/logs/postgresql/ 2>/dev/null || echo '  ⚠️ PostgreSQL 日志目录为空或不存在'
+                echo '  --- 应用日志文件 ---'
+                sudo docker compose exec -T app ls -la /app/logs/app/ 2>/dev/null || echo '  ⚠️ 应用日志目录为空或不存在'
+                echo '  --- 组合日志最后10行 ---'
+                sudo docker compose exec -T app tail -10 /app/logs/combined.log 2>/dev/null || echo '  ⚠️ 组合日志文件不存在或为空'
+              fi
+            else
+              docker compose exec -T app ls -la /app/logs/ 2>/dev/null || echo '  ⚠️ 无法访问日志目录'
+              echo '  --- PostgreSQL 日志文件 ---'
+              docker compose exec -T app ls -la /app/logs/postgresql/ 2>/dev/null || echo '  ⚠️ PostgreSQL 日志目录为空或不存在'
+              echo '  --- 应用日志文件 ---'
+              docker compose exec -T app ls -la /app/logs/app/ 2>/dev/null || echo '  ⚠️ 应用日志目录为空或不存在'
+              echo '  --- 组合日志最后10行 ---'
+              docker compose exec -T app tail -10 /app/logs/combined.log 2>/dev/null || echo '  ⚠️ 组合日志文件不存在或为空'
+            fi
+            echo '  ✅ 日志系统验证完成'
+          else
+            echo '  Multi-Container 模式: 日志由各容器独立管理'
           fi
         "
         
@@ -1020,12 +1160,22 @@ jobs:
         echo "==================================="
         echo "✅ 部署完成！"
         echo "==================================="
-        echo "访问地址: http://${{ env.SERVER_HOST }}"
+        echo "部署架构: ${{ env.DEPLOY_ARCHITECTURE }}"
+        echo "Nginx: ${{ env.USE_NGINX }}"
+        if [ "${{ env.USE_NGINX }}" = "true" ]; then
+          echo "访问地址: http://${{ env.SERVER_HOST }}"
+        else
+          echo "访问地址: http://${{ env.SERVER_HOST }}:${{ vars.APP_PORT || '3000' }}"
+        fi
         echo ""
         echo "📊 查看日志:"
-        echo "  应用日志: docker compose logs -f app"
-        echo "  Nginx日志: docker compose logs -f nginx"
-        echo "  数据库日志: docker compose logs -f postgres"
+        echo "  容器输出: docker compose logs -f app"
+        if [ "${{ env.USE_NGINX }}" = "true" ] || [ "${{ env.DEPLOY_ARCHITECTURE }}" = "multi-container" ]; then
+          echo "  Nginx日志: docker compose logs -f nginx"
+        fi
+        if [ "${{ env.DEPLOY_ARCHITECTURE }}" = "multi-container" ]; then
+          echo "  数据库日志: docker compose logs -f postgres"
+        fi
         echo "  所有日志: docker compose logs -f"
         echo ""
         echo "📖 常用命令:"
@@ -1033,6 +1183,38 @@ jobs:
         echo "  停止服务: docker compose down"
         echo "  重启服务: docker compose restart"
         echo "  查看日志: docker compose logs -f [service]"
+        echo ""
+        if [ "${{ env.DEPLOY_ARCHITECTURE }}" = "all-in-one" ]; then
+          echo "💡 All-in-One 模式说明:"
+          echo "  - PostgreSQL 和 Next.js 运行在同一容器中"
+          echo "  - 数据库使用 localhost 连接，无需跨容器网络"
+          echo "  - 数据持久化在 postgres_data 卷中"
+          if [ "${{ env.USE_NGINX }}" = "false" ]; then
+            echo "  - 纯净模式：无 Nginx，直接访问端口 ${{ vars.APP_PORT || '3000' }}"
+          fi
+          echo ""
+          echo "📁 日志文件系统 (All-in-One):"
+          echo "  日志目录结构:"
+          echo "    /app/logs/"
+          echo "    ├── postgresql/     PostgreSQL 日志"
+          echo "    ├── app/            Next.js 应用日志"
+          echo "    └── combined.log    组合日志"
+          echo ""
+          echo "  查看日志文件:"
+          echo "    # 查看组合日志（推荐）"
+          echo "    docker compose exec app tail -f /app/logs/combined.log"
+          echo ""
+          echo "    # 查看 PostgreSQL 日志"
+          echo "    docker compose exec app tail -f /app/logs/postgresql/postgresql-\$(date +%Y-%m-%d).log"
+          echo ""
+          echo "    # 查看应用日志"
+          echo "    docker compose exec app tail -f /app/logs/app/app-\$(date +%Y-%m-%d).log"
+          echo ""
+          echo "    # 列出所有日志文件"
+          echo "    docker compose exec app ls -la /app/logs/"
+          echo "    docker compose exec app ls -la /app/logs/postgresql/"
+          echo "    docker compose exec app ls -la /app/logs/app/"
+        fi
     
     - name: 清理和回滚（失败时）
       if: ${{ failure() && env.DEPLOY_MODE != 'check' }}
