@@ -83,6 +83,7 @@ COPY --from=builder /app/package.json ./package.json
 
 # 复制管理脚本
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+RUN chmod +x ./scripts/*.sh 2>/dev/null || true
 
 # 复制启动脚本
 COPY docker/docker-entrypoint-allinone.sh ./docker-entrypoint.sh
