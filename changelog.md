@@ -17,3 +17,4 @@
 20251128-修复Docker All-in-One镜像缺失scripts目录：添加管理员提升脚本（promote-admin.ts）到容器中，解决部署后无法使用管理脚本的问题
 20251128-完善管理员提升功能：新增Docker环境包装脚本（promote-admin-docker.sh）自动处理DATABASE_URL环境变量、新增管理员提升完整指南文档（ADMIN_PROMOTION_GUIDE.md）、提供4种提升方式（包装脚本/手动环境变量/SQL直接操作/交互式SQL）、解决Docker容器内环境变量缺失导致脚本执行失败的问题
 202511281101-Docker健康检查机制全面优化：增加超时时间（10s→30s）和启动宽限期（90s→180s）、增加重试次数（3→5）、使用Node.js内置HTTP模块替代wget提高可靠性、健康检查端点增加超时控制和性能分级（healthy/degraded/unhealthy）、增强错误诊断和日志、新增健康检查优化文档（DOCKER_HEALTHCHECK_OPTIMIZATION.md）、彻底解决All-in-One模式健康检查持续报告不健康的问题
+202511281200-修复Docker健康检查数据库连接失败根本原因：修复docker-entrypoint-allinone.sh中DATABASE_URL环境变量未正确传递到Next.js进程的问题（使用显式export确保环境变量继承）、增强健康检查端点错误诊断（记录DATABASE_URL状态和详细错误信息）、改进启动脚本日志输出（启动前记录环境变量状态）、创建健康检查问题诊断文档（DOCKER_HEALTHCHECK_DIAGNOSIS.md）、恢复健康检查端点原始逻辑（数据库失败返回503而非绕过问题）、彻底解决健康检查显示不健康但网站可访问的根因问题
