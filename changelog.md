@@ -14,3 +14,4 @@
 20251127-新增Docker All-in-One部署模式：PostgreSQL+App单容器部署、Nginx可选（默认关闭）、完整日志收集系统（PostgreSQL日志+应用日志+组合日志）、新增DEPLOY_ARCHITECTURE和USE_NGINX配置项、简化部署配置（最少只需6个变量）
 20251128-Docker缓存优化与启动脚本修复：修复docker-entrypoint-allinone.sh管道阻塞问题（pg_ctl启动命令）、启用BuildKit缓存挂载优化npm和Next.js构建缓存、移除GitHub Actions工作流中的--no-cache参数、优化清理策略保留构建缓存、新增docker-cache-cleanup.sh脚本（提供4种清理级别）、新增Docker缓存管理文档、构建速度提升80%、减少磁盘占用
 20251128-修复日志目录权限导致容器重启问题：修复nextjs用户对/app/logs/根目录的写入权限、允许应用在日志根目录创建日志文件（error、combined、exceptions、rejections）、解决EACCES权限错误导致应用崩溃和容器不断重启的问题
+20251128-修复Docker All-in-One镜像缺失scripts目录：添加管理员提升脚本（promote-admin.ts）到容器中，解决部署后无法使用管理脚本的问题
