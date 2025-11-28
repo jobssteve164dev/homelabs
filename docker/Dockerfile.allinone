@@ -129,14 +129,33 @@ ENV HOSTNAME="0.0.0.0"
 # - timeout: 单次检查超时时间（增加到 30s 以应对数据库查询延迟）
 # - start-period: 容器启动宽限期（增加到 180s 以适应 PostgreSQL + Prisma + Next.js 启动）
 # - retries: 连续失败次数阈值（增加到 5 次以提高容错性）
+# 注意：健康检查脚本的错误输出会写入 stderr，Docker 会将其记录到容器日志中
 HEALTHCHECK --interval=30s --timeout=30s --start-period=180s --retries=5 \
     CMD node -e "const http = require('http'); \
         const req = http.get('http://localhost:3000/api/health', {timeout: 25000}, (res) => { \
-            if (res.statusCode === 200) { process.exit(0); } \
-            else { console.error('Health check failed: HTTP ' + res.statusCode); process.exit(1); } \
+            let data = ''; \
+            res.on('data', (chunk) => { data += chunk; }); \
+            res.on('end', () => { \
+                if (res.statusCode === 200) { \
+                    try { \
+                        const result = JSON.parse(data); \
+                        if (result.status === 'unhealthy') { \
+                            console.error('[Health Check] Service unhealthy:', JSON.stringify(result)); \
+                            process.exit(1); \
+                        } else { \
+                            process.exit(0); \
+                        } \
+                    } catch (e) { \
+                        process.exit(0); \
+                    } \
+                } else { \
+                    console.error('[Health Check] HTTP ' + res.statusCode + ': ' + data); \
+                    process.exit(1); \
+                } \
+            }); \
         }); \
-        req.on('error', (e) => { console.error('Health check error:', e.message); process.exit(1); }); \
-        req.on('timeout', () => { console.error('Health check timeout'); req.destroy(); process.exit(1); });" \
+        req.on('error', (e) => { console.error('[Health Check] Connection error:', e.message); process.exit(1); }); \
+        req.on('timeout', () => { console.error('[Health Check] Request timeout after 25s'); req.destroy(); process.exit(1); });" \
     || exit 1
 
 # 使用自定义启动脚本

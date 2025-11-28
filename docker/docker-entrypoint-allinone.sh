@@ -339,11 +339,24 @@ echo "  组合日志: $COMBINED_LOG"
 echo "=========================================="
 echo ""
 
-log_info "Next.js 应用启动中..."
-
 # 设置应用日志目录环境变量
 export APP_LOG_DIR="$APP_LOG_DIR"
 export LOGS_DIR="$LOG_DIR"
 
-# 以 nextjs 用户身份运行应用，并将输出同时写入日志文件
-exec su-exec nextjs sh -c "node server.js 2>&1 | tee -a '$APP_LOG_DIR/app-\$(date +%Y-%m-%d).log' '$COMBINED_LOG'"
+# 确保 DATABASE_URL 环境变量被正确传递
+# 注意：DATABASE_URL 已在脚本开头设置，但需要确保在 exec 时被继承
+log_info "环境变量检查:"
+log_info "  DATABASE_URL: ${DATABASE_URL:0:30}***"
+log_info "  NODE_ENV: ${NODE_ENV:-not set}"
+log_info "  PORT: ${PORT:-3000}"
+
+# 确保日志输出被刷新（在 exec 之前）
+sync 2>/dev/null || true
+
+log_info "Next.js 应用启动中..."
+
+# 以 nextjs 用户身份运行应用，并将输出同时写入日志文件和 stdout/stderr
+# 使用 env -i 保留所有环境变量，确保 DATABASE_URL 等关键变量被传递
+# 这样容器日志可以看到应用输出，同时文件日志也有完整记录
+# 健康检查的错误输出会通过 stderr 显示在容器日志中
+exec su-exec nextjs sh -c "export DATABASE_URL='$DATABASE_URL' && export NODE_ENV='${NODE_ENV:-production}' && export PORT='${PORT:-3000}' && node server.js 2>&1 | tee -a '$APP_LOG_DIR/app-\$(date +%Y-%m-%d).log' '$COMBINED_LOG'"

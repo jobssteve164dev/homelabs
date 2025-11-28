@@ -29,9 +29,14 @@ export async function GET() {
     
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[Health Check] Failed after ${duration}ms:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    // 数据库连接失败或超时
+    // 详细记录错误信息，包括环境变量和数据库连接信息
+    console.error(`[Health Check] Failed after ${duration}ms:`, errorMessage);
+    console.error(`[Health Check] DATABASE_URL:`, process.env.DATABASE_URL ? '***SET***' : 'NOT SET');
+    console.error(`[Health Check] Error details:`, error);
+    
+    // 数据库连接失败或超时 - 返回 503 表示服务不可用
     return NextResponse.json(
       { 
         status: 'unhealthy',
@@ -40,12 +45,17 @@ export async function GET() {
         services: {
           database: {
             status: 'disconnected',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: errorMessage
           },
           application: {
             status: 'running',
-            environment: process.env.NODE_ENV || 'unknown'
+            environment: process.env.NODE_ENV || 'unknown',
+            uptime: `${Math.floor(process.uptime())}s`
           }
+        },
+        diagnostics: {
+          databaseUrlSet: !!process.env.DATABASE_URL,
+          nodeVersion: process.version
         }
       },
       { status: 503 }
@@ -86,7 +96,7 @@ async function performHealthCheck() {
   
   const totalDuration = Date.now() - checkStartTime;
   
-  // 如果数据库完全不可用，返回不健康状态
+  // 如果数据库完全不可用，抛出错误（会被 catch 块捕获并返回 503）
   if (dbStatus === 'disconnected') {
     throw new Error(dbError || 'Database disconnected');
   }
