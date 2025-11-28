@@ -45,7 +45,7 @@ echo "0️⃣  初始化日志系统..."
 
 # 创建日志目录结构
 mkdir -p "$PG_LOG_DIR" "$APP_LOG_DIR"
-chmod 755 "$LOG_DIR" "$PG_LOG_DIR" "$APP_LOG_DIR"
+chmod 755 "$PG_LOG_DIR" "$APP_LOG_DIR"
 
 # PostgreSQL 日志目录需要 postgres 用户权限
 chown -R postgres:postgres "$PG_LOG_DIR"
@@ -56,6 +56,11 @@ chown -R nextjs:nodejs "$APP_LOG_DIR"
 # 初始化组合日志文件
 touch "$COMBINED_LOG"
 chmod 666 "$COMBINED_LOG"
+
+# 给 nextjs 用户对整个日志根目录的写入权限
+# 这样应用可以在 /app/logs/ 下直接创建日志文件
+chown nextjs:nodejs "$LOG_DIR"
+chmod 775 "$LOG_DIR"
 
 log_info "日志系统初始化完成"
 log_info "日志目录结构:"

@@ -99,14 +99,17 @@ ENV LOGS_DIR=/app/logs
 RUN mkdir -p /app/logs/postgresql \
     && mkdir -p /app/logs/app \
     && touch /app/logs/combined.log \
-    && chmod 755 /app/logs /app/logs/postgresql /app/logs/app \
+    && chmod 755 /app/logs/postgresql /app/logs/app \
     && chmod 666 /app/logs/combined.log
 
-# 设置日志目录权限（postgres 用户需要写入 postgresql 目录）
-# nextjs 用户需要写入 app 目录
-# 两者都需要写入 combined.log
+# 设置日志目录权限
+# - postgres 用户需要写入 postgresql 子目录
+# - nextjs 用户需要写入 app 子目录和根目录（用于创建日志文件）
+# - 两者都需要写入 combined.log
 RUN chown -R postgres:postgres /app/logs/postgresql \
-    && chown -R nextjs:nodejs /app/logs/app
+    && chown -R nextjs:nodejs /app/logs/app \
+    && chown nextjs:nodejs /app/logs \
+    && chmod 775 /app/logs
 
 # 暴露端口
 EXPOSE 3000
