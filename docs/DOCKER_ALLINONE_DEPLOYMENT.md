@@ -252,14 +252,51 @@ docker compose exec app grep "duration:" /app/logs/postgresql/postgresql-$(date 
 
 ---
 
+## 🏥 健康检查说明
+
+All-in-One 模式使用优化的健康检查机制：
+
+### 健康检查参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| interval | 30s | 每30秒检查一次 |
+| timeout | 30s | 单次检查最多等待30秒 |
+| start-period | 180s | 容器启动后前3分钟不计入健康状态 |
+| retries | 5 | 连续5次失败才标记为不健康 |
+
+### 启动时间线
+
+```
+T+0s:    容器启动
+T+120s:  所有服务启动完成
+T+180s:  首次健康检查（宽限期结束）
+T+240s:  容器标记为健康
+```
+
+### 查看健康状态
+
+```bash
+# 查看容器健康状态
+docker inspect homelabs-allinone | jq '.[0].State.Health'
+
+# 手动测试健康检查端点
+curl http://localhost:3000/api/health | jq
+```
+
+> 💡 **详细信息**：查看 [健康检查优化文档](./DOCKER_HEALTHCHECK_OPTIMIZATION.md) 了解完整的健康检查机制说明、故障排查和性能基准。
+
+---
+
 ## 📚 相关文档
 
+- [健康检查优化文档](./DOCKER_HEALTHCHECK_OPTIMIZATION.md) ⭐ 新增
 - [Variables vs Secrets 完整指南](./VARIABLES_VS_SECRETS.md)
 - [非 Docker 部署文档](./DEPLOYMENT.md)
 - [Docker 故障排除](./DOCKER_DEPLOYMENT_TROUBLESHOOTING.md)
 
 ---
 
-**最后更新**: 2025-11-27
+**最后更新**: 2025-11-28
 **维护者**: AI Assistant
 

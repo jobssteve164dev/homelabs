@@ -123,9 +123,20 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+# 健康检查优化 (All-in-One 模式)
+# - interval: 健康检查间隔时间
+# - timeout: 单次检查超时时间（增加到 30s 以应对数据库查询延迟）
+# - start-period: 容器启动宽限期（增加到 180s 以适应 PostgreSQL + Prisma + Next.js 启动）
+# - retries: 连续失败次数阈值（增加到 5 次以提高容错性）
+HEALTHCHECK --interval=30s --timeout=30s --start-period=180s --retries=5 \
+    CMD node -e "const http = require('http'); \
+        const req = http.get('http://localhost:3000/api/health', {timeout: 25000}, (res) => { \
+            if (res.statusCode === 200) { process.exit(0); } \
+            else { console.error('Health check failed: HTTP ' + res.statusCode); process.exit(1); } \
+        }); \
+        req.on('error', (e) => { console.error('Health check error:', e.message); process.exit(1); }); \
+        req.on('timeout', () => { console.error('Health check timeout'); req.destroy(); process.exit(1); });" \
+    || exit 1
 
 # 使用自定义启动脚本
 ENTRYPOINT ["./docker-entrypoint.sh"]
