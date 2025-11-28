@@ -132,12 +132,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - app_logs:/app/logs
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 90s
     logging:
       driver: "json-file"
       options:
@@ -235,12 +229,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - app_logs:/app/logs
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 90s
     logging:
       driver: "json-file"
       options:
