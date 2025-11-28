@@ -5,7 +5,7 @@
 FROM node:20-alpine AS base
 
 # ========================================
-# 阶段1: 安装依赖
+# 阶段1: 安装依赖（启用缓存挂载优化）
 # ========================================
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
@@ -13,20 +13,28 @@ WORKDIR /app
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY client/package*.json ./
-RUN npm ci --only=production --ignore-scripts
+# 使用 BuildKit 缓存挂载来缓存 npm 依赖
+# 这将大幅减少构建时间和磁盘占用
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production --ignore-scripts
 
 # ========================================
-# 阶段2: 构建应用
+# 阶段2: 构建应用（启用缓存挂载优化）
 # ========================================
 FROM base AS builder
 WORKDIR /app
 COPY client/package*.json ./
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
-RUN npm ci --ignore-scripts
+# 使用 BuildKit 缓存挂载来缓存 npm 依赖
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --ignore-scripts
 
 COPY client/ ./
-RUN npx prisma generate
-RUN npm run build
+# 使用缓存挂载优化 Prisma 生成和 Next.js 构建
+RUN --mount=type=cache,target=/app/.next/cache \
+    npx prisma generate
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # ========================================
 # 阶段3: 生产镜像 (All-in-One)

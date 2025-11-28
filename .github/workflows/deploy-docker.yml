@@ -460,14 +460,23 @@ jobs:
               echo '   ℹ️  未找到docker-compose.yml，跳过容器停止'
             fi
             
-            echo '2️⃣  清理当前项目的未使用资源...'
-            # 只清理当前项目的镜像，不影响其他服务
+            echo '2️⃣  智能清理未使用资源（保留构建缓存）...'
+            # 只清理当前项目的旧镜像和悬空镜像，保留构建缓存
             if [ -f docker-compose.yml ]; then
+              # 清理悬空镜像（<none>:<none>）
+              DANGLING_IMAGES=\$(docker images -f "dangling=true" -q 2>/dev/null || true)
+              if [ -n \"\$DANGLING_IMAGES\" ]; then
+                echo '   🗑️  清理悬空镜像...'
+                docker rmi \$DANGLING_IMAGES 2>/dev/null || true
+                echo '   ✅ 悬空镜像已清理'
+              fi
+              
               # 只删除明确属于当前项目的旧镜像（通过镜像名称匹配）
-              # 查找 homelabs 相关的镜像（通过名称过滤，避免影响其他服务）
+              # 查找 homelabs 相关的镜像（通过名称过滤，避免其他服务）
               HOMELABS_IMAGES=\$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep -E 'homelabs|localhost.*homelabs' | awk '{print \$2}' | sort -u 2>/dev/null || true)
               if [ -n \"\$HOMELABS_IMAGES\" ]; then
                 # 只删除未被任何容器使用的镜像
+                echo '   🔍 检查未使用的项目镜像...'
                 for img_id in \$HOMELABS_IMAGES; do
                   # 检查镜像是否被任何容器使用
                   if ! docker ps -a --filter \"ancestor=\$img_id\" --format '{{.ID}}' | grep -q .; then
@@ -478,6 +487,9 @@ jobs:
               else
                 echo '   ℹ️  未找到 homelabs 相关镜像'
               fi
+              
+              # 注意：不清理构建缓存，保留以加速后续构建
+              echo '   💾 构建缓存已保留（用于加速后续构建）'
             else
               echo '   ℹ️  未找到docker-compose.yml，跳过镜像清理'
             fi
@@ -859,21 +871,25 @@ jobs:
             echo "✅ Docker权限正常"
           fi
           
-          echo "🔨 构建Docker镜像..."
-          echo "注意: 构建过程可能需要较长时间，请耐心等待..."
+          echo "🔨 构建Docker镜像（启用缓存优化）..."
+          echo "注意: 首次构建可能需要较长时间，后续构建将使用缓存加速..."
+          
+          # 启用 BuildKit 以支持缓存挂载
+          export DOCKER_BUILDKIT=1
+          export COMPOSE_DOCKER_CLI_BUILD=1
           
           # 使用nohup和重定向输出，确保即使SSH断开也能继续构建
           BUILD_LOG="/tmp/docker-build-$(date +%s).log"
           if [ -n "$DOCKER_CMD" ]; then
             if [ "$DOCKER_CMD" = "sg docker -c" ]; then
-              if ! sg docker -c "docker compose build --no-cache 2>&1 | tee $BUILD_LOG"; then
+              if ! sg docker -c "DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build 2>&1 | tee $BUILD_LOG"; then
                 echo "❌ Docker镜像构建失败！"
                 echo "构建日志（最后50行）:"
                 tail -50 "$BUILD_LOG" 2>/dev/null || echo "无法读取构建日志"
                 exit 1
               fi
             else
-              if ! sudo docker compose build --no-cache 2>&1 | tee "$BUILD_LOG"; then
+              if ! sudo DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build 2>&1 | tee "$BUILD_LOG"; then
                 echo "❌ Docker镜像构建失败！"
                 echo "构建日志（最后50行）:"
                 tail -50 "$BUILD_LOG" 2>/dev/null || echo "无法读取构建日志"
@@ -881,7 +897,7 @@ jobs:
               fi
             fi
           else
-            if ! docker compose build --no-cache 2>&1 | tee "$BUILD_LOG"; then
+            if ! DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build 2>&1 | tee "$BUILD_LOG"; then
               echo "❌ Docker镜像构建失败！"
               echo "构建日志（最后50行）:"
               tail -50 "$BUILD_LOG" 2>/dev/null || echo "无法读取构建日志"

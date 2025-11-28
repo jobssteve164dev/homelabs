@@ -1,21 +1,103 @@
-Run echo "==================================="
-===================================
-备份当前版本...
-===================================
-📦 创建备份: opt/homelabs_backup_20251119_170902
-🔐 创建备份目录（需要sudo权限）...
-🔄 开始备份...
-rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/client" failed: No space left on device (28)
-*** Skipping any contents from this failed directory ***
-rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/docker" failed: No space left on device (28)
-*** Skipping any contents from this failed directory ***
-rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/docs" failed: No space left on device (28)
-*** Skipping any contents from this failed directory ***
-rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/scripts" failed: No space left on device (28)
-*** Skipping any contents from this failed directory ***
-rsync: [generator] recv_generator: mkdir "/home/ubuntu/opt/homelabs_backup_20251119_170902/template" failed: No space left on device (28)
-*** Skipping any contents from this failed directory ***
-rsync: [receiver] write failed on "/home/ubuntu/opt/homelabs_backup_20251119_170902/.gitignore": No space left on device (28)
-rsync error: error in file IO (code 11) at receiver.c(380) [receiver=3.2.7]
-❌ 备份失败！
-Error: Process completed with exit code 1.
+ubuntu@VM-4-16-ubuntu:~$ # 查看容器内的完整日志文件（启动脚本应该在这里记录）
+docker exec homelabs-app cat /app/logs/combined.log
+
+# 或者查看最新的100行
+docker exec homelabs-app tail -100 /app/logs/combined.log
+
+# 检查启动脚本进程的状态
+docker exec homelabs-app cat /proc/1/status
+
+# 尝试手动在容器内连接数据库，看看第3步是否能执行
+docker exec homelabs-app su-exec postgres pg_isready -q && echo "数据库就绪" || echo "数据库未就绪"
+
+# 查看数据库中是否已创建用户和数据库
+docker exec homelabs-app su-exec postgres psql -c "\l" | grep homelabs
+docker exec homelabs-app su-exec postgres psql -c "\du" | grep homelabs
+[2025-11-27 12:17:44] [INFO] 日志系统初始化完成
+[2025-11-27 12:17:44] [INFO] 日志目录结构:
+[2025-11-27 12:17:44] [INFO]   - PostgreSQL 日志: /app/logs/postgresql
+[2025-11-27 12:17:44] [INFO]   - 应用日志: /app/logs/app
+[2025-11-27 12:17:44] [INFO]   - 组合日志: /app/logs/combined.log
+[2025-11-27 12:17:44] [INFO] 1️⃣  初始化 PostgreSQL...
+[2025-11-27 12:17:44] [INFO] 首次启动，初始化数据库...
+[2025-11-27 12:17:46] [INFO] 数据库初始化完成
+[2025-11-27 12:17:46] [INFO] 2️⃣  启动 PostgreSQL...
+waiting for server to start....2025-11-27 12:17:46 UTC [37]: [1-1] user=,db=,app=,client= LOG:  redirecting log output to logging collector process
+2025-11-27 12:17:46 UTC [37]: [2-1] user=,db=,app=,client= HINT:  Future log output will appear in directory "/app/logs/postgresql".
+ done
+server started
+[2025-11-27 12:17:44] [INFO] 日志系统初始化完成
+[2025-11-27 12:17:44] [INFO] 日志目录结构:
+[2025-11-27 12:17:44] [INFO]   - PostgreSQL 日志: /app/logs/postgresql
+[2025-11-27 12:17:44] [INFO]   - 应用日志: /app/logs/app
+[2025-11-27 12:17:44] [INFO]   - 组合日志: /app/logs/combined.log
+[2025-11-27 12:17:44] [INFO] 1️⃣  初始化 PostgreSQL...
+[2025-11-27 12:17:44] [INFO] 首次启动，初始化数据库...
+[2025-11-27 12:17:46] [INFO] 数据库初始化完成
+[2025-11-27 12:17:46] [INFO] 2️⃣  启动 PostgreSQL...
+waiting for server to start....2025-11-27 12:17:46 UTC [37]: [1-1] user=,db=,app=,client= LOG:  redirecting log output to logging collector process
+2025-11-27 12:17:46 UTC [37]: [2-1] user=,db=,app=,client= HINT:  Future log output will appear in directory "/app/logs/postgresql".
+ done
+server started
+Name:   docker-entrypoi
+Umask:  0022
+State:  S (sleeping)
+Tgid:   1
+Ngid:   0
+Pid:    1
+PPid:   0
+TracerPid:      0
+Uid:    0       0       0       0
+Gid:    0       0       0       0
+FDSize: 256
+Groups: 0 1 2 3 4 6 10 11 20 26 27 
+NStgid: 1
+NSpid:  1
+NSpgid: 1
+NSsid:  1
+Kthread:        0
+VmPeak:     2388 kB
+VmSize:     2384 kB
+VmLck:         0 kB
+VmPin:         0 kB
+VmHWM:      1664 kB
+VmRSS:       256 kB
+RssAnon:             128 kB
+RssFile:             128 kB
+RssShmem:              0 kB
+VmData:      276 kB
+VmStk:       132 kB
+VmExe:       436 kB
+VmLib:       632 kB
+VmPTE:        48 kB
+VmSwap:      128 kB
+HugetlbPages:          0 kB
+CoreDumping:    0
+THP_enabled:    1
+untag_mask:     0xffffffffffffffff
+Threads:        1
+SigQ:   2/6563
+SigPnd: 0000000000000000
+ShdPnd: 0000000000010000
+SigBlk: 0000000000010000
+SigIgn: 0000000000000004
+SigCgt: 0000000000010002
+CapInh: 0000000000000000
+CapPrm: 00000000a80425fb
+CapEff: 00000000a80425fb
+CapBnd: 00000000a80425fb
+CapAmb: 0000000000000000
+NoNewPrivs:     0
+Seccomp:        2
+Seccomp_filters:        1
+Speculation_Store_Bypass:       vulnerable
+SpeculationIndirectBranch:      always enabled
+Cpus_allowed:   3
+Cpus_allowed_list:      0-1
+Mems_allowed:   00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001
+Mems_allowed_list:      0
+voluntary_ctxt_switches:        72
+nonvoluntary_ctxt_switches:     223
+x86_Thread_features:
+x86_Thread_features_locked:
+数据库就绪
