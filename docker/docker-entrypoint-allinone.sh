@@ -178,7 +178,8 @@ chown postgres:postgres /run/postgresql
 
 # 启动 PostgreSQL（使用日志收集器）
 # 注意：当 logging_collector = on 时，不需要 -l 参数
-su-exec postgres pg_ctl -D "$PGDATA" -w start 2>&1 | tee -a "$COMBINED_LOG"
+# 直接启动，不使用 tee 避免管道阻塞
+su-exec postgres pg_ctl -D "$PGDATA" -w start >> "$COMBINED_LOG" 2>&1
 
 log_info "PostgreSQL 已启动"
 
